@@ -1,63 +1,21 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-import platform
-import os
-import re
+from playwright.sync_api import sync_playwright
 from fuzzywuzzy import fuzz
+import re
 
 class MaterialScraper:
     def __init__(self):
-        # Browser initialiseren
-        self.driver = None
         self._seen_size_fields = set()
         # Minimum score voor fuzzy matching
         self.MIN_FUZZY_SCORE = 80
-        try:
-            # Chrome opties configureren
-            chrome_options = Options()
-            chrome_options.add_argument('--headless')
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            
-            # Detecteer Apple Silicon
-            if platform.processor() == 'arm':
-                chrome_path = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-                if os.path.exists(chrome_path):
-                    chrome_options.binary_location = chrome_path
-            
-            self.driver = webdriver.Chrome(options=chrome_options)
-            self.wait = WebDriverWait(self.driver, 10)
-            
-        except Exception as e:
-            print(f"Error bij initialiseren van de browser: {str(e)}")
 
     def analyze_form_fields(self, url):
         """Analyseert een pagina om specifieke dimensie velden te vinden"""
-        if not self.driver:
-            raise ValueError("Browser is niet correct geïnitialiseerd")
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url)
             
-        try:
-            self.driver.get(url)
-            
-            # Zoek eerst naar dimensievelden
-            dimension_elements = self.driver.find_elements(By.CSS_SELECTOR, 'input, select, [contenteditable="true"]')
-            
-            # Zoek apart naar prijselementen met XPath voor tekst matching
-            price_elements = self.driver.find_elements(By.XPATH, 
-                ".//*[contains(@id,'price') or contains(@id,'Price') or contains(@id,'prijs') or " +
-                "contains(@id,'Prijs') or contains(@class,'price') or contains(@class,'Price') or " +
-                "contains(@class,'prijs') or contains(@class,'Prijs') or contains(text(),'€') or " +
-                "contains(text(),'EUR') or contains(translate(text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'per m2') or " +
-                "contains(translate(text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'per m²')]" +
-                "[not(contains(@class,'totalprice'))][not(ancestor::*[@id='basket'])]"
-            )
-            
-            # Categorieën voor verschillende type velden
+            # Zoek naar dimensievelden
             dimension_fields = {
                 'dikte': [],
                 'lengte': [],
@@ -65,8 +23,11 @@ class MaterialScraper:
                 'prijs': []
             }
             
+            # Zoek alle relevante elementen
+            elements = page.query_selector_all('input, select, [contenteditable="true"]')
+            
             # Verwerk dimensievelden
-            for element in dimension_elements:
+            for element in elements:
                 field_info = self._get_field_info(element)
                 if not field_info:
                     continue
@@ -77,6 +38,13 @@ class MaterialScraper:
                     # Valideer de waarde als die beschikbaar is
                     if self._validate_dimension_value(dimension_type, field_info.get('value')):
                         dimension_fields[dimension_type].append(field_info)
+            
+            # Zoek apart naar prijselementen
+            price_elements = page.query_selector_all(
+                '[id*="price"], [id*="Price"], [id*="prijs"], [id*="Prijs"], ' +
+                '[class*="price"], [class*="Price"], [class*="prijs"], [class*="Prijs"], ' +
+                ':text-matches("€|EUR|per m2|per m²", "i")'
+            )
             
             # Verwerk prijselementen
             for element in price_elements:
@@ -89,28 +57,12 @@ class MaterialScraper:
                 if dim_type != 'prijs':  # Prijsvelden nog niet sorteren
                     dimension_fields[dim_type] = self._sort_fields_by_reliability(dimension_fields[dim_type])
             
-            # Vind het prijselement dat het dichtst bij de dimensievelden ligt
-            if dimension_fields['prijs'] and any(dimension_fields[dim_type] for dim_type in ['dikte', 'lengte', 'breedte']):
-                # Verzamel XPaths van dimensievelden
-                dim_xpaths = []
-                for dim_type in ['dikte', 'lengte', 'breedte']:
-                    if dimension_fields[dim_type]:
-                        xpath = dimension_fields[dim_type][0].get('xpath')
-                        if xpath:
-                            dim_xpaths.append(xpath)
-                
-                if dim_xpaths:
-                    # Sorteer prijselementen op basis van afstand tot dimensievelden
-                    dimension_fields['prijs'].sort(key=lambda x: self._calculate_xpath_distance(x.get('xpath', ''), dim_xpaths))
+            browser.close()
             
             return {
                 'url': url,
                 'dimension_fields': dimension_fields
             }
-
-        except Exception as e:
-            print(f"Error tijdens analyseren: {str(e)}")
-            return None
     
     def _get_field_info(self, element):
         """Verzamelt alle relevante informatie over een form element"""
@@ -121,7 +73,7 @@ class MaterialScraper:
                 return None
             
             info = {
-                'tag': element.tag_name,
+                'tag': element.evaluate('el => el.tagName.toLowerCase()'),
                 'type': element_type,
                 'id': element.get_attribute('id'),
                 'name': element.get_attribute('name'),
@@ -136,7 +88,7 @@ class MaterialScraper:
                 info['label'] = label
 
             # Zoek naar prijsinformatie in het element en omliggende elementen
-            element_text = element.text.lower() if element.text else ''
+            element_text = element.inner_text() or ''
             element_id = (info['id'] or '').lower()
             element_class = (info['class'] or '').lower()
             
@@ -161,9 +113,6 @@ class MaterialScraper:
                         info['price_value'] = price_match.group(1).replace(',', '.')
                         info['price_type'] = 'total'
 
-            # Voeg XPath toe voor afstandsberekening
-            info['xpath'] = self._get_element_xpath(element)
-            
             # Filter lege waardes
             return {k: v for k, v in info.items() if v}
             
@@ -171,30 +120,30 @@ class MaterialScraper:
             print(f"Error bij verwerken element: {str(e)}")
             return None
 
-    def _get_element_xpath(self, element):
-        """Genereer XPath voor een element"""
+    def _find_label_for_element(self, element):
+        """Zoekt het label dat bij een form element hoort"""
         try:
-            return self.driver.execute_script("""
-                function getPathTo(element) {
-                    if (element.id !== '')
-                        return `//*[@id="${element.id}"]`;
-                    if (element === document.body)
-                        return '/html/body';
-
-                    let ix = 0;
-                    let siblings = element.parentNode.childNodes;
-
-                    for (let sibling of siblings) {
-                        if (sibling === element)
-                            return getPathTo(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + (ix + 1) + ']';
-                        if (sibling.nodeType === 1 && sibling.tagName === element.tagName)
-                            ix++;
-                    }
-                }
-                return getPathTo(arguments[0]);
-            """, element)
-        except:
-            return None
+            # Probeer label te vinden via for attribute
+            element_id = element.get_attribute('id')
+            if element_id:
+                label = element.evaluate(f'el => document.querySelector(\'label[for="{element_id}"]\')?.textContent')
+                if label:
+                    return label.strip()
+            
+            # Probeer label te vinden als parent element
+            parent = element.evaluate('el => el.parentElement')
+            if parent and parent.tag_name.lower() == 'label':
+                return parent.inner_text().strip()
+            
+            # Zoek naar een label in de buurt
+            nearby_label = element.evaluate('el => el.previousElementSibling?.tagName === "LABEL" ? el.previousElementSibling.textContent : null')
+            if nearby_label:
+                return nearby_label.strip()
+                
+        except Exception:
+            pass
+        
+        return None
 
     def _fuzzy_match(self, text, terms, min_score=None):
         """Fuzzy matching voor een tekst tegen een lijst van termen"""
@@ -372,61 +321,4 @@ class MaterialScraper:
                 
             unique_fields.append(field)
             
-        return unique_fields
-
-    def _find_label_for_element(self, element):
-        """Zoekt het label dat bij een form element hoort"""
-        try:
-            # Probeer label te vinden via for attribute
-            element_id = element.get_attribute('id')
-            if element_id:
-                label = self.driver.find_element(By.CSS_SELECTOR, f'label[for="{element_id}"]')
-                if label:
-                    return label.text.strip()
-            
-            # Probeer label te vinden als parent element
-            parent = element.find_element(By.XPATH, '..')
-            if parent.tag_name == 'label':
-                return parent.text.strip()
-            
-            # Zoek naar een label in de buurt
-            nearby_label = element.find_element(By.XPATH, './preceding::label[1]')
-            if nearby_label:
-                return nearby_label.text.strip()
-                
-        except NoSuchElementException:
-            pass
-        
-        return None
-        
-    def _calculate_xpath_distance(self, price_xpath, dim_xpaths):
-        """Bereken de 'afstand' tussen XPaths door gemeenschappelijke voorouders te tellen"""
-        if not price_xpath:
-            return float('inf')
-        
-        total_distance = 0
-        for dim_xpath in dim_xpaths:
-            # Split paths
-            price_parts = price_xpath.split('/')
-            dim_parts = dim_xpath.split('/')
-            
-            # Vind gemeenschappelijke voorouders
-            common_length = 0
-            for i in range(min(len(price_parts), len(dim_parts))):
-                if price_parts[i] == dim_parts[i]:
-                    common_length += 1
-                else:
-                    break
-            
-            # Bereken afstand
-            distance = (len(price_parts) - common_length) + (len(dim_parts) - common_length)
-            total_distance += distance
-        
-        return total_distance / len(dim_xpaths)  # Gemiddelde afstand tot alle dimensievelden
-
-    def __del__(self):
-        if hasattr(self, 'driver') and self.driver:
-            try:
-                self.driver.quit()
-            except:
-                pass 
+        return unique_fields 

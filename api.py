@@ -1,29 +1,61 @@
 from fastapi import FastAPI, HTTPException
-from scraper import MaterialScraper
 from pydantic import BaseModel
-import uvicorn
+from price_calculator import PriceCalculator
+from scraper import MaterialScraper
 
-app = FastAPI(
-    title="Materiaal Dimensie Analyzer API",
-    description="API voor het analyseren van dimensie velden op webpagina's",
-    version="1.0.0"
-)
+app = FastAPI()
 
-class ScrapeRequest(BaseModel):
+class URLInput(BaseModel):
     url: str
+    dimensions: dict = {
+        'dikte': 2,
+        'lengte': 1000,
+        'breedte': 1000
+    }
 
-@app.post("/analyze")
-async def analyze_url(request: ScrapeRequest):
+class PriceResponse(BaseModel):
+    price_excl_btw: float
+    price_incl_btw: float
+
+class AnalyzeResponse(BaseModel):
+    url: str
+    dimension_fields: dict
+
+@app.post("/analyze", response_model=AnalyzeResponse)
+async def analyze_url(input: URLInput):
     try:
+        # Initialiseer scraper
         scraper = MaterialScraper()
-        results = scraper.analyze_form_fields(request.url)
         
-        if not results:
-            raise HTTPException(status_code=404, detail="Geen dimensie velden gevonden")
-            
-        return results
+        # Analyseer de URL
+        results = scraper.analyze_form_fields(input.url)
+        
+        return AnalyzeResponse(
+            url=input.url,
+            dimension_fields=results['dimension_fields']
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+@app.post("/price", response_model=PriceResponse)
+async def get_price(input: URLInput):
+    try:
+        # Initialiseer calculator
+        calculator = PriceCalculator()
+        
+        # Bereken prijzen
+        excl_btw, incl_btw = calculator.calculate_price(
+            url=input.url,
+            dimensions=input.dimensions
+        )
+        
+        return PriceResponse(
+            price_excl_btw=excl_btw,
+            price_incl_btw=incl_btw
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/")
+async def root():
+    return {"message": "Welkom bij de Materiaal Prijs API"} 

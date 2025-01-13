@@ -98,13 +98,13 @@ async def calculate_price(input: DimensionsInput):
         calculator = PriceCalculator()
         
         # Eerst de velden analyseren
-        results = await scraper.analyze_form_fields(input.url)
+        dimension_fields = await scraper.analyze_form_fields(input.url)
         
         # Dan de prijs berekenen (altijd eerst in EUR)
         price_excl_vat, price_incl_vat = await calculator.calculate_price(
             url=input.url,
             dimensions=input.dimensions,
-            dimension_fields=results['dimension_fields']
+            dimension_fields=dimension_fields
         )
         
         # Als beide prijzen 0 zijn, is er waarschijnlijk een fout opgetreden
@@ -149,11 +149,11 @@ async def analyze_url(input: URLInput):
     """
     try:
         scraper = MaterialScraper()
-        results = await scraper.analyze_form_fields(input.url)
+        dimension_fields = await scraper.analyze_form_fields(input.url)
         
         return AnalyzeResponse(
             url=input.url,
-            dimension_fields=results['dimension_fields']
+            dimension_fields=dimension_fields
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 

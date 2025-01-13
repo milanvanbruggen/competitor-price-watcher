@@ -8,118 +8,155 @@ class MaterialScraper:
         self._seen_size_fields = set()
 
     async def analyze_form_fields(self, url: str) -> Dict:
-        """Analyseert een pagina voor dimensie velden"""
+        """Analyseert een webpagina voor specifieke dimensie velden"""
+        print(f"\nAnalyseren van velden voor {url}")
+        
         try:
             async with async_playwright() as p:
                 browser = await p.chromium.launch()
                 page = await browser.new_page()
                 await page.goto(url)
-                
-                # Zoek naar input en select elementen
-                elements = await page.query_selector_all('input, select')
-                
-                dimension_fields = {
-                    'dikte': [],
-                    'lengte': [],
-                    'breedte': []
+
+                # Dimensie termen om naar te zoeken
+                dimension_terms = {
+                    'dikte': ['dikte', 'thickness', 'dik'],
+                    'lengte': ['lengte', 'length', 'lang'],
+                    'breedte': ['breedte', 'width', 'breed'],
+                    'hoogte': ['hoogte', 'height', 'hoog']
                 }
+
+                # Zoek alle input en select elementen
+                elements = await page.query_selector_all('input[type="text"], input[type="number"], select')
+                
+                dimension_fields = {}
                 
                 for element in elements:
-                    field_info = await self._get_field_info(element)
-                    if field_info:
-                        dimension_type = field_info.get('dimension_type')
-                        if dimension_type in dimension_fields:
-                            dimension_fields[dimension_type].append(field_info)
-                
+                    try:
+                        # Haal element informatie op
+                        element_info = await self._get_field_info(element)
+                        if not element_info:
+                            continue
+
+                        # Zoek het dichtstbijzijnde label element
+                        label_text = await self._find_closest_label(page, element)
+                        if label_text:
+                            element_info['label'] = label_text
+
+                        # Check voor dimensie termen in label, id, name en omliggende tekst
+                        found_dimension = None
+                        label_text = (element_info.get('label', '') + ' ' + 
+                                    element_info.get('id', '') + ' ' + 
+                                    element_info.get('name', '')).lower()
+
+                        # Zoek ook in omliggende tekst
+                        surrounding_text = await self._get_surrounding_text(page, element)
+                        if surrounding_text:
+                            label_text += ' ' + surrounding_text.lower()
+
+                        # Check voor elke dimensie term
+                        for dimension, terms in dimension_terms.items():
+                            if any(term in label_text for term in terms):
+                                found_dimension = dimension
+                                print(f"Gevonden {dimension} veld: {label_text}")
+                                break
+
+                        if found_dimension:
+                            if found_dimension not in dimension_fields:
+                                dimension_fields[found_dimension] = []
+                            dimension_fields[found_dimension].append(element_info)
+
+                    except Exception as e:
+                        print(f"Error bij verwerken element: {str(e)}")
+                        continue
+
                 await browser.close()
-                return {'dimension_fields': dimension_fields}
-                
+                return dimension_fields
+
         except Exception as e:
-            print(f"Error bij analyseren form fields: {str(e)}")
-            return {'dimension_fields': {}}
+            print(f"Error bij analyseren velden: {str(e)}")
+            return {}
 
     async def _get_field_info(self, element) -> Optional[Dict]:
         """Verzamelt relevante informatie over een form element"""
         try:
-            # Element eigenschappen ophalen
+            # Basis element informatie
             tag_name = await element.evaluate('element => element.tagName.toLowerCase()')
             element_id = await element.evaluate('element => element.id')
             element_name = await element.evaluate('element => element.name')
-            element_class = await element.evaluate('element => element.className')
+            element_type = await element.evaluate('element => element.type')
             
-            # Label tekst zoeken
-            label_text = ""
-            
-            # 1. Probeer gekoppeld label te vinden via for/id
-            if element_id:
-                label_element = await element.evaluate(f"""
-                    element => {{
-                        const label = document.querySelector(`label[for="{element_id}"]`);
-                        return label ? label.textContent : null;
-                    }}
-                """)
-                if label_element:
-                    label_text = label_element.lower()
-            
-            # 2. Zoek parent label
-            if not label_text:
-                parent_label = await element.evaluate("""
-                    element => {
-                        const label = element.closest('label');
-                        return label ? label.textContent : null;
-                    }
-                """)
-                if parent_label:
-                    label_text = parent_label.lower()
-            
-            # 3. Zoek naastgelegen label
-            if not label_text:
-                sibling_label = await element.evaluate("""
-                    element => {
-                        const prev = element.previousElementSibling;
-                        if (prev && prev.tagName.toLowerCase() === 'label') {
-                            return prev.textContent;
-                        }
-                        const next = element.nextElementSibling;
-                        if (next && next.tagName.toLowerCase() === 'label') {
-                            return next.textContent;
-                        }
-                        return null;
-                    }
-                """)
-                if sibling_label:
-                    label_text = sibling_label.lower()
-            
-            # 4. Zoek in placeholder of title
-            if not label_text:
-                placeholder = await element.evaluate('element => element.placeholder || element.title || ""')
-                if placeholder:
-                    label_text = placeholder.lower()
-            
-            # Bepaal dimensie type op basis van tekst
-            dimension_type = None
-            text_to_check = f"{label_text} {element_id} {element_name} {element_class}".lower()
-            
-            if any(term in text_to_check for term in ['dikte', 'dik', 'thickness', 'thick']):
-                dimension_type = 'dikte'
-            elif any(term in text_to_check for term in ['lengte', 'lang', 'length', 'long']):
-                dimension_type = 'lengte'
-            elif any(term in text_to_check for term in ['breedte', 'breed', 'width', 'wide']):
-                dimension_type = 'breedte'
-            
-            if dimension_type:
-                return {
-                    'id': element_id,
-                    'name': element_name,
-                    'tag': tag_name,
-                    'dimension_type': dimension_type,
-                    'label': label_text
-                }
-            
-            return None
-            
+            return {
+                'tag': tag_name,
+                'type': element_type,
+                'id': element_id,
+                'name': element_name
+            }
+
         except Exception as e:
-            print(f"Error bij verzamelen field info: {str(e)}")
+            print(f"Error bij ophalen element info: {str(e)}")
+            return None
+
+    async def _find_closest_label(self, page, element) -> Optional[str]:
+        """Vindt het dichtstbijzijnde label voor een element"""
+        try:
+            # 1. Check voor een expliciet gekoppeld label via for/id
+            element_id = await element.evaluate('element => element.id')
+            if element_id:
+                label = await page.query_selector(f'label[for="{element_id}"]')
+                if label:
+                    return await label.inner_text()
+
+            # 2. Check voor een parent label
+            parent_label = await element.evaluate('''
+                element => {
+                    let parent = element.parentElement;
+                    while (parent) {
+                        if (parent.tagName.toLowerCase() === 'label') {
+                            return parent.innerText;
+                        }
+                        parent = parent.parentElement;
+                    }
+                    return null;
+                }
+            ''')
+            if parent_label:
+                return parent_label
+
+            return None
+
+        except Exception as e:
+            print(f"Error bij zoeken label: {str(e)}")
+            return None
+
+    async def _get_surrounding_text(self, page, element) -> Optional[str]:
+        """Haalt tekst op rondom het element"""
+        try:
+            surrounding_text = await element.evaluate('''
+                element => {
+                    // Verzamel tekst van siblings en parent
+                    let text = '';
+                    let parent = element.parentElement;
+                    
+                    if (parent) {
+                        // Voeg tekst van vorige sibling toe
+                        let prev = element.previousElementSibling;
+                        if (prev) text += ' ' + prev.innerText;
+                        
+                        // Voeg tekst van volgende sibling toe
+                        let next = element.nextElementSibling;
+                        if (next) text += ' ' + next.innerText;
+                        
+                        // Voeg parent tekst toe
+                        text += ' ' + parent.innerText;
+                    }
+                    
+                    return text.trim();
+                }
+            ''')
+            return surrounding_text
+
+        except Exception as e:
+            print(f"Error bij ophalen omliggende tekst: {str(e)}")
             return None
 
     async def _find_label_for_element(self, element) -> Optional[str]:

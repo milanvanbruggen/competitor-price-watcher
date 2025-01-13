@@ -1,6 +1,6 @@
-from playwright.async_api import async_playwright
 import re
 from typing import Dict, Optional, Tuple, List
+from playwright.async_api import async_playwright
 
 class PriceCalculator:
     def __init__(self):
@@ -44,7 +44,11 @@ class PriceCalculator:
                 for field_name, value in dimensions.items():
                     if field_name in dimension_fields and dimension_fields[field_name]:
                         # Vul veld in
-                        await self._fill_dimension_field(page, dimension_fields[field_name][0], value, uses_centimeters)
+                        field_filled = await self._fill_dimension_field(page, dimension_fields[field_name][0], value, uses_centimeters)
+                        if not field_filled:
+                            print(f"Kon {field_name} niet invullen met waarde {value}")
+                            await browser.close()
+                            return 0.0, 0.0
                         fields_filled = True
                         
                         # Wacht even en check voor prijsveranderingen
@@ -170,25 +174,30 @@ class PriceCalculator:
     async def _fill_dimension_field(self, page, field_info, value, uses_centimeters):
         """Vult een dimensie veld in"""
         try:
-            # Converteer waarde naar cm indien nodig
-            display_value = value
-            if uses_centimeters:
-                display_value = value / 10  # mm naar cm
-                print(f"Waarde geconverteerd van {value}mm naar {display_value}cm")
-
+            # Voor select velden laten we de eenheid conversie over aan _handle_select_field
             if field_info['tag'] == 'select':
-                # Selecteer de beste optie voor select elementen
-                await self._handle_select_field(page, field_info, display_value)
+                success = await self._handle_select_field(page, field_info, value)
+                if not success:
+                    print(f"Kon geen passende optie vinden voor waarde {value}mm in {field_info.get('label', 'select veld')}")
+                    return False
             else:
-                # Vul gewone input velden in
+                # Alleen voor gewone input velden converteren we naar cm indien nodig
+                display_value = value
+                if uses_centimeters:
+                    display_value = value / 10  # mm naar cm
+                    print(f"Waarde geconverteerd van {value}mm naar {display_value}cm")
+
                 selector = f"#{field_info['id']}"
                 input_element = await page.wait_for_selector(selector)
                 await input_element.fill(str(display_value))
                 await input_element.evaluate('element => element.blur()')
                 await page.wait_for_timeout(500)
 
+            return True
+
         except Exception as e:
             print(f"Error bij invullen veld: {str(e)}")
+            return False
 
     async def _handle_select_field(self, page, field_info, value):
         """Handelt select velden af"""
@@ -204,28 +213,72 @@ class PriceCalculator:
                 }}
             """)
 
+            # Eerst analyseren we alle opties om de eenheid te bepalen
+            mm_count = 0
+            cm_count = 0
+            for option in options:
+                option_text = option['text'].lower()
+                if 'mm' in option_text:
+                    mm_count += 1
+                elif 'cm' in option_text:
+                    cm_count += 1
+
+            # Bepaal de eenheid op basis van de opties
+            uses_millimeters = mm_count >= cm_count
+            print(f"\nEenheid analyse: {mm_count} opties in mm, {cm_count} opties in cm")
+            print(f"Standaard eenheid voor vergelijking: {'millimeters' if uses_millimeters else 'centimeters'}")
+
             best_match = None
             smallest_diff = float('inf')
+            
+            # Input waarde is altijd in mm, alleen converteren als opties in cm zijn
+            compare_value = value if uses_millimeters else value / 10
+            print(f"\nZoeken naar beste match voor {compare_value}{'mm' if uses_millimeters else 'cm'}:")
 
             for option in options:
                 try:
                     # Probeer numerieke waarde uit tekst te halen
-                    numeric_match = re.search(r'(\d+(?:[.,]\d+)?)', option['text'])
+                    numeric_match = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:mm|cm)?', option['text'].lower())
                     if numeric_match:
                         option_value = float(numeric_match.group(1).replace(',', '.'))
-                        diff = abs(option_value - value)
-                        if diff < smallest_diff:
+                        option_text = option['text'].lower()
+                        
+                        # Bepaal de eenheid van deze specifieke optie
+                        option_in_mm = 'mm' in option_text
+                        option_in_cm = 'cm' in option_text
+                        
+                        # Als de optie een expliciete eenheid heeft die anders is dan onze standaard,
+                        # converteer de optie waarde naar onze standaard eenheid
+                        if uses_millimeters and option_in_cm:
+                            option_value = option_value * 10  # cm naar mm
+                            print(f"Optie {option['text']} geconverteerd van {option_value/10}cm naar {option_value}mm")
+                        elif not uses_millimeters and option_in_mm:
+                            option_value = option_value / 10  # mm naar cm
+                            print(f"Optie {option['text']} geconverteerd van {option_value*10}mm naar {option_value}cm")
+                            
+                        diff = abs(option_value - compare_value)
+                        print(f"Vergelijking: {option['text']} ({option_value}{'mm' if uses_millimeters else 'cm'}) vs {compare_value}{'mm' if uses_millimeters else 'cm'} - verschil: {diff}")
+                        
+                        # Accepteer alleen matches met een verschil kleiner dan 1.0
+                        if diff < 1.0 and diff < smallest_diff:
                             smallest_diff = diff
                             best_match = option['value']
-                except ValueError:
+                            print(f"Nieuwe beste match gevonden: {option['text']} (verschil: {diff})")
+                except ValueError as e:
+                    print(f"Error bij verwerken optie {option['text']}: {str(e)}")
                     continue
 
             if best_match:
                 await page.select_option(selector, best_match)
                 await page.wait_for_timeout(500)
+                return True
+            else:
+                print(f"Geen match gevonden voor waarde {compare_value}{'mm' if uses_millimeters else 'cm'} (maximaal toegestaan verschil: 1.0)")
+                return False
 
         except Exception as e:
             print(f"Error bij select veld: {str(e)}")
+            return False
 
     async def _get_m2_price(self, page, dimensions=None) -> Optional[Tuple[float, float]]:
         """Haalt de m² prijs op van de pagina"""
@@ -381,53 +434,6 @@ class PriceCalculator:
         except Exception as e:
             print(f"Error bij m² prijs detectie: {str(e)}")
             return None
-
-    async def _get_price_excl_btw(self, page) -> float:
-        """Haalt prijs exclusief BTW op"""
-        try:
-            price_text = await self._get_price_text(page, [
-                "text=excl",
-                "text=excl. btw",
-                "text=exclusief",
-                "[class*='price-ex']",
-                "[class*='price_ex']",
-                "[class*='prijs-ex']",
-                "[class*='prijs_ex']"
-            ])
-            return self._extract_price(price_text) if price_text else 0.0
-        except Exception as e:
-            print(f"Error bij excl. btw prijs: {str(e)}")
-            return 0.0
-
-    async def _get_price_incl_btw(self, page) -> float:
-        """Haalt prijs inclusief BTW op"""
-        try:
-            price_text = await self._get_price_text(page, [
-                "text=incl",
-                "text=incl. btw",
-                "text=inclusief",
-                "[class*='price-inc']",
-                "[class*='price_inc']",
-                "[class*='prijs-inc']",
-                "[class*='prijs_inc']"
-            ])
-            return self._extract_price(price_text) if price_text else 0.0
-        except Exception as e:
-            print(f"Error bij incl. btw prijs: {str(e)}")
-            return 0.0
-
-    async def _get_price_text(self, page, selectors) -> Optional[str]:
-        """Haalt prijstekst op met verschillende selectors"""
-        for selector in selectors:
-            try:
-                elements = await page.query_selector_all(selector)
-                for element in elements:
-                    text = await element.text_content()
-                    if '€' in text:
-                        return text
-            except Exception as e:
-                print(f"Error bij prijs selector {selector}: {str(e)}")
-        return None
 
     def _extract_price(self, text: str) -> float:
         """Extraheert prijs uit tekst"""

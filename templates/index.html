@@ -105,29 +105,32 @@
                 const response = await fetch('/calculate-price', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(requestData)
                 });
                 
                 const data = await response.json();
                 
-                if (response.ok) {
+                if (data.error) {
+                    document.getElementById('result').innerHTML = `
+                        <div class="alert alert-warning">
+                            ${data.error}
+                        </div>
+                    `;
+                } else {
                     document.getElementById('result').innerHTML = `
                         <div class="alert alert-success">
                             <p><strong>Prijs excl. BTW:</strong> €${data.price_excl_btw.toFixed(2)}</p>
                             <p><strong>Prijs incl. BTW:</strong> €${data.price_incl_btw.toFixed(2)}</p>
                         </div>
                     `;
-                    
-                    // Toon debug informatie
-                    document.getElementById('debug').style.display = 'block';
-                    document.getElementById('debug-content').innerText = 
-                        `Request:\n${JSON.stringify(requestData, null, 2)}\n\n` +
-                        `Response:\n${JSON.stringify(data, null, 2)}`;
-                } else {
-                    throw new Error(data.detail || 'Er is een fout opgetreden');
                 }
+                
+                document.getElementById('debug').style.display = 'block';
+                document.getElementById('debug-content').innerText = 
+                    `Request:\n${JSON.stringify(requestData, null, 2)}\n\n` +
+                    `Response:\n${JSON.stringify(data, null, 2)}`;
             } catch (error) {
                 document.getElementById('result').innerHTML = `
                     <div class="alert alert-danger">

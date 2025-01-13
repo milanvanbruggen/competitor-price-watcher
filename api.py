@@ -156,4 +156,9 @@ async def analyze_url(input: URLInput):
             dimension_fields=results['dimension_fields']
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint voor DigitalOcean"""
+    return {"status": "healthy"} 

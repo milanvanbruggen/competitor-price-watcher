@@ -8,6 +8,8 @@ ENV TERM=xterm
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+# Port configuratie voor DigitalOcean
+ENV PORT=8080
 
 WORKDIR /app
 
@@ -52,13 +54,13 @@ RUN mkdir -p /ms-playwright \
 COPY . .
 
 # Expose de port
-EXPOSE ${PORT:-8000}
+EXPOSE 8080
 
 # Start script maken
 RUN echo '#!/bin/bash\n\
 xvfb-run --server-args="-screen 0 1280x1024x24" \
-uvicorn api:app --host 0.0.0.0 --port ${PORT:-8000} \
---workers 1 --timeout-keep-alive 75' > /start.sh \
+uvicorn api:app --host 0.0.0.0 --port 8080 \
+--workers 1 --timeout-keep-alive 75 --log-level debug' > /start.sh \
 && chmod +x /start.sh
 
 # Start de applicatie

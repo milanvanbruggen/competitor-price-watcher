@@ -1,0 +1,9 @@
+2025-01-10 21:20:52,433 INFO supervisord started with pid 49630
+2025-01-10 21:20:53,437 INFO spawnerr: unknown error making dispatchers for 'fastapi': EACCES
+2025-01-10 21:20:53,437 INFO spawnerr: unknown error making dispatchers for 'streamlit': EACCES
+2025-01-10 21:20:54,440 INFO spawnerr: unknown error making dispatchers for 'fastapi': EACCES
+2025-01-10 21:20:54,443 INFO spawnerr: unknown error making dispatchers for 'streamlit': EACCES
+2025-01-10 21:20:56,449 INFO spawnerr: unknown error making dispatchers for 'fastapi': EACCES
+2025-01-10 21:20:56,451 INFO spawnerr: unknown error making dispatchers for 'streamlit': EACCES
+2025-01-10 21:20:58,453 WARN received SIGINT indicating exit request
+2025-01-10 21:20:58,453 INFO waiting for fastapi to die

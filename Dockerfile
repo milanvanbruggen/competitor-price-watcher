@@ -1,6 +1,8 @@
 FROM python:3.11-slim
 
-# Install system dependencies for Playwright
+WORKDIR /app
+
+# Installeer system dependencies voor Playwright
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -17,30 +19,19 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app
-
-# Copy requirements first for better caching
+# Kopieer requirements eerst voor betere caching
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers
+# Installeer Playwright browsers
 RUN playwright install chromium
+RUN playwright install-deps
 
-# Copy application code
+# Kopieer de rest van de applicatie
 COPY . .
 
-# Create templates directory if it doesn't exist
-RUN mkdir -p templates
+# Expose de poort
+EXPOSE 8000
 
-# Expose port
-EXPOSE 8080
-
-# Set environment variables
-ENV PORT=8080
-ENV HOST=0.0.0.0
-
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"] 
+# Start de applicatie
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"] 

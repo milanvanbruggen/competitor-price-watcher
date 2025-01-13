@@ -42,6 +42,16 @@
                                 <label for="breedte" class="form-label">Breedte (mm)</label>
                                 <input type="number" class="form-control" id="breedte" value="1000">
                             </div>
+                            <div class="mb-3">
+                                <label for="country" class="form-label">Land</label>
+                                <select class="form-control" id="country">
+                                    {% for code, country in countries.items() %}
+                                    <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
+                                        {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% VAT)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                             <button type="submit" class="btn btn-primary">Bereken</button>
                         </form>
                     </div>
@@ -70,10 +80,47 @@
                     <div class="card-body">
                         <h5 class="card-title">API Documentatie</h5>
                         <p>Deze applicatie biedt een REST API endpoint: <code>/calculate-price</code></p>
+                        <h6>Request Parameters:</h6>
+                        <ul>
+                            <li><code>url</code>: De URL van de productpagina</li>
+                            <li><code>dimensions</code>: Object met afmetingen in millimeters:
+                                <ul>
+                                    <li><code>dikte</code>: Dikte in mm (default: 2)</li>
+                                    <li><code>lengte</code>: Lengte in mm (default: 1000)</li>
+                                    <li><code>breedte</code>: Breedte in mm (default: 1000)</li>
+                                </ul>
+                            </li>
+                            <li><code>country</code>: Landcode (default: nl). Beschikbare opties: nl, uk, de, fr, be, es, it, pl, se, dk</li>
+                        </ul>
+                        <h6>Response:</h6>
+                        <ul>
+                            <li><code>price_excl_vat</code>: Prijs exclusief BTW</li>
+                            <li><code>price_incl_vat</code>: Prijs inclusief BTW</li>
+                            <li><code>currency</code>: Valuta code (EUR, GBP, etc.)</li>
+                            <li><code>currency_symbol</code>: Valuta symbool (€, £, etc.)</li>
+                            <li><code>vat_rate</code>: BTW percentage voor het gekozen land</li>
+                            <li><code>error</code>: Eventuele foutmelding (optioneel)</li>
+                        </ul>
                         <p>Voorbeeld curl commando:</p>
                         <pre><code>curl -X POST "http://localhost:8000/calculate-price" \
     -H "Content-Type: application/json" \
-    -d '{"url":"https://example.com/product","dimensions":{"dikte":2,"lengte":1000,"breedte":1000}}'</code></pre>
+    -d '{
+    "url": "https://example.com/product",
+    "dimensions": {
+        "dikte": 2,
+        "lengte": 1000,
+        "breedte": 1000
+    },
+    "country": "uk"
+}'</code></pre>
+                        <p>Voorbeeld response:</p>
+                        <pre><code>{
+    "price_excl_vat": 42.54,
+    "price_incl_vat": 51.05,
+    "currency": "GBP",
+    "currency_symbol": "£",
+    "vat_rate": 20.0
+}</code></pre>
                     </div>
                 </div>
             </div>
@@ -88,6 +135,7 @@
             const dikte = parseFloat(document.getElementById('dikte').value);
             const lengte = parseFloat(document.getElementById('lengte').value);
             const breedte = parseFloat(document.getElementById('breedte').value);
+            const country = document.getElementById('country').value;
             
             const requestData = {
                 url: url,
@@ -95,7 +143,8 @@
                     dikte: dikte,
                     lengte: lengte,
                     breedte: breedte
-                }
+                },
+                country: country
             };
             
             try {
@@ -119,10 +168,17 @@
                         </div>
                     `;
                 } else {
+                    const priceExclVat = data.price_excl_vat !== null && data.price_excl_vat !== undefined 
+                        ? `${data.currency_symbol}${data.price_excl_vat.toFixed(2)} ${data.currency}`
+                        : 'Niet beschikbaar';
+                    const priceInclVat = data.price_incl_vat !== null && data.price_incl_vat !== undefined
+                        ? `${data.currency_symbol}${data.price_incl_vat.toFixed(2)} ${data.currency}`
+                        : 'Niet beschikbaar';
+                    
                     document.getElementById('result').innerHTML = `
                         <div class="alert alert-success">
-                            <p><strong>Prijs excl. BTW:</strong> €${data.price_excl_btw.toFixed(2)}</p>
-                            <p><strong>Prijs incl. BTW:</strong> €${data.price_incl_btw.toFixed(2)}</p>
+                            <p><strong>Prijs excl. VAT:</strong> ${priceExclVat}</p>
+                            <p><strong>Prijs incl. ${data.vat_rate}% VAT:</strong> ${priceInclVat}</p>
                         </div>
                     `;
                 }

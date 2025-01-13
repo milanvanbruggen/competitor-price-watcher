@@ -21,13 +21,13 @@ primary_region = "ams"
   processes = ["app"]
 
 [[http_service.checks]]
-  grace_period = "10s"
-  interval = "30s"
+  grace_period = "30s"
+  interval = "60s"
   method = "GET"
-  timeout = "5s"
+  timeout = "30s"
   path = "/docs"
 
 [[vm]]
   cpu_kind = "shared"
-  cpus = 1
-  memory_mb = 1024
+  cpus = 8
+  memory_mb = 4096

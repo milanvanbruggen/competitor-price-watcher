@@ -1,0 +1,26 @@
+{
+    "domain": "voordeligkunststof.nl",
+    "units": {
+        "thickness": "mm",
+        "dimensions": "mm"
+    },
+    "selectors": {
+        "thickness": {
+            "exists": false
+        },
+        "width": {
+            "type": "input",
+            "selector": "#pewc_group_19713_19715",
+            "exists": true
+        },
+        "length": {
+            "type": "input",
+            "selector": "#pewc_group_19713_19714",
+            "exists": true
+        }
+    },
+    "price": {
+        "selector": ".pewc-calculation-span > .woocommerce-Price-amount",
+        "includes_vat": false
+    }
+} 

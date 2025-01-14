@@ -66,42 +66,13 @@ class PriceCalculator:
                         else:
                             logging.info(f"Input veld gevonden, waarde invullen: {value}")
                             await element.fill(str(value))
-                            # Trigger multiple events to ensure price update
-                            await element.evaluate('''(el) => {
-                                el.dispatchEvent(new Event("change", { bubbles: true }));
-                                el.dispatchEvent(new Event("input", { bubbles: true }));
-                                el.dispatchEvent(new Event("blur", { bubbles: true }));
-                                el.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
-                            }''')
-                            logging.info(f"Waarde {value} ingevuld en events getriggerd")
+                            # Trigger blur event to update price
+                            await element.evaluate('(el) => { el.dispatchEvent(new Event("blur", { bubbles: true })); }')
+                            logging.info(f"Waarde {value} ingevuld en blur event getriggerd")
                             await page.wait_for_timeout(1000)
                     except Exception as e:
                         await browser.close()
                         raise ValueError(f"Error bij invullen van {field_type}: {str(e)}")
-                
-                # Look for and click any calculate/update buttons
-                calculate_button_selectors = [
-                    'button:has-text("Bereken")',
-                    'button:has-text("Calculate")',
-                    'button:has-text("Update")',
-                    'button[type="submit"]',
-                    'input[type="submit"]',
-                    '#calculate',
-                    '#update',
-                    '.calculate-button',
-                    '.update-button'
-                ]
-                
-                for selector in calculate_button_selectors:
-                    try:
-                        button = await page.wait_for_selector(selector, timeout=1000)
-                        if button:
-                            logging.info(f"Calculate button found with selector: {selector}")
-                            await button.click()
-                            await page.wait_for_timeout(2000)
-                            break
-                    except:
-                        continue
                 
                 # Wacht tot prijs update
                 try:

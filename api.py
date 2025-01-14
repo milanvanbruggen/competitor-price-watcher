@@ -1,171 +1,94 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from fastapi.requests import Request
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
-import json
-import os
-from forex_python.converter import CurrencyRates
-from scraper import MaterialScraper
+from typing import Optional
 from price_calculator import PriceCalculator
-from fastapi.middleware.cors import CORSMiddleware
+from domain_config import DomainConfig
+import logging
 
-app = FastAPI(
-    title="Materiaal Prijs API",
-    description="API voor het analyseren van materiaal prijzen en dimensies",
-    version="1.0.0"
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-# Add CORS middleware
+app = FastAPI()
+
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=False,  # Set to False when using allow_origins=["*"]
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
 )
 
-# Templates voor HTML interface
+# Templates configuration
 templates = Jinja2Templates(directory="templates")
 
-# Static files voor CSS/JS
+# Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Laad landen configuratie
-with open('config/countries.json', 'r') as f:
-    COUNTRIES = json.load(f)
-
-class URLInput(BaseModel):
+class PriceRequest(BaseModel):
     url: str
-
-class DimensionsInput(BaseModel):
-    url: str
-    dimensions: Dict[str, float] = {
-        'dikte': 2,
-        'lengte': 1000,
-        'breedte': 1000
-    }
-    country: str = "nl"  # Default naar Nederland
-
-class AnalyzeResponse(BaseModel):
-    url: str
-    dimension_fields: dict
+    dikte: float
+    lengte: float
+    breedte: float
+    country: str
 
 class PriceResponse(BaseModel):
     price_excl_vat: float
     price_incl_vat: float
-    currency: str
-    currency_symbol: str
-    vat_rate: float
+    currency: str = "EUR"
+    currency_symbol: str = "€"
+    vat_rate: float = 21.0
     error: Optional[str] = None
 
-def format_price(price: float, country_config: dict) -> str:
-    """Format een prijs volgens de landspecifieke instellingen"""
-    formatted = f"{price:,.2f}".replace(",", "X").replace(".", country_config["decimal_separator"]).replace("X", country_config["thousands_separator"])
-    return formatted
+# Initialize domain config and price calculator
+domain_config = DomainConfig()
+calculator = PriceCalculator(domain_config)
 
-def convert_currency(amount: float, from_currency: str, to_currency: str) -> float:
-    """Converteer een bedrag van de ene valuta naar de andere"""
-    if from_currency == to_currency:
-        return amount
-    
-    c = CurrencyRates()
-    return c.convert(from_currency, to_currency, amount)
+# Countries configuration
+countries = {
+    'nl': {'name': 'Nederland', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 21.0},
+    'uk': {'name': 'United Kingdom', 'currency': 'GBP', 'currency_symbol': '£', 'vat_rate': 20.0},
+    'de': {'name': 'Deutschland', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 19.0},
+    'fr': {'name': 'France', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 20.0},
+    'be': {'name': 'België', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 21.0},
+    'es': {'name': 'España', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 21.0},
+    'it': {'name': 'Italia', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 22.0},
+    'pl': {'name': 'Polska', 'currency': 'PLN', 'currency_symbol': 'zł', 'vat_rate': 23.0},
+    'se': {'name': 'Sverige', 'currency': 'SEK', 'currency_symbol': 'kr', 'vat_rate': 25.0},
+    'dk': {'name': 'Danmark', 'currency': 'DKK', 'currency_symbol': 'kr', 'vat_rate': 25.0}
+}
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    """HTML interface voor de API"""
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request, "countries": COUNTRIES}
-    )
+    return templates.TemplateResponse("index.html", {"request": request, "countries": countries})
 
-@app.post("/calculate-price", response_model=PriceResponse)
-async def calculate_price(input: DimensionsInput):
-    """
-    Berekent de prijs voor gegeven dimensies
-    
-    - **url**: De URL van de productpagina
-    - **dimensions**: De dimensies in millimeters
-        - dikte: Dikte in mm (default: 2)
-        - lengte: Lengte in mm (default: 1000)
-        - breedte: Breedte in mm (default: 1000)
-    - **country**: Landcode (default: nl)
-    
-    Returns:
-        - De prijs exclusief en inclusief BTW in de juiste valuta
-    """
+@app.post("/calculate-price")
+async def calculate_price(request: PriceRequest) -> PriceResponse:
     try:
-        # Valideer en haal land configuratie op
-        country_code = input.country.lower()
-        if country_code not in COUNTRIES:
-            raise HTTPException(status_code=400, detail=f"Ongeldig land: {input.country}")
+        dimensions = {
+            'dikte': request.dikte,
+            'lengte': request.lengte,
+            'breedte': request.breedte
+        }
         
-        country_config = COUNTRIES[country_code]
+        price_excl_vat, price_incl_vat = await calculator.calculate_price(request.url, dimensions)
         
-        scraper = MaterialScraper()
-        calculator = PriceCalculator()
-        
-        # Eerst de velden analyseren
-        dimension_fields = await scraper.analyze_form_fields(input.url)
-        
-        try:
-            # Dan de prijs berekenen (altijd eerst in EUR)
-            price_excl_vat, price_incl_vat = await calculator.calculate_price(
-                url=input.url,
-                dimensions=input.dimensions,
-                dimension_fields=dimension_fields
-            )
-            
-            # Converteer prijzen naar de juiste valuta als nodig
-            if country_config["currency"] != "EUR":
-                price_excl_vat = convert_currency(price_excl_vat, "EUR", country_config["currency"])
-                price_incl_vat = convert_currency(price_incl_vat, "EUR", country_config["currency"])
-            
-            # Pas het BTW percentage aan naar het land-specifieke tarief
-            price_excl_vat = round(price_excl_vat, 2)  # Rond af op 2 decimalen
-            price_incl_vat = round(price_excl_vat * (1 + (country_config["vat_rate"] / 100)), 2)  # Nieuwe BTW berekening met afronding
-            
-            return PriceResponse(
-                price_excl_vat=price_excl_vat,
-                price_incl_vat=price_incl_vat,
-                currency=country_config["currency"],
-                currency_symbol=country_config["currency_symbol"],
-                vat_rate=country_config["vat_rate"]
-            )
-            
-        except ValueError as e:
-            # Als er een ValueError is (bijv. bij ongeldige dikte), geef deze door als error
-            return PriceResponse(
-                price_excl_vat=0,
-                price_incl_vat=0,
-                currency=country_config["currency"],
-                currency_symbol=country_config["currency_symbol"],
-                vat_rate=country_config["vat_rate"],
-                error=str(e)
-            )
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/analyze", response_model=AnalyzeResponse)
-async def analyze_url(input: URLInput):
-    """
-    Analyseert een URL om dimensie velden te vinden
-    
-    - **url**: De URL van de productpagina om te analyseren
-    
-    Returns:
-        - De gevonden dimensie velden (dikte, lengte, breedte, prijs)
-    """
-    try:
-        scraper = MaterialScraper()
-        dimension_fields = await scraper.analyze_form_fields(input.url)
-        
-        return AnalyzeResponse(
-            url=input.url,
-            dimension_fields=dimension_fields
+        return PriceResponse(
+            price_excl_vat=price_excl_vat,
+            price_incl_vat=price_incl_vat
         )
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        return PriceResponse(
+            price_excl_vat=0,
+            price_incl_vat=0,
+            error=str(e)
+        ) 

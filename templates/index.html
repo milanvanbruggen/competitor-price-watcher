@@ -47,7 +47,7 @@
                                 <select class="form-control" id="country">
                                     {% for code, country in countries.items() %}
                                     <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
-                                        {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% VAT)
+                                        {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% BTW)
                                     </option>
                                     {% endfor %}
                                 </select>
@@ -83,13 +83,9 @@
                         <h6>Request Parameters:</h6>
                         <ul>
                             <li><code>url</code>: De URL van de productpagina</li>
-                            <li><code>dimensions</code>: Object met afmetingen in millimeters:
-                                <ul>
-                                    <li><code>dikte</code>: Dikte in mm (default: 2)</li>
-                                    <li><code>lengte</code>: Lengte in mm (default: 1000)</li>
-                                    <li><code>breedte</code>: Breedte in mm (default: 1000)</li>
-                                </ul>
-                            </li>
+                            <li><code>dikte</code>: Dikte in mm (default: 2)</li>
+                            <li><code>lengte</code>: Lengte in mm (default: 1000)</li>
+                            <li><code>breedte</code>: Breedte in mm (default: 1000)</li>
                             <li><code>country</code>: Landcode (default: nl). Beschikbare opties: nl, uk, de, fr, be, es, it, pl, se, dk</li>
                         </ul>
                         <h6>Response:</h6>
@@ -106,11 +102,9 @@
     -H "Content-Type: application/json" \
     -d '{
     "url": "https://example.com/product",
-    "dimensions": {
-        "dikte": 2,
-        "lengte": 1000,
-        "breedte": 1000
-    },
+    "dikte": 2,
+    "lengte": 1000,
+    "breedte": 1000,
     "country": "uk"
 }'</code></pre>
                         <p>Voorbeeld response:</p>
@@ -167,11 +161,9 @@
             
             const requestData = {
                 url: url,
-                dimensions: {
-                    dikte: dikte,
-                    lengte: lengte,
-                    breedte: breedte
-                },
+                dikte: dikte,
+                lengte: lengte,
+                breedte: breedte,
                 country: country
             };
             

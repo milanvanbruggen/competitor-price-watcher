@@ -1,0 +1,28 @@
+{
+    "domain": "voskunststoffen.nl",
+    "units": {
+        "thickness": "mm",
+        "dimensions": "mm"
+    },
+    "selectors": {
+        "thickness": {
+            "type": "select",
+            "selector": "#dropDownButton57869380",
+            "exists": true
+        },
+        "width": {
+            "type": "input",
+            "selector": "#sizeB",
+            "exists": true
+        },
+        "length": {
+            "type": "input",
+            "selector": "#sizeA",
+            "exists": true
+        }
+    },
+    "price": {
+        "selector": "#calculatorPrice > .value",
+        "includes_vat": true
+    }
+} 

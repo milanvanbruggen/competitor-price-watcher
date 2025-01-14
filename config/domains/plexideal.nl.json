@@ -1,0 +1,28 @@
+{
+    "domain": "plexideal.nl",
+    "units": {
+        "thickness": "mm",
+        "dimensions": "cm"
+    },
+    "selectors": {
+        "thickness": {
+            "type": "select",
+            "selector": "select[name='pa_dikte']",
+            "exists": false
+        },
+        "width": {
+            "type": "input",
+            "selector": "#input_width",
+            "exists": true
+        },
+        "length": {
+            "type": "input",
+            "selector": "#input_length",
+            "exists": true
+        }
+    },
+    "price": {
+        "selector": "#result-price",
+        "includes_vat": true
+    }
+} 

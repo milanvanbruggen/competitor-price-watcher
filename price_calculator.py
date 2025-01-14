@@ -1,148 +1,135 @@
+from playwright.async_api import async_playwright, Page, expect
+from typing import Dict, Any, Optional, Tuple, List
+from domain_config import DomainConfig
+import logging
 import re
-from typing import Dict, Optional, Tuple, List
-from playwright.async_api import async_playwright, Page
 
 class PriceCalculator:
-    def __init__(self):
-        print("Initialiseren PriceCalculator...")
+    """Calculate prices based on dimensions for different domains"""
+    
+    def __init__(self, domain_config: DomainConfig):
+        """Initialize calculator with domain configuration"""
+        self.domain_config = domain_config
+        logging.info("Initialiseren PriceCalculator...")
 
-    async def calculate_price(self, url: str, dimensions: dict, dimension_fields: dict = None) -> Tuple[float, float]:
-        """Calculate price based on dimensions"""
-        print(f"\nStart prijsberekening voor {url}")
+    async def calculate_price(self, url: str, dimensions: Dict[str, float]) -> Tuple[float, float]:
+        """Calculate price based on dimensions using domain configuration"""
+        logging.info(f"\n{'='*50}")
+        logging.info(f"Start prijsberekening voor {url}")
+        logging.info(f"Input dimensies: {dimensions}")
         
-        try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch()
-                page = await browser.new_page()
-                await page.goto(url)
+        # Convert dimension names to match configuration
+        converted_dimensions = {
+            'thickness': dimensions.get('dikte', 0),
+            'length': dimensions.get('lengte', 0),
+            'width': dimensions.get('breedte', 0)
+        }
+        logging.info(f"Omgezette dimensies: {converted_dimensions}")
+        
+        config = self.domain_config.get_config(url)
+        if not config:
+            raise ValueError(f"No configuration found for URL: {url}")
+        logging.info(f"Gevonden configuratie: {config}")
 
-                print("\nProberen prijs te berekenen via formulier...")
+        async with async_playwright() as p:
+            logging.info("Starting browser...")
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            
+            try:
+                # Wacht tot de pagina volledig geladen is
+                logging.info(f"Navigeren naar {url}")
+                await page.goto(url, wait_until="networkidle")
                 
-                if dimension_fields:
-                    # 1. Detecteer de eenheid en verzamel initiële prijzen
-                    uses_centimeters = await self._detect_unit(page)
-                    print(f"Gebruikte eenheid: {'centimeters' if uses_centimeters else 'millimeters'}")
-
-                    # Verzamel eerst alle prijselementen voor vergelijking
-                    initial_prices = await self._collect_price_elements(page)
-                    print(f"Aantal prijselementen voor invullen: {len(initial_prices)}")
-
-                    # 2. Vul dimensies in en monitor prijsveranderingen
-                    fields_filled = False
-                    
-                    # Eerst proberen de dikte in te vullen
-                    if 'dikte' in dimensions and 'dikte' in dimension_fields and dimension_fields['dikte']:
-                        field_filled = await self._fill_dimension_field(page, dimension_fields['dikte'][0], dimensions['dikte'], uses_centimeters)
-                        if not field_filled:
-                            error_msg = f"Kon dikte niet invullen met waarde {dimensions['dikte']}mm"
-                            print(error_msg)
-                            await browser.close()
-                            raise ValueError(error_msg)
-                        fields_filled = True
+                logging.info("Pagina geladen, wachten op stabilisatie...")
+                await page.wait_for_load_state("domcontentloaded")
+                await page.wait_for_timeout(2000)
+                
+                # Convert dimensions based on domain units
+                converted_units = self._convert_dimensions(converted_dimensions, config['units'])
+                logging.info(f"Dimensies omgezet naar juiste eenheden: {converted_units}")
+                
+                # Fill in dimensions
+                logging.info("\nInvullen van dimensies:")
+                for field_type, value in converted_units.items():
+                    field_config = config['selectors'].get(field_type)
+                    if not field_config or not field_config['exists']:
+                        continue
                         
-                        # Wacht even en check voor prijsveranderingen
-                        await page.wait_for_timeout(1000)
-                        current_prices = await self._collect_price_elements(page)
-                        changed_prices = self._find_changed_prices(initial_prices, current_prices)
+                    try:
+                        logging.info(f"\nZoeken naar {field_type} veld met selector: {field_config['selector']}")
+                        # Wacht tot het element zichtbaar en enabled is
+                        element = await page.wait_for_selector(field_config['selector'], state="visible", timeout=5000)
                         
-                        # Als we een prijsverandering zien, gebruik deze
-                        if changed_prices:
-                            price_info = changed_prices[0]
-                            price = price_info['price']
-                            is_incl = price_info['is_incl']
-                            
-                            # Converteer naar m² prijs
-                            area_m2 = (dimensions['lengte'] / 1000) * (dimensions['breedte'] / 1000)  # mm naar m²
-                            if area_m2 > 0:
-                                price = round(price / area_m2, 2)
-                                
-                            if is_incl:
-                                excl_btw = round(price / 1.21, 2)
-                                incl_btw = price
-                            else:
-                                excl_btw = price
-                                incl_btw = round(price * 1.21, 2)
-                            
-                            print(f"Prijs per m² gevonden tijdens invullen: €{excl_btw:.2f} ex BTW / €{incl_btw:.2f} incl BTW")
-                            await browser.close()
-                            return excl_btw, incl_btw
-
-                    # Vul de overige dimensies in
-                    for field_name, value in dimensions.items():
-                        if field_name != 'dikte' and field_name in dimension_fields and dimension_fields[field_name]:
-                            field_filled = await self._fill_dimension_field(page, dimension_fields[field_name][0], value, uses_centimeters)
-                            if not field_filled:
-                                print(f"Kon {field_name} niet invullen met waarde {value}")
-                                continue
-                            fields_filled = True
-                            
-                            # Wacht even en check voor prijsveranderingen
-                            await page.wait_for_timeout(1000)
-                            current_prices = await self._collect_price_elements(page)
-                            changed_prices = self._find_changed_prices(initial_prices, current_prices)
-                            
-                            # Als we een prijsverandering zien, gebruik deze
-                            if changed_prices:
-                                price_info = changed_prices[0]
-                                price = price_info['price']
-                                is_incl = price_info['is_incl']
-                                
-                                # Converteer naar m² prijs
-                                area_m2 = (dimensions['lengte'] / 1000) * (dimensions['breedte'] / 1000)  # mm naar m²
-                                if area_m2 > 0:
-                                    price = round(price / area_m2, 2)
-                                    
-                                if is_incl:
-                                    excl_btw = round(price / 1.21, 2)
-                                    incl_btw = price
-                                else:
-                                    excl_btw = price
-                                    incl_btw = round(price * 1.21, 2)
-                                
-                                print(f"Prijs per m² gevonden tijdens invullen: €{excl_btw:.2f} ex BTW / €{incl_btw:.2f} incl BTW")
-                                await browser.close()
-                                return excl_btw, incl_btw
-                    
-                    if fields_filled:
-                        # 3. Wacht op laatste prijsupdate en check nogmaals
+                        if field_config['type'] == 'select':
+                            await self._fill_select_field(page, field_config['selector'], value)
+                        else:
+                            logging.info(f"Input veld gevonden, waarde invullen: {value}")
+                            await element.fill(str(value))
+                            await element.evaluate('(el) => { el.dispatchEvent(new Event("change", { bubbles: true })); el.dispatchEvent(new Event("input", { bubbles: true })); }')
+                        
+                        # Wacht na elke veld invulling
                         await page.wait_for_timeout(1000)
-                        final_prices = await self._collect_price_elements(page)
-                        changed_prices = self._find_changed_prices(initial_prices, final_prices)
-
-                        if changed_prices:
-                            price_info = changed_prices[0]
-                            price = price_info['price']
-                            is_incl = price_info['is_incl']
+                    except Exception as e:
+                        await browser.close()
+                        raise ValueError(f"Error bij invullen van {field_type}: {str(e)}")
+                
+                # Wacht tot prijs update
+                try:
+                    logging.info("\nWachten op prijs update:")
+                    price_config = config['price']
+                    logging.info(f"Zoeken naar prijs element met selector: {price_config['selector']}")
+                    
+                    # Wacht tot prijs element zichtbaar is
+                    await page.wait_for_selector(price_config['selector'], state="visible", timeout=5000)
+                    price_element = await page.query_selector(price_config['selector'])
+                    
+                    if price_element:
+                        # Wacht op mogelijke prijs updates
+                        initial_price = await price_element.text_content()
+                        logging.info(f"Initiële prijs tekst: '{initial_price}'")
+                        
+                        # Wacht maximaal 5 seconden op prijswijziging
+                        max_attempts = 10
+                        for attempt in range(max_attempts):
+                            await page.wait_for_timeout(500)
+                            current_price = await price_element.text_content()
                             
-                            # Converteer naar m² prijs
-                            area_m2 = (dimensions['lengte'] / 1000) * (dimensions['breedte'] / 1000)  # mm naar m²
-                            if area_m2 > 0:
-                                price = round(price / area_m2, 2)
-                                
-                            if is_incl:
-                                excl_btw = round(price / 1.21, 2)
-                                incl_btw = price
-                            else:
-                                excl_btw = price
-                                incl_btw = round(price * 1.21, 2)
-                            
-                            print(f"Prijs per m² gevonden na invullen: €{excl_btw:.2f} ex BTW / €{incl_btw:.2f} incl BTW")
-                            await browser.close()
-                            return excl_btw, incl_btw
-
-                        print("Geen prijsveranderingen gedetecteerd via formulier")
+                            if current_price != initial_price:
+                                logging.info(f"Prijs gewijzigd van '{initial_price}' naar '{current_price}'")
+                                break
+                            elif attempt == max_attempts - 1:
+                                logging.info("Geen prijswijziging gedetecteerd na wachten")
+                        
+                        price = self._extract_price(current_price)
+                        logging.info(f"Geëxtraheerde prijs: {price}")
+                        
+                        if price_config['includes_vat']:
+                            logging.info("Prijs is inclusief BTW, berekenen excl. BTW")
+                            price_incl_vat = price
+                            price_excl_vat = price / 1.21
+                        else:
+                            logging.info("Prijs is exclusief BTW, berekenen incl. BTW")
+                            price_excl_vat = price
+                            price_incl_vat = price * 1.21
+                        
+                        # Rond de prijzen af op 2 decimalen
+                        price_excl_vat = round(price_excl_vat, 2)
+                        price_incl_vat = round(price_incl_vat, 2)
+                        
+                        logging.info(f"Finale prijzen: €{price_excl_vat:.2f} ex BTW / €{price_incl_vat:.2f} incl BTW")
+                        await browser.close()
+                        return price_excl_vat, price_incl_vat
                     else:
-                        print("Geen dimensie velden gevonden")
-
-                    # Als we hier komen, hebben we geen prijs kunnen vinden
-                    error_msg = "Kon geen prijs berekenen voor de opgegeven dimensies"
-                    print(error_msg)
-                    await browser.close()
-                    raise ValueError(error_msg)
-                    
-        except Exception as e:
-            print(f"Error tijdens prijsberekening: {str(e)}")
-            raise
+                        logging.error("Prijs element niet gevonden")
+                except Exception as e:
+                    logging.error(f"Error bij ophalen prijs: {str(e)}")
+                
+                await browser.close()
+                return 0, 0
+            except Exception as e:
+                await browser.close()
+                raise ValueError(f"Error bij berekenen prijs: {str(e)}")
 
     async def _detect_unit(self, page) -> bool:
         """Detecteert of de pagina centimeters of millimeters gebruikt"""
@@ -316,6 +303,9 @@ class PriceCalculator:
             if best_match and smallest_diff < 1.0:  # Alleen accepteren als verschil kleiner is dan 1mm
                 await page.select_option(selector, best_match)
                 await page.wait_for_timeout(500)
+                # Trigger change event
+                await page.evaluate('(el) => { el.dispatchEvent(new Event("change")); }')
+                logging.info("Optie geselecteerd en change event getriggerd")
                 return True
             else:
                 print(f"Geen geschikte optie gevonden voor {value}mm")
@@ -469,30 +459,80 @@ class PriceCalculator:
             print(f"Error bij zoeken naar m² prijs: {str(e)}")
             return None
 
-    def _extract_price(self, text: str) -> float:
-        """Extraheert prijs uit tekst"""
-        if not text:
-            return 0.0
+    def _convert_dimensions(self, dimensions: Dict[str, float], units: Dict[str, str]) -> Dict[str, float]:
+        """Convert dimensions to the units required by the domain"""
+        converted = {}
         
-        text = text.lower()
+        # Handle thickness separately
+        if 'thickness' in dimensions:
+            if units.get('thickness') == 'cm':
+                converted['thickness'] = dimensions['thickness'] / 10  # mm to cm
+            else:
+                converted['thickness'] = dimensions['thickness']  # keep as mm
         
-        # Verschillende prijs patronen
-        price_patterns = [
-            r'€\s*(\d+(?:[.,]\d{2})?)\s*(?:per\s*m[²2]|/\s*m[²2])',  # €10.99 per m² of €10,99/m²
-            r'(\d+(?:[.,]\d{2})?)\s*(?:€|eur|euro)\s*(?:per\s*m[²2]|/\s*m[²2])',  # 10.99€ per m²
-            r'(?:per\s*m[²2]|/\s*m[²2])\s*€\s*(\d+(?:[.,]\d{2})?)',  # per m² €10.99
-        ]
-        
-        for pattern in price_patterns:
-            matches = re.findall(pattern, text)
-            if matches:
-                # Vervang komma door punt en converteer naar float
-                price = float(matches[0].replace(',', '.'))
-                # Valideer dat de prijs realistisch is (tussen €5 en €500 per m²)
-                if 5.0 <= price <= 500.0:
-                    return price
-            
+        # Handle length and width
+        dimension_unit = units.get('dimensions', 'mm')
+        for field in ['length', 'width']:
+            if field in dimensions:
+                if dimension_unit == 'cm':
+                    converted[field] = dimensions[field] / 10  # mm to cm
+                else:
+                    converted[field] = dimensions[field]  # keep as mm
+                
+        return converted
+
+    def _extract_price(self, price_text: str) -> float:
+        """Extract numeric price from text"""
+        try:
+            # Remove currency symbols and whitespace
+            cleaned = price_text.replace('€', '').replace(',', '.').strip()
+            # Extract first number found
+            match = re.search(r'\d+\.?\d*', cleaned)
+            if match:
+                return float(match.group())
+        except Exception as e:
+            logging.error(f"Error extracting price from {price_text}: {str(e)}")
         return 0.0
+
+    async def _fill_select_field(self, page: Page, selector: str, value: float) -> None:
+        logging.info(f"\nZoeken naar thickness veld met selector: {selector}")
+        element = await page.wait_for_selector(selector)
+        if not element:
+            raise ValueError(f"Kon geen element vinden met selector: {selector}")
+            
+        logging.info(f"Select veld gevonden, waarde invullen: {value}")
+        
+        # Get all available options
+        options = await element.evaluate('''(select) => {
+            return Array.from(select.options).map(option => ({
+                value: option.value,
+                text: option.text.trim()
+            }));
+        }''')
+        
+        logging.info(f"Beschikbare opties: {options}")
+        
+        # Try to find a matching option
+        match_found = False
+        for option in options:
+            option_text = option['text']
+            logging.info(f"Controleren optie: '{option_text}'")
+            
+            # Extract number from option text (e.g. "3mm" -> 3.0)
+            number_match = re.search(r'(\d+(?:\.\d+)?)', option_text)
+            if number_match:
+                option_value = float(number_match.group(1))
+                if abs(option_value - value) < 0.1:  # Allow small difference for float comparison
+                    match_found = True
+                    logging.info(f"Match gevonden! Selecteren van optie: {option_text}")
+                    await element.select_option(value=option['value'])
+                    await page.evaluate('(el) => { el.dispatchEvent(new Event("change")); }', element)
+                    await page.wait_for_timeout(1000)
+                    break
+                    
+        if not match_found:
+            available_thicknesses = ", ".join(opt['text'] for opt in options)
+            raise ValueError(f"Kon geen passende optie vinden voor waarde {value}mm in select veld. Beschikbare diktes: {available_thicknesses}")
 
     async def _collect_price_elements(self, page) -> List[Dict]:
         """Verzamelt alle elementen met prijzen"""

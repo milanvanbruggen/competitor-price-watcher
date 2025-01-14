@@ -1,0 +1,28 @@
+{
+    "domain": "flexinplex.nl",
+    "units": {
+        "thickness": "mm",
+        "dimensions": "mm"
+    },
+    "selectors": {
+        "thickness": {
+            "type": "select",
+            "selector": "#pdp-configurator .variation__select select",
+            "exists": true
+        },
+        "width": {
+            "type": "input",
+            "selector": ".size__item .items:nth-child(0) input[type=\"number\"]",
+            "exists": true
+        },
+        "length": {
+            "type": "input",
+            "selector": ".size__item .items:nth-child(0) input[type=\"number\"]",
+            "exists": true
+        }
+    },
+    "price": {
+        "selector": ".prices__pdp whites .incl .price",
+        "includes_vat": true
+    }
+} 

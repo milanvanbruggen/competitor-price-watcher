@@ -1,0 +1,28 @@
+{
+    "domain": "deplasticwinkel.nl",
+    "units": {
+        "thickness": "mm",
+        "dimensions": "cm"
+    },
+    "selectors": {
+        "thickness": {
+            "type": "select",
+            "selector": "#Thickness",
+            "exists": true
+        },
+        "width": {
+            "type": "input",
+            "selector": "#calcWidth",
+            "exists": true
+        },
+        "length": {
+            "type": "input",
+            "selector": "#calcLength",
+            "exists": true
+        }
+    },
+    "price": {
+        "selector": "#FormulaPrice_ProductInfo_SPAN",
+        "includes_vat": true
+    }
+} 

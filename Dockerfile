@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Installeer system dependencies voor Playwright
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -19,19 +19,19 @@ RUN apt-get update && apt-get install -y \
     libxss1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Kopieer requirements eerst voor betere caching
+# Copy requirements first for better caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Installeer Playwright browsers
+# Install Playwright and its dependencies
 RUN playwright install chromium
 RUN playwright install-deps
 
-# Kopieer de rest van de applicatie
+# Copy the rest of the application
 COPY . .
 
-# Expose de poort
-EXPOSE 8000
+# Expose the port
+EXPOSE 8080
 
-# Start de applicatie
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"] 
+# Start the application
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080"] 

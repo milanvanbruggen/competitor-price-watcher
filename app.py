@@ -4,10 +4,12 @@ from price_calculator import PriceCalculator
 import threading
 from api import app
 import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 def run_api():
     """Start de FastAPI server in een aparte thread"""
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8080)
 
 def get_scraper():
     """Geeft een instantie van de MaterialScraper"""

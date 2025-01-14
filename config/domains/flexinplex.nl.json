@@ -12,17 +12,17 @@
         },
         "width": {
             "type": "input",
-            "selector": ".size__item .items:nth-child(0) input[type=\"number\"]",
+            "selector": ".size__item .inputs input[type='number']",
             "exists": true
         },
         "length": {
             "type": "input",
-            "selector": ".size__item .items:nth-child(0) input[type=\"number\"]",
+            "selector": ".size__item .inputs input[type='number']",
             "exists": true
         }
     },
     "price": {
-        "selector": ".prices__pdp whites .incl .price",
+        "selector": "#pdp-configurator-summary-top .prices__pdp .incl .price",
         "includes_vat": true
     }
 } 

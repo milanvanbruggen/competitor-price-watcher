@@ -7,7 +7,7 @@
     "selectors": {
         "thickness": {
             "type": "select",
-            "selector": "#dropDownButton57869380",
+            "selector": "select#selectPartControlDropDownThickness",
             "exists": true
         },
         "width": {

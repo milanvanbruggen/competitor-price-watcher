@@ -15,40 +15,29 @@ class PriceCalculator:
                 browser = await p.chromium.launch()
                 page = await browser.new_page()
                 await page.goto(url)
+
+                print("\nProberen prijs te berekenen via formulier...")
                 
-                # 1. Eerst zoeken naar directe m² prijzen
-                print("\nZoeken naar m² prijs zonder formulier interactie...")
-                prices = await self._get_m2_price(page)
-                if prices is not None:  # Aangepast om None check te doen
-                    print(f"Gevonden m² prijzen zonder formulier: €{prices[0]:.2f} ex BTW / €{prices[1]:.2f} incl BTW")
-                    await browser.close()
-                    return prices
+                if dimension_fields:
+                    # 1. Detecteer de eenheid en verzamel initiële prijzen
+                    uses_centimeters = await self._detect_unit(page)
+                    print(f"Gebruikte eenheid: {'centimeters' if uses_centimeters else 'millimeters'}")
 
-                print("\nGeen directe m² prijs gevonden, proberen via formulier...")
-                
-                if not dimension_fields:
-                    print("Geen dimensie velden gevonden")
-                    await browser.close()
-                    return 0.0, 0.0
+                    # Verzamel eerst alle prijselementen voor vergelijking
+                    initial_prices = await self._collect_price_elements(page)
+                    print(f"Aantal prijselementen voor invullen: {len(initial_prices)}")
 
-                # 2. Detecteer de eenheid en verzamel initiële prijzen
-                uses_centimeters = await self._detect_unit(page)
-                print(f"Gebruikte eenheid: {'centimeters' if uses_centimeters else 'millimeters'}")
-
-                # Verzamel eerst alle prijselementen voor vergelijking
-                initial_prices = await self._collect_price_elements(page)
-                print(f"Aantal prijselementen voor invullen: {len(initial_prices)}")
-
-                # 3. Vul dimensies in en monitor prijsveranderingen
-                fields_filled = False
-                for field_name, value in dimensions.items():
-                    if field_name in dimension_fields and dimension_fields[field_name]:
-                        # Vul veld in
-                        field_filled = await self._fill_dimension_field(page, dimension_fields[field_name][0], value, uses_centimeters)
+                    # 2. Vul dimensies in en monitor prijsveranderingen
+                    fields_filled = False
+                    
+                    # Eerst proberen de dikte in te vullen
+                    if 'dikte' in dimensions and 'dikte' in dimension_fields and dimension_fields['dikte']:
+                        field_filled = await self._fill_dimension_field(page, dimension_fields['dikte'][0], dimensions['dikte'], uses_centimeters)
                         if not field_filled:
-                            print(f"Kon {field_name} niet invullen met waarde {value}")
+                            error_msg = f"Kon dikte niet invullen met waarde {dimensions['dikte']}mm"
+                            print(error_msg)
                             await browser.close()
-                            return 0.0, 0.0
+                            raise ValueError(error_msg)
                         fields_filled = True
                         
                         # Wacht even en check voor prijsveranderingen
@@ -77,42 +66,80 @@ class PriceCalculator:
                             print(f"Prijs per m² gevonden tijdens invullen: €{excl_btw:.2f} ex BTW / €{incl_btw:.2f} incl BTW")
                             await browser.close()
                             return excl_btw, incl_btw
-                
-                if not fields_filled:
-                    print("Geen dimensie velden kunnen invullen")
-                    await browser.close()
-                    return 0.0, 0.0
 
-                # 4. Wacht op laatste prijsupdate en check nogmaals
-                await page.wait_for_timeout(1000)
-                final_prices = await self._collect_price_elements(page)
-                changed_prices = self._find_changed_prices(initial_prices, final_prices)
-
-                if changed_prices:
-                    price_info = changed_prices[0]
-                    price = price_info['price']
-                    is_incl = price_info['is_incl']
+                    # Vul de overige dimensies in
+                    for field_name, value in dimensions.items():
+                        if field_name != 'dikte' and field_name in dimension_fields and dimension_fields[field_name]:
+                            field_filled = await self._fill_dimension_field(page, dimension_fields[field_name][0], value, uses_centimeters)
+                            if not field_filled:
+                                print(f"Kon {field_name} niet invullen met waarde {value}")
+                                continue
+                            fields_filled = True
+                            
+                            # Wacht even en check voor prijsveranderingen
+                            await page.wait_for_timeout(1000)
+                            current_prices = await self._collect_price_elements(page)
+                            changed_prices = self._find_changed_prices(initial_prices, current_prices)
+                            
+                            # Als we een prijsverandering zien, gebruik deze
+                            if changed_prices:
+                                price_info = changed_prices[0]
+                                price = price_info['price']
+                                is_incl = price_info['is_incl']
+                                
+                                # Converteer naar m² prijs
+                                area_m2 = (dimensions['lengte'] / 1000) * (dimensions['breedte'] / 1000)  # mm naar m²
+                                if area_m2 > 0:
+                                    price = round(price / area_m2, 2)
+                                    
+                                if is_incl:
+                                    excl_btw = round(price / 1.21, 2)
+                                    incl_btw = price
+                                else:
+                                    excl_btw = price
+                                    incl_btw = round(price * 1.21, 2)
+                                
+                                print(f"Prijs per m² gevonden tijdens invullen: €{excl_btw:.2f} ex BTW / €{incl_btw:.2f} incl BTW")
+                                await browser.close()
+                                return excl_btw, incl_btw
                     
-                    # Converteer naar m² prijs
-                    area_m2 = (dimensions['lengte'] / 1000) * (dimensions['breedte'] / 1000)  # mm naar m²
-                    if area_m2 > 0:
-                        price = round(price / area_m2, 2)
-                        
-                    if is_incl:
-                        excl_btw = round(price / 1.21, 2)
-                        incl_btw = price
+                    if fields_filled:
+                        # 3. Wacht op laatste prijsupdate en check nogmaals
+                        await page.wait_for_timeout(1000)
+                        final_prices = await self._collect_price_elements(page)
+                        changed_prices = self._find_changed_prices(initial_prices, final_prices)
+
+                        if changed_prices:
+                            price_info = changed_prices[0]
+                            price = price_info['price']
+                            is_incl = price_info['is_incl']
+                            
+                            # Converteer naar m² prijs
+                            area_m2 = (dimensions['lengte'] / 1000) * (dimensions['breedte'] / 1000)  # mm naar m²
+                            if area_m2 > 0:
+                                price = round(price / area_m2, 2)
+                                
+                            if is_incl:
+                                excl_btw = round(price / 1.21, 2)
+                                incl_btw = price
+                            else:
+                                excl_btw = price
+                                incl_btw = round(price * 1.21, 2)
+                            
+                            print(f"Prijs per m² gevonden na invullen: €{excl_btw:.2f} ex BTW / €{incl_btw:.2f} incl BTW")
+                            await browser.close()
+                            return excl_btw, incl_btw
+
+                        print("Geen prijsveranderingen gedetecteerd via formulier")
                     else:
-                        excl_btw = price
-                        incl_btw = round(price * 1.21, 2)
-                    
-                    print(f"Prijs per m² gevonden na invullen: €{excl_btw:.2f} ex BTW / €{incl_btw:.2f} incl BTW")
-                    await browser.close()
-                    return excl_btw, incl_btw
+                        print("Geen dimensie velden gevonden")
 
-                print("Geen prijsveranderingen gedetecteerd")
-                await browser.close()
-                return 0.0, 0.0
-                
+                    # Als we hier komen, hebben we geen prijs kunnen vinden
+                    error_msg = "Kon geen prijs berekenen voor de opgegeven dimensies"
+                    print(error_msg)
+                    await browser.close()
+                    raise ValueError(error_msg)
+                    
         except Exception as e:
             print(f"Error tijdens prijsberekening: {str(e)}")
             raise
@@ -246,9 +273,16 @@ class PriceCalculator:
                     if numeric_match:
                         option_value = float(numeric_match.group(1).replace(',', '.'))
                         
-                        # Converteer naar mm indien nodig
+                        # Als er een eenheid is gespecificeerd, gebruik die
                         if 'cm' in option['text'].lower():
-                            option_value *= 10
+                            option_value *= 10  # Converteer cm naar mm
+                        # Als er geen eenheid is, kijk naar de context van het veld
+                        elif not any(unit in option['text'].lower() for unit in ['mm', 'cm']):
+                            # Kijk naar het label of omliggende tekst voor eenheid indicatie
+                            label_text = field_info.get('label', '').lower()
+                            if 'cm' in label_text or 'centimeter' in label_text:
+                                option_value *= 10  # Converteer cm naar mm
+                            # Anders gaan we ervan uit dat het dezelfde eenheid is als onze target
 
                         diff = abs(option_value - target_value)
                         print(f"Vergelijking: {option_value}mm vs {target_value}mm (verschil: {diff})")
@@ -257,6 +291,23 @@ class PriceCalculator:
                             smallest_diff = diff
                             best_match = option['value']
                             print(f"Nieuwe beste match gevonden: {option['text']} (verschil: {diff})")
+                    else:
+                        # Probeer pure getallen te matchen (zonder eenheid)
+                        pure_number_match = re.search(r'^\s*(\d+(?:[.,]\d+)?)\s*$', option['text'])
+                        if pure_number_match:
+                            option_value = float(pure_number_match.group(1).replace(',', '.'))
+                            # Kijk naar het label of omliggende tekst voor eenheid indicatie
+                            label_text = field_info.get('label', '').lower()
+                            if 'cm' in label_text or 'centimeter' in label_text:
+                                option_value *= 10  # Converteer cm naar mm
+                            
+                            diff = abs(option_value - target_value)
+                            print(f"Vergelijking (puur getal): {option_value}mm vs {target_value}mm (verschil: {diff})")
+                            
+                            if diff < smallest_diff:
+                                smallest_diff = diff
+                                best_match = option['value']
+                                print(f"Nieuwe beste match gevonden (puur getal): {option['text']} (verschil: {diff})")
 
                 except Exception as e:
                     print(f"Error bij verwerken optie {option['text']}: {str(e)}")

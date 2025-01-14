@@ -100,40 +100,42 @@ async def calculate_price(input: DimensionsInput):
         # Eerst de velden analyseren
         dimension_fields = await scraper.analyze_form_fields(input.url)
         
-        # Dan de prijs berekenen (altijd eerst in EUR)
-        price_excl_vat, price_incl_vat = await calculator.calculate_price(
-            url=input.url,
-            dimensions=input.dimensions,
-            dimension_fields=dimension_fields
-        )
-        
-        # Als beide prijzen 0 zijn, is er waarschijnlijk een fout opgetreden
-        if price_excl_vat == 0 and price_incl_vat == 0:
+        try:
+            # Dan de prijs berekenen (altijd eerst in EUR)
+            price_excl_vat, price_incl_vat = await calculator.calculate_price(
+                url=input.url,
+                dimensions=input.dimensions,
+                dimension_fields=dimension_fields
+            )
+            
+            # Converteer prijzen naar de juiste valuta als nodig
+            if country_config["currency"] != "EUR":
+                price_excl_vat = convert_currency(price_excl_vat, "EUR", country_config["currency"])
+                price_incl_vat = convert_currency(price_incl_vat, "EUR", country_config["currency"])
+            
+            # Pas het BTW percentage aan naar het land-specifieke tarief
+            price_excl_vat = round(price_excl_vat, 2)  # Rond af op 2 decimalen
+            price_incl_vat = round(price_excl_vat * (1 + (country_config["vat_rate"] / 100)), 2)  # Nieuwe BTW berekening met afronding
+            
+            return PriceResponse(
+                price_excl_vat=price_excl_vat,
+                price_incl_vat=price_incl_vat,
+                currency=country_config["currency"],
+                currency_symbol=country_config["currency_symbol"],
+                vat_rate=country_config["vat_rate"]
+            )
+            
+        except ValueError as e:
+            # Als er een ValueError is (bijv. bij ongeldige dikte), geef deze door als error
             return PriceResponse(
                 price_excl_vat=0,
                 price_incl_vat=0,
                 currency=country_config["currency"],
                 currency_symbol=country_config["currency_symbol"],
                 vat_rate=country_config["vat_rate"],
-                error=f"Kon geen prijs berekenen voor dikte {input.dimensions['dikte']}mm. Deze variant is niet beschikbaar."
+                error=str(e)
             )
-        
-        # Converteer prijzen naar de juiste valuta als nodig
-        if country_config["currency"] != "EUR":
-            price_excl_vat = convert_currency(price_excl_vat, "EUR", country_config["currency"])
-            price_incl_vat = convert_currency(price_incl_vat, "EUR", country_config["currency"])
-        
-        # Pas het BTW percentage aan naar het land-specifieke tarief
-        price_excl_vat = price_excl_vat  # Prijs ex BTW blijft gelijk
-        price_incl_vat = price_excl_vat * (1 + (country_config["vat_rate"] / 100))  # Nieuwe BTW berekening
-        
-        return PriceResponse(
-            price_excl_vat=price_excl_vat,
-            price_incl_vat=price_incl_vat,
-            currency=country_config["currency"],
-            currency_symbol=country_config["currency_symbol"],
-            vat_rate=country_config["vat_rate"]
-        )
+            
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

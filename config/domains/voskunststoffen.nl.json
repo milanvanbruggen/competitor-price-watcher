@@ -6,23 +6,21 @@
     },
     "selectors": {
         "thickness": {
-            "type": "select",
-            "selector": "select#selectPartControlDropDownThickness",
+            "type": "custom_dropdown",
+            "selector": "#partControlDropDownThickness",
+            "option_container": "#popperpartControlDropDownThickness ul",
+            "option_selector": "li[data-value='{value}']",
             "exists": true
         },
         "width": {
-            "type": "input",
-            "selector": "#sizeB",
-            "exists": true
+            "exists": false
         },
         "length": {
-            "type": "input",
-            "selector": "#sizeA",
-            "exists": true
+            "exists": false
         }
     },
     "price": {
         "selector": "#calculatorPrice > .value",
-        "includes_vat": true
+        "includes_vat": false
     }
 } 

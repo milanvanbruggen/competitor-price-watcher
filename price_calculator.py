@@ -43,11 +43,14 @@ class PriceCalculator:
                 
                 logging.info("Pagina geladen, wachten op stabilisatie...")
                 await page.wait_for_load_state("domcontentloaded")
-                await page.wait_for_timeout(2000)
+                await page.wait_for_timeout(1000)
                 
                 # Convert dimensions based on domain units
                 converted_units = self._convert_dimensions(converted_dimensions, config['units'])
                 logging.info(f"Dimensies omgezet naar juiste eenheden: {converted_units}")
+                
+                # Track successful field fills
+                successful_fills = []
                 
                 # Fill in dimensions
                 logging.info("\nInvullen van dimensies:")
@@ -58,21 +61,103 @@ class PriceCalculator:
                         
                     try:
                         logging.info(f"\nZoeken naar {field_type} veld met selector: {field_config['selector']}")
-                        # Wacht tot het element zichtbaar en enabled is
-                        element = await page.wait_for_selector(field_config['selector'], state="visible", timeout=5000)
                         
-                        if field_config['type'] == 'select':
-                            await self._fill_select_field(page, field_config['selector'], value)
+                        if field_config['type'] == 'custom_dropdown':
+                            # Handle custom dropdown
+                            trigger = await page.wait_for_selector(field_config['selector'])
+                            if not trigger:
+                                raise ValueError(f"Kon geen dropdown trigger vinden met selector: {field_config['selector']}")
+                            
+                            # Click the trigger to open the dropdown
+                            await trigger.click()
+                            await page.wait_for_timeout(1000)  # Wait longer for dropdown to open
+                            
+                            # Wait for the option container to be visible
+                            container = await page.wait_for_selector(field_config['option_container'], state="visible", timeout=5000)
+                            if not container:
+                                raise ValueError(f"Kon geen dropdown container vinden met selector: {field_config['option_container']}")
+                            
+                            # Find and click the option with the correct value
+                            option_selector = field_config['option_selector'].format(value=int(value))
+                            option = await container.query_selector(option_selector)
+                            if not option:
+                                raise ValueError(f"Kon geen optie vinden voor waarde {value}mm")
+                            
+                            await option.click()
+                            await page.wait_for_timeout(1000)  # Wait for selection to process
+                            logging.info(f"Custom dropdown: waarde {value}mm geselecteerd")
+                            successful_fills.append(field_type)
+                            
+                        elif field_config['type'] == 'select':
+                            # Handle regular select element
+                            select_element = await page.wait_for_selector(field_config['selector'])
+                            if not select_element:
+                                raise ValueError(f"Kon geen select element vinden met selector: {field_config['selector']}")
+                            
+                            # Get all available options
+                            options = await select_element.evaluate('''(select) => {
+                                return Array.from(select.options).map(option => ({
+                                    value: option.value,
+                                    text: option.text.trim()
+                                }));
+                            }''')
+                            
+                            # Find matching option
+                            match_found = False
+                            for option in options:
+                                option_text = option['text']
+                                number_match = re.search(r'(\d+(?:\.\d+)?)', option_text)
+                                if number_match:
+                                    option_value = float(number_match.group(1))
+                                    if abs(option_value - value) < 0.1:
+                                        # Select the option and trigger events
+                                        await select_element.select_option(value=option['value'])
+                                        await select_element.evaluate('''(el) => {
+                                            // Trigger all possible events that might update the price
+                                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                                            el.dispatchEvent(new Event('input', { bubbles: true }));
+                                            el.dispatchEvent(new Event('blur', { bubbles: true }));
+                                            // Also try to trigger any custom events that might exist
+                                            el.dispatchEvent(new CustomEvent('calculate', { bubbles: true }));
+                                            el.dispatchEvent(new CustomEvent('update', { bubbles: true }));
+                                        }''')
+                                        
+                                        logging.info(f"Select element: waarde {value}mm geselecteerd")
+                                        await page.wait_for_timeout(1000)  # Wait longer for price update
+                                        match_found = True
+                                        successful_fills.append(field_type)
+                                        break
+                            
+                            if not match_found:
+                                raise ValueError(f"Kon geen passende optie vinden voor waarde {value}mm")
+                            
                         else:
+                            # Handle regular input fields
+                            element = await page.wait_for_selector(field_config['selector'], state="visible", timeout=5000)
+                            if not element:
+                                raise ValueError(f"Kon geen element vinden met selector: {field_config['selector']}")
+                            
                             logging.info(f"Input veld gevonden, waarde invullen: {value}")
                             await element.fill(str(value))
-                            # Trigger blur event to update price
-                            await element.evaluate('(el) => { el.dispatchEvent(new Event("blur", { bubbles: true })); }')
-                            logging.info(f"Waarde {value} ingevuld en blur event getriggerd")
-                            await page.wait_for_timeout(1000)
+                            # Trigger all possible events
+                            await element.evaluate('''(el) => {
+                                el.dispatchEvent(new Event('blur', { bubbles: true }));
+                                el.dispatchEvent(new Event('change', { bubbles: true }));
+                                el.dispatchEvent(new Event('input', { bubbles: true }));
+                                el.dispatchEvent(new CustomEvent('calculate', { bubbles: true }));
+                                el.dispatchEvent(new CustomEvent('update', { bubbles: true }));
+                            }''')
+                            logging.info(f"Waarde {value} ingevuld en events getriggerd")
+                            await page.wait_for_timeout(1000)  # Wait longer for price update
+                            successful_fills.append(field_type)
+                            
                     except Exception as e:
+                        logging.error(f"Error bij invullen van {field_type}: {str(e)}")
                         await browser.close()
                         raise ValueError(f"Error bij invullen van {field_type}: {str(e)}")
+                
+                # Wait for price updates
+                await page.wait_for_timeout(2000)
                 
                 # Wacht tot prijs update
                 try:
@@ -81,22 +166,21 @@ class PriceCalculator:
                     logging.info(f"Zoeken naar prijs element met selector: {price_config['selector']}")
                     
                     # Wacht tot prijs element zichtbaar is
-                    await page.wait_for_selector(price_config['selector'], state="visible", timeout=5000)
-                    price_element = await page.query_selector(price_config['selector'])
+                    price_element = await page.wait_for_selector(price_config['selector'], state="visible", timeout=10000)
                     
                     if price_element:
                         # Wacht op mogelijke prijs updates
                         initial_price = await price_element.text_content()
                         logging.info(f"Initiële prijs tekst: '{initial_price}'")
                         
-                        # Wacht maximaal 5 seconden op prijswijziging
-                        max_attempts = 10
+                        # Wacht maximaal 10 seconden op prijswijziging
+                        max_attempts = 20
                         current_price = initial_price
                         for attempt in range(max_attempts):
                             await page.wait_for_timeout(500)
                             current_price = await price_element.text_content()
                             
-                            if current_price != initial_price:
+                            if current_price != initial_price and current_price != '0,00':
                                 logging.info(f"Prijs gewijzigd van '{initial_price}' naar '{current_price}'")
                                 break
                             elif attempt == max_attempts - 1:
@@ -497,6 +581,34 @@ class PriceCalculator:
 
     async def _fill_select_field(self, page: Page, selector: str, value: float) -> None:
         logging.info(f"\nZoeken naar thickness veld met selector: {selector}")
+        
+        # Check if this is a custom dropdown for voskunststoffen.nl
+        if selector.startswith('#partControlDropDownThickness'):
+            try:
+                # First click the trigger element to open the dropdown
+                trigger = await page.wait_for_selector(selector)
+                if not trigger:
+                    raise ValueError(f"Kon geen dropdown trigger vinden met selector: {selector}")
+                
+                await trigger.click()
+                await page.wait_for_timeout(500)  # Wait for dropdown to open
+                
+                # Now find the option in the popper container
+                option_selector = f"li[data-value='{value}']"
+                option = await page.wait_for_selector(option_selector, state="visible", timeout=1000)
+                if not option:
+                    raise ValueError(f"Kon geen optie vinden voor waarde {value}mm")
+                
+                await option.click()
+                await page.wait_for_timeout(500)  # Wait for selection to process
+                
+                logging.info(f"Custom dropdown: waarde {value}mm geselecteerd")
+                return
+                
+            except Exception as e:
+                raise ValueError(f"Error bij custom dropdown selectie: {str(e)}")
+        
+        # Regular select field handling
         element = await page.wait_for_selector(selector)
         if not element:
             raise ValueError(f"Kon geen element vinden met selector: {selector}")

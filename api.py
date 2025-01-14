@@ -3,17 +3,27 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 import json
 import os
 from forex_python.converter import CurrencyRates
 from scraper import MaterialScraper
 from price_calculator import PriceCalculator
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Materiaal Prijs API",
     description="API voor het analyseren van materiaal prijzen en dimensies",
     version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=False,  # Set to False when using allow_origins=["*"]
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 # Templates voor HTML interface

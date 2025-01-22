@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Domein Configuratie Beheer{% endblock %}
+
+{% block styles %}
+<style>
+    .config-form {
+        max-width: 800px;
+        margin: 20px auto;
+    }
+    .json-editor {
+        font-family: monospace;
+        height: 400px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="config-form">
+        <h2 class="mb-4">Domein Configuraties</h2>
+        
+        <!-- Domain List -->
+        <div class="mb-4">
+            <h4>Bestaande Configuraties</h4>
+            <div class="list-group" id="domainList">
+                {% for domain in domains %}
+                <button class="list-group-item list-group-item-action" onclick="loadConfig('{{ domain }}')">
+                    {{ domain }}
+                </button>
+                {% endfor %}
+            </div>
+            <button class="btn btn-primary mt-3" onclick="newConfig()">Nieuwe Configuratie</button>
+        </div>
+
+        <!-- Configuration Editor -->
+        <div class="mb-4">
+            <h4>Configuratie Editor</h4>
+            <div class="form-group">
+                <label for="domainInput">Domein:</label>
+                <input type="text" class="form-control" id="domainInput" placeholder="example.com">
+            </div>
+            <div class="form-group mt-3">
+                <label for="configEditor">JSON Configuratie:</label>
+                <textarea class="form-control json-editor" id="configEditor"></textarea>
+            </div>
+            <div class="mt-3">
+                <button class="btn btn-success" onclick="saveConfig()">Opslaan</button>
+                <button class="btn btn-danger" onclick="deleteConfig()">Verwijderen</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Load configuration for a domain
+    async function loadConfig(domain) {
+        try {
+            const response = await fetch(`/api/config/${domain}`);
+            const config = await response.json();
+            document.getElementById('domainInput').value = domain;
+            document.getElementById('configEditor').value = JSON.stringify(config, null, 2);
+        } catch (error) {
+            alert('Error loading configuration: ' + error);
+        }
+    }
+
+    // Save configuration
+    async function saveConfig() {
+        const domain = document.getElementById('domainInput').value;
+        const config = document.getElementById('configEditor').value;
+
+        try {
+            const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    domain: domain,
+                    config: JSON.parse(config)
+                })
+            });
+
+            if (response.ok) {
+                alert('Configuration saved successfully!');
+                location.reload();
+            } else {
+                alert('Error saving configuration');
+            }
+        } catch (error) {
+            alert('Error saving configuration: ' + error);
+        }
+    }
+
+    // Delete configuration
+    async function deleteConfig() {
+        const domain = document.getElementById('domainInput').value;
+        if (!confirm(`Are you sure you want to delete the configuration for ${domain}?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/config/${domain}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                alert('Configuration deleted successfully!');
+                location.reload();
+            } else {
+                alert('Error deleting configuration');
+            }
+        } catch (error) {
+            alert('Error deleting configuration: ' + error);
+        }
+    }
+
+    // Create new configuration
+    function newConfig() {
+        document.getElementById('domainInput').value = '';
+        document.getElementById('configEditor').value = JSON.stringify({
+            "domain": "",
+            "units": {
+                "thickness": "mm",
+                "dimensions": "mm"
+            },
+            "selectors": {
+                "thickness": {
+                    "type": "select",
+                    "selector": "",
+                    "exists": true
+                },
+                "width": {
+                    "type": "input",
+                    "selector": "",
+                    "exists": true
+                },
+                "length": {
+                    "type": "input",
+                    "selector": "",
+                    "exists": true
+                }
+            },
+            "price": {
+                "selector": "",
+                "includes_vat": true
+            }
+        }, null, 2);
+    }
+</script>
+{% endblock %} 

@@ -1,0 +1,28 @@
+{
+    "domain": "s-polytec.nl",
+    "units": {
+        "thickness": "mm",
+        "dimensions": "mm"
+    },
+    "selectors": {
+        "thickness": {
+            "type": "select",
+            "selector": "#attribute268",
+            "exists": true
+        },
+        "width": {
+            "type": "input",
+            "selector": "#width",
+            "exists": true
+        },
+        "length": {
+            "type": "input",
+            "selector": "#length",
+            "exists": true
+        }
+    },
+    "price": {
+        "selector": "#price-qm",
+        "includes_vat": true
+    }
+}

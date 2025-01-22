@@ -33,7 +33,7 @@ class PriceCalculator:
 
         async with async_playwright() as p:
             logging.info("Starting browser...")
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(headless=False)
             page = await browser.new_page()
             
             try:
@@ -45,6 +45,11 @@ class PriceCalculator:
                 await page.wait_for_load_state("domcontentloaded")
                 await page.wait_for_timeout(1000)
                 
+                # Klik op positie (0,0) om focus te verwijderen
+                logging.info("Klikken op positie (0,0) om focus te verwijderen")
+                await page.mouse.click(0, 0)
+                await page.wait_for_timeout(1000)  # Wacht na de klik
+                
                 # Convert dimensions based on domain units
                 converted_units = self._convert_dimensions(converted_dimensions, config['units'])
                 logging.info(f"Dimensies omgezet naar juiste eenheden: {converted_units}")
@@ -52,11 +57,19 @@ class PriceCalculator:
                 # Track successful field fills
                 successful_fills = []
                 
-                # Fill in dimensions
-                logging.info("\nInvullen van dimensies:")
-                for field_type, value in converted_units.items():
+                # Fill in dimensions in specific order
+                logging.info("\nInvullen van dimensies in vaste volgorde:")
+                field_order = ['thickness', 'length', 'width']  # Vaste volgorde
+                
+                for field_type in field_order:
+                    if field_type not in converted_units:
+                        logging.info(f"Veld {field_type} niet aanwezig in dimensies, overslaan")
+                        continue
+                        
+                    value = converted_units[field_type]
                     field_config = config['selectors'].get(field_type)
                     if not field_config or not field_config['exists']:
+                        logging.info(f"Veld {field_type} niet geconfigureerd of bestaat niet, overslaan")
                         continue
                         
                     try:
@@ -113,17 +126,13 @@ class PriceCalculator:
                                         # Select the option and trigger events
                                         await select_element.select_option(value=option['value'])
                                         await select_element.evaluate('''(el) => {
-                                            // Trigger all possible events that might update the price
                                             el.dispatchEvent(new Event('change', { bubbles: true }));
                                             el.dispatchEvent(new Event('input', { bubbles: true }));
                                             el.dispatchEvent(new Event('blur', { bubbles: true }));
-                                            // Also try to trigger any custom events that might exist
-                                            el.dispatchEvent(new CustomEvent('calculate', { bubbles: true }));
-                                            el.dispatchEvent(new CustomEvent('update', { bubbles: true }));
                                         }''')
                                         
                                         logging.info(f"Select element: waarde {value}mm geselecteerd")
-                                        await page.wait_for_timeout(1000)  # Wait longer for price update
+                                        await page.wait_for_timeout(1000)  # Wait for selection to process
                                         match_found = True
                                         successful_fills.append(field_type)
                                         break
@@ -137,18 +146,29 @@ class PriceCalculator:
                             if not element:
                                 raise ValueError(f"Kon geen element vinden met selector: {field_config['selector']}")
                             
+                            # Eerst klikken op het veld
+                            logging.info(f"Klikken op input veld voor {field_type}")
+                            await element.click()
+                            await page.wait_for_timeout(500)
+                            
+                            # Dan de waarde invullen
                             logging.info(f"Input veld gevonden, waarde invullen: {value}")
                             await element.fill(str(value))
-                            # Trigger all possible events
+                            await page.wait_for_timeout(500)
+                            
+                            # Trigger events
                             await element.evaluate('''(el) => {
                                 el.dispatchEvent(new Event('blur', { bubbles: true }));
                                 el.dispatchEvent(new Event('change', { bubbles: true }));
                                 el.dispatchEvent(new Event('input', { bubbles: true }));
-                                el.dispatchEvent(new CustomEvent('calculate', { bubbles: true }));
-                                el.dispatchEvent(new CustomEvent('update', { bubbles: true }));
                             }''')
-                            logging.info(f"Waarde {value} ingevuld en events getriggerd")
-                            await page.wait_for_timeout(1000)  # Wait longer for price update
+                            
+                            # Als dit het laatste veld is (width), druk op tab
+                            if field_type == 'width':
+                                logging.info("Laatste veld (width) ingevuld, tab-toets simuleren")
+                                await page.keyboard.press('Tab')
+                                await page.wait_for_timeout(2000)  # Langere wachttijd na tab
+                            
                             successful_fills.append(field_type)
                             
                     except Exception as e:
@@ -188,6 +208,16 @@ class PriceCalculator:
                         
                         price = self._extract_price(current_price)
                         logging.info(f"Geëxtraheerde prijs: {price}")
+                        
+                        # Als er geen prijs gevonden is, probeer nog een klik en check
+                        if price == 0:
+                            logging.info("Geen prijs gevonden, probeer nog een klik en check")
+                            await page.mouse.click(0, 0)
+                            await page.wait_for_timeout(2000)  # Langere timeout na extra klik
+                            
+                            current_price = await price_element.text_content()
+                            price = self._extract_price(current_price)
+                            logging.info(f"Prijs na extra klik: {price}")
                         
                         if price_config['includes_vat']:
                             logging.info("Prijs is inclusief BTW, berekenen excl. BTW")

@@ -1,104 +1,104 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Materiaal Prijs Calculator</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { padding: 20px; }
-        .result { margin-top: 20px; }
-        .debug-info { 
-            margin-top: 20px;
-            font-family: monospace;
-            white-space: pre-wrap;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Materiaal Prijs Calculator</h1>
-        
-        <div class="row mt-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Bereken Prijs</h5>
-                        <form id="priceForm">
-                            <div class="mb-3">
-                                <label for="url" class="form-label">Product URL</label>
-                                <input type="url" class="form-control" id="url" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="dikte" class="form-label">Dikte (mm)</label>
-                                <input type="number" class="form-control" id="dikte" value="2">
-                            </div>
-                            <div class="mb-3">
-                                <label for="lengte" class="form-label">Lengte (mm)</label>
-                                <input type="number" class="form-control" id="lengte" value="1000">
-                            </div>
-                            <div class="mb-3">
-                                <label for="breedte" class="form-label">Breedte (mm)</label>
-                                <input type="number" class="form-control" id="breedte" value="1000">
-                            </div>
-                            <div class="mb-3">
-                                <label for="country" class="form-label">Land</label>
-                                <select class="form-control" id="country">
-                                    {% for code, country in countries.items() %}
-                                    <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
-                                        {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% BTW)
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <button type="submit" class="btn btn-primary">Bereken</button>
-                        </form>
-                    </div>
+{% extends "base.html" %}
+
+{% block title %}Competitor Pricing Scraper{% endblock %}
+
+{% block styles %}
+<style>
+    .result { margin-top: 20px; }
+    .debug-info { 
+        margin-top: 20px;
+        font-family: monospace;
+        white-space: pre-wrap;
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Scrape Competitor Pricing</h2>
+    
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Bereken Prijs</h5>
+                    <form id="priceForm">
+                        <div class="mb-3">
+                            <label for="url" class="form-label">Product URL</label>
+                            <input type="url" class="form-control" id="url" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="dikte" class="form-label">Dikte (mm)</label>
+                            <input type="number" class="form-control" id="dikte" value="2">
+                        </div>
+                        <div class="mb-3">
+                            <label for="lengte" class="form-label">Lengte (mm)</label>
+                            <input type="number" class="form-control" id="lengte" value="1000">
+                        </div>
+                        <div class="mb-3">
+                            <label for="breedte" class="form-label">Breedte (mm)</label>
+                            <input type="number" class="form-control" id="breedte" value="1000">
+                        </div>
+                        <div class="mb-3">
+                            <label for="country" class="form-label">Land</label>
+                            <select class="form-control" id="country">
+                                {% for code, country in countries.items() %}
+                                <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
+                                    {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% BTW)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Bereken</button>
+                    </form>
                 </div>
             </div>
-            
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Resultaat</h5>
-                        <div id="result" class="result">
-                            <p>Voer een URL in en klik op Bereken om de prijs te zien.</p>
-                        </div>
-                        <div id="debug" class="debug-info" style="display: none;">
-                            <h6>Debug Informatie:</h6>
-                            <div id="debug-content"></div>
-                        </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Resultaat</h5>
+                    <div id="result" class="result">
+                        <p>Voer een URL in en klik op Bereken om de prijs te zien.</p>
+                    </div>
+                    <div id="debug" class="debug-info" style="display: none;">
+                        <h6>Debug Informatie:</h6>
+                        <div id="debug-content"></div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">API Documentatie</h5>
-                        <p>Deze applicatie biedt een REST API endpoint: <code>/calculate-price</code></p>
-                        <h6>Request Parameters:</h6>
-                        <ul>
-                            <li><code>url</code>: De URL van de productpagina</li>
-                            <li><code>dikte</code>: Dikte in mm (default: 2)</li>
-                            <li><code>lengte</code>: Lengte in mm (default: 1000)</li>
-                            <li><code>breedte</code>: Breedte in mm (default: 1000)</li>
-                            <li><code>country</code>: Landcode (default: nl). Beschikbare opties: nl, uk, de, fr, be, es, it, pl, se, dk</li>
-                        </ul>
-                        <h6>Response:</h6>
-                        <ul>
-                            <li><code>price_excl_vat</code>: Prijs exclusief BTW</li>
-                            <li><code>price_incl_vat</code>: Prijs inclusief BTW</li>
-                            <li><code>currency</code>: Valuta code (EUR, GBP, etc.)</li>
-                            <li><code>currency_symbol</code>: Valuta symbool (€, £, etc.)</li>
-                            <li><code>vat_rate</code>: BTW percentage voor het gekozen land</li>
-                            <li><code>error</code>: Eventuele foutmelding (optioneel)</li>
-                        </ul>
-                        <p>Voorbeeld curl commando:</p>
-                        <pre><code>curl -X POST "http://localhost:8080/calculate-price" \
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">API Documentatie</h5>
+                    <p>Deze applicatie biedt een REST API endpoint: <code>/calculate-price</code></p>
+                    <h6>Request Parameters:</h6>
+                    <ul>
+                        <li><code>url</code>: De URL van de productpagina</li>
+                        <li><code>dikte</code>: Dikte in mm (default: 2)</li>
+                        <li><code>lengte</code>: Lengte in mm (default: 1000)</li>
+                        <li><code>breedte</code>: Breedte in mm (default: 1000)</li>
+                        <li><code>country</code>: Landcode (default: nl). Beschikbare opties: nl, uk, de, fr, be, es, it, pl, se, dk</li>
+                    </ul>
+                    <h6>Response:</h6>
+                    <ul>
+                        <li><code>price_excl_vat</code>: Prijs exclusief BTW</li>
+                        <li><code>price_incl_vat</code>: Prijs inclusief BTW</li>
+                        <li><code>currency</code>: Valuta code (EUR, GBP, etc.)</li>
+                        <li><code>currency_symbol</code>: Valuta symbool (€, £, etc.)</li>
+                        <li><code>vat_rate</code>: BTW percentage voor het gekozen land</li>
+                        <li><code>error</code>: Eventuele foutmelding (optioneel)</li>
+                    </ul>
+                    <p>Voorbeeld curl commando:</p>
+                    <pre><code>curl -X POST "http://localhost:8080/calculate-price" \
     -H "Content-Type: application/json" \
     -d '{
     "url": "https://example.com/product",
@@ -107,125 +107,126 @@
     "breedte": 1000,
     "country": "uk"
 }'</code></pre>
-                        <p>Voorbeeld response:</p>
-                        <pre><code>{
+                    <p>Voorbeeld response:</p>
+                    <pre><code>{
     "price_excl_vat": 42.54,
     "price_incl_vat": 51.05,
     "currency": "GBP",
     "currency_symbol": "£",
     "vat_rate": 20.0
 }</code></pre>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <script>
-        document.getElementById('priceForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const url = document.getElementById('url').value;
-            const dikte = parseFloat(document.getElementById('dikte').value);
-            const lengte = parseFloat(document.getElementById('lengte').value);
-            const breedte = parseFloat(document.getElementById('breedte').value);
-            const country = document.getElementById('country').value;
-            
-            // Helper functie voor valuta formatting
-            const formatCurrency = (amount, currency, country) => {
-                // Map van land codes naar locale codes
-                const localeMap = {
-                    'nl': 'nl-NL',
-                    'uk': 'en-GB',
-                    'de': 'de-DE',
-                    'fr': 'fr-FR',
-                    'be': 'nl-BE',
-                    'es': 'es-ES',
-                    'it': 'it-IT',
-                    'pl': 'pl-PL',
-                    'se': 'sv-SE',
-                    'dk': 'da-DK'
-                };
-                
-                // Rond het bedrag af op 2 decimalen
-                const roundedAmount = Number(Math.round(amount + 'e2') + 'e-2');
-                
-                const locale = localeMap[country] || 'nl-NL';
-                return new Intl.NumberFormat(locale, {
-                    style: 'currency',
-                    currency: currency,
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }).format(roundedAmount);
+{% block scripts %}
+<script>
+    document.getElementById('priceForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const url = document.getElementById('url').value;
+        const dikte = parseFloat(document.getElementById('dikte').value);
+        const lengte = parseFloat(document.getElementById('lengte').value);
+        const breedte = parseFloat(document.getElementById('breedte').value);
+        const country = document.getElementById('country').value;
+        
+        // Helper functie voor valuta formatting
+        const formatCurrency = (amount, currency, country) => {
+            // Map van land codes naar locale codes
+            const localeMap = {
+                'nl': 'nl-NL',
+                'uk': 'en-GB',
+                'de': 'de-DE',
+                'fr': 'fr-FR',
+                'be': 'nl-BE',
+                'es': 'es-ES',
+                'it': 'it-IT',
+                'pl': 'pl-PL',
+                'se': 'sv-SE',
+                'dk': 'da-DK'
             };
             
-            const requestData = {
-                url: url,
-                dikte: dikte,
-                lengte: lengte,
-                breedte: breedte,
-                country: country
-            };
+            // Rond het bedrag af op 2 decimalen
+            const roundedAmount = Number(Math.round(amount + 'e2') + 'e-2');
             
-            try {
-                // Verander de initiële resultaat weergave
+            const locale = localeMap[country] || 'nl-NL';
+            return new Intl.NumberFormat(locale, {
+                style: 'currency',
+                currency: currency,
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(roundedAmount);
+        };
+        
+        const requestData = {
+            url: url,
+            dikte: dikte,
+            lengte: lengte,
+            breedte: breedte,
+            country: country
+        };
+        
+        try {
+            // Verander de initiële resultaat weergave
+            document.getElementById('result').innerHTML = `
+                <div class="alert alert-info">
+                    <p>Bezig met berekenen...</p>
+                </div>
+            `;
+            document.getElementById('debug').style.display = 'none';
+            
+            const response = await fetch('/calculate-price', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.error || (data.price_excl_vat === 0 && data.price_incl_vat === 0)) {
+                const errorMessage = data.error || "Kon geen prijs berekenen voor de opgegeven dimensies";
                 document.getElementById('result').innerHTML = `
-                    <div class="alert alert-info">
-                        <p>Bezig met berekenen...</p>
+                    <div class="alert alert-danger">
+                        <p class="mb-0">${errorMessage}</p>
                     </div>
                 `;
-                document.getElementById('debug').style.display = 'none';
+            } else {
+                const priceExclVat = data.price_excl_vat !== null && data.price_excl_vat !== undefined 
+                    ? formatCurrency(data.price_excl_vat, data.currency, country)
+                    : 'Niet beschikbaar';
+                const priceInclVat = data.price_incl_vat !== null && data.price_incl_vat !== undefined
+                    ? formatCurrency(data.price_incl_vat, data.currency, country)
+                    : 'Niet beschikbaar';
                 
-                const response = await fetch('/calculate-price', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-                
-                const data = await response.json();
-                
-                if (data.error || (data.price_excl_vat === 0 && data.price_incl_vat === 0)) {
-                    const errorMessage = data.error || "Kon geen prijs berekenen voor de opgegeven dimensies";
-                    document.getElementById('result').innerHTML = `
-                        <div class="alert alert-danger">
-                            <p class="mb-0">${errorMessage}</p>
-                        </div>
-                    `;
-                } else {
-                    const priceExclVat = data.price_excl_vat !== null && data.price_excl_vat !== undefined 
-                        ? formatCurrency(data.price_excl_vat, data.currency, country)
-                        : 'Niet beschikbaar';
-                    const priceInclVat = data.price_incl_vat !== null && data.price_incl_vat !== undefined
-                        ? formatCurrency(data.price_incl_vat, data.currency, country)
-                        : 'Niet beschikbaar';
-                    
-                    document.getElementById('result').innerHTML = `
-                        <div class="alert alert-success">
-                            <p class="mb-0"><strong>Prijs excl. BTW:</strong> ${priceExclVat}</p>
-                            <p class="mb-0"><strong>Prijs incl. ${data.vat_rate}% BTW:</strong> ${priceInclVat}</p>
-                        </div>
-                    `;
-                }
-                
-                document.getElementById('debug').style.display = 'block';
-                document.getElementById('debug-content').innerText = 
-                    `Request:\n${JSON.stringify(requestData, null, 2)}\n\n` +
-                    `Response:\n${JSON.stringify(data, null, 2)}`;
-            } catch (error) {
                 document.getElementById('result').innerHTML = `
-                    <div class="card border-danger">
-                        <div class="card-body text-danger">
-                            <h5 class="card-title">Error</h5>
-                            <p class="card-text">${error.message}</p>
-                        </div>
+                    <div class="alert alert-success">
+                        <p class="mb-0"><strong>Prijs excl. BTW:</strong> ${priceExclVat}</p>
+                        <p class="mb-0"><strong>Prijs incl. ${data.vat_rate}% BTW:</strong> ${priceInclVat}</p>
                     </div>
                 `;
-                document.getElementById('debug').style.display = 'block';
-                document.getElementById('debug-content').innerText = `Error: ${error.message}`;
             }
-        });
-    </script>
-</body>
-</html> 
+            
+            document.getElementById('debug').style.display = 'block';
+            document.getElementById('debug-content').innerText = 
+                `Request:\n${JSON.stringify(requestData, null, 2)}\n\n` +
+                `Response:\n${JSON.stringify(data, null, 2)}`;
+        } catch (error) {
+            document.getElementById('result').innerHTML = `
+                <div class="card border-danger">
+                    <div class="card-body text-danger">
+                        <h5 class="card-title">Error</h5>
+                        <p class="card-text">${error.message}</p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('debug').style.display = 'block';
+            document.getElementById('debug-content').innerText = `Error: ${error.message}`;
+        }
+    });
+</script>
+{% endblock %} 

@@ -85,11 +85,21 @@ async def calculate_price(request: PriceRequest) -> PriceResponse:
             'breedte': request.breedte
         }
         
-        price_excl_vat, price_incl_vat = await calculator.calculate_price(request.url, dimensions)
+        price_excl_vat, price_incl_vat = await calculator.calculate_price(
+            request.url, 
+            dimensions,
+            country=request.country
+        )
+        
+        # Get country specific info
+        country_info = countries.get(request.country, countries['nl'])
         
         return PriceResponse(
             price_excl_vat=price_excl_vat,
-            price_incl_vat=price_incl_vat
+            price_incl_vat=price_incl_vat,
+            currency=country_info['currency'],
+            currency_symbol=country_info['currency_symbol'],
+            vat_rate=country_info['vat_rate']
         )
         
     except Exception as e:

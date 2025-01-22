@@ -3,6 +3,8 @@ from typing import Dict, Any, Optional, Tuple, List
 from domain_config import DomainConfig
 import logging
 import re
+import os
+import json
 
 class PriceCalculator:
     """Calculate prices based on dimensions for different domains"""
@@ -12,11 +14,21 @@ class PriceCalculator:
         self.domain_config = domain_config
         logging.info("Initialiseren PriceCalculator...")
 
-    async def calculate_price(self, url: str, dimensions: Dict[str, float]) -> Tuple[float, float]:
+    async def calculate_price(self, url: str, dimensions: Dict[str, float], country: str = 'nl') -> Tuple[float, float]:
         """Calculate price based on dimensions using domain configuration"""
         logging.info(f"\n{'='*50}")
         logging.info(f"Start prijsberekening voor {url}")
         logging.info(f"Input dimensies: {dimensions}")
+        logging.info(f"Land: {country}")
+        
+        # Load country configuration
+        countries_file = os.path.join('config', 'countries.json')
+        with open(countries_file, 'r') as f:
+            countries = json.load(f)
+        
+        # Get VAT rate for selected country (default to NL if country not found)
+        vat_rate = countries.get(country, countries['nl'])['vat_rate'] / 100
+        logging.info(f"BTW percentage voor {country}: {vat_rate*100}%")
         
         # Convert dimension names to match configuration
         converted_dimensions = {
@@ -185,8 +197,11 @@ class PriceCalculator:
                     price_config = config['price']
                     logging.info(f"Zoeken naar prijs element met selector: {price_config['selector']}")
                     
-                    # Wacht tot prijs element zichtbaar is
-                    price_element = await page.wait_for_selector(price_config['selector'], state="visible", timeout=10000)
+                    # Wacht tot prijs element zichtbaar is, gebruik xpath indien gespecificeerd
+                    if price_config.get('selector_type') == 'xpath':
+                        price_element = await page.wait_for_selector(f"xpath={price_config['selector']}", state="visible", timeout=10000)
+                    else:
+                        price_element = await page.wait_for_selector(price_config['selector'], state="visible", timeout=10000)
                     
                     if price_element:
                         # Wacht op mogelijke prijs updates
@@ -209,6 +224,24 @@ class PriceCalculator:
                         price = self._extract_price(current_price)
                         logging.info(f"Geëxtraheerde prijs: {price}")
                         
+                        # Voer aangepaste prijsberekeningen uit indien gespecificeerd
+                        if 'calculation' in price_config and 'steps' in price_config['calculation']:
+                            original_price = price
+                            for step in price_config['calculation']['steps']:
+                                if step['operation'] == 'divide':
+                                    price = price / step['value']
+                                    logging.info(f"Prijs na deling door {step['value']}: {price}")
+                                elif step['operation'] == 'add':
+                                    price = price + step['value']
+                                    logging.info(f"Prijs na optelling van {step['value']}: {price}")
+                                elif step['operation'] == 'multiply':
+                                    price = price * step['value']
+                                    logging.info(f"Prijs na vermenigvuldiging met {step['value']}: {price}")
+                                elif step['operation'] == 'subtract':
+                                    price = price - step['value']
+                                    logging.info(f"Prijs na aftrekking van {step['value']}: {price}")
+                            logging.info(f"Prijs na berekeningen: {price} (was: {original_price})")
+                        
                         # Als er geen prijs gevonden is, probeer nog een klik en check
                         if price == 0:
                             logging.info("Geen prijs gevonden, probeer nog een klik en check")
@@ -220,13 +253,13 @@ class PriceCalculator:
                             logging.info(f"Prijs na extra klik: {price}")
                         
                         if price_config['includes_vat']:
-                            logging.info("Prijs is inclusief BTW, berekenen excl. BTW")
+                            logging.info(f"Prijs is inclusief BTW ({vat_rate*100}%), berekenen excl. BTW")
                             price_incl_vat = price
-                            price_excl_vat = price / 1.21
+                            price_excl_vat = price / (1 + vat_rate)
                         else:
-                            logging.info("Prijs is exclusief BTW, berekenen incl. BTW")
+                            logging.info(f"Prijs is exclusief BTW ({vat_rate*100}%), berekenen incl. BTW")
                             price_excl_vat = price
-                            price_incl_vat = price * 1.21
+                            price_incl_vat = price * (1 + vat_rate)
                         
                         # Rond de prijzen af op 2 decimalen
                         price_excl_vat = round(price_excl_vat, 2)

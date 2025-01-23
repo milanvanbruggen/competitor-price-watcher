@@ -1,31 +1,13 @@
 {
     "domain": "decoupe-plexi-sur-mesure.com",
-    "units": {
-        "thickness": "mm",
-        "dimensions": "mm"
-    },
-    "selectors": {
-        "thickness": {
-            "exists": false
-        },
-        "width": {
-            "exists": false
-        },
-        "length": {
-            "exists": false
+    "steps": [
+        {
+            "type": "read_price",
+            "selector": "//td[contains(text(), '1010 x 1010 mm')]/following-sibling::td[1]",
+            "includes_vat": false,
+            "calculation": {
+                "add": 2.72
+            }
         }
-    },
-    "price": {
-        "selector": "//td[contains(., '1010 x 1010 mm')]/following-sibling::td[1]",
-        "selector_type": "xpath",
-        "includes_vat": false,
-        "calculation": {
-            "steps": [
-                {
-                    "operation": "add",
-                    "value": 2.72
-                }
-            ]
-        }
-    }
+    ]
 }

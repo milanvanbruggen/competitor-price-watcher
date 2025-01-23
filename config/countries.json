@@ -1,16 +1,16 @@
 {
     "nl": {
-        "name": "Netherlands",
         "currency": "EUR",
-        "currency_symbol": "€",
-        "vat_rate": 21.0,
+        "currency_symbol": "\u20ac",
         "decimal_separator": ",",
-        "thousands_separator": "."
+        "name": "Netherlands",
+        "thousands_separator": ".",
+        "vat_rate": 21
     },
     "uk": {
         "name": "United Kingdom",
         "currency": "GBP",
-        "currency_symbol": "£",
+        "currency_symbol": "\u00a3",
         "vat_rate": 20.0,
         "decimal_separator": ".",
         "thousands_separator": ","
@@ -18,7 +18,7 @@
     "de": {
         "name": "Germany",
         "currency": "EUR",
-        "currency_symbol": "€",
+        "currency_symbol": "\u20ac",
         "vat_rate": 19.0,
         "decimal_separator": ",",
         "thousands_separator": "."
@@ -26,7 +26,7 @@
     "fr": {
         "name": "France",
         "currency": "EUR",
-        "currency_symbol": "€",
+        "currency_symbol": "\u20ac",
         "vat_rate": 20.0,
         "decimal_separator": ",",
         "thousands_separator": " "
@@ -34,7 +34,7 @@
     "be": {
         "name": "Belgium",
         "currency": "EUR",
-        "currency_symbol": "€",
+        "currency_symbol": "\u20ac",
         "vat_rate": 21.0,
         "decimal_separator": ",",
         "thousands_separator": "."
@@ -42,7 +42,7 @@
     "es": {
         "name": "Spain",
         "currency": "EUR",
-        "currency_symbol": "€",
+        "currency_symbol": "\u20ac",
         "vat_rate": 21.0,
         "decimal_separator": ",",
         "thousands_separator": "."
@@ -50,7 +50,7 @@
     "it": {
         "name": "Italy",
         "currency": "EUR",
-        "currency_symbol": "€",
+        "currency_symbol": "\u20ac",
         "vat_rate": 22.0,
         "decimal_separator": ",",
         "thousands_separator": "."
@@ -58,7 +58,7 @@
     "pl": {
         "name": "Poland",
         "currency": "PLN",
-        "currency_symbol": "zł",
+        "currency_symbol": "z\u0142",
         "vat_rate": 23.0,
         "decimal_separator": ",",
         "thousands_separator": " "
@@ -79,4 +79,4 @@
         "decimal_separator": ",",
         "thousands_separator": "."
     }
-} 
+}

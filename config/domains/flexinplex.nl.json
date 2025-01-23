@@ -1,28 +1,37 @@
 {
     "domain": "flexinplex.nl",
-    "units": {
-        "thickness": "mm",
-        "dimensions": "mm"
-    },
-    "selectors": {
-        "thickness": {
+    "steps": [
+        {
             "type": "select",
-            "selector": "#pdp-configurator .variation__select select",
-            "exists": true
+            "selector": ".variation__select select",
+            "option_selector": "option[value='{thickness}']",
+            "value": "{thickness}",
+            "unit": "mm"
         },
-        "width": {
+        {
             "type": "input",
-            "selector": ".size__item .inputs input[type='number']",
-            "exists": true
+            "selector": ".inputs input",
+            "value": "{width}",
+            "unit": "mm"
         },
-        "length": {
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
             "type": "input",
-            "selector": ".size__item .inputs input[type='number']",
-            "exists": true
+            "selector": ".inputs input",
+            "value": "{length}",
+            "unit": "mm"
+        },
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
+            "type": "read_price",
+            "selector": "#pdp-configurator-summary-top .excl .price",
+            "includes_vat": false
         }
-    },
-    "price": {
-        "selector": "#pdp-configurator-summary-top .prices__pdp .incl .price",
-        "includes_vat": true
-    }
+    ]
 } 

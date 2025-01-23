@@ -5,607 +5,237 @@ import logging
 import re
 import os
 import json
+import asyncio
+from urllib.parse import urlparse
+
+logging.basicConfig(level=logging.INFO)
 
 class PriceCalculator:
     """Calculate prices based on dimensions for different domains"""
     
-    def __init__(self, domain_config: DomainConfig):
-        """Initialize calculator with domain configuration"""
-        self.domain_config = domain_config
-        logging.info("Initialiseren PriceCalculator...")
+    def __init__(self):
+        self.configs = {}
+        self._load_configs()
+
+    def _load_configs(self):
+        config_dir = os.path.join(os.path.dirname(__file__), 'config', 'domains')
+        for filename in os.listdir(config_dir):
+            if filename.endswith('.json'):
+                with open(os.path.join(config_dir, filename)) as f:
+                    config = json.load(f)
+                    self.configs[config['domain']] = config
 
     async def calculate_price(self, url: str, dimensions: Dict[str, float], country: str = 'nl') -> Tuple[float, float]:
-        """Calculate price based on dimensions using domain configuration"""
-        logging.info(f"\n{'='*50}")
-        logging.info(f"Start prijsberekening voor {url}")
-        logging.info(f"Input dimensies: {dimensions}")
-        logging.info(f"Land: {country}")
-        
-        # Load country configuration
-        countries_file = os.path.join('config', 'countries.json')
-        with open(countries_file, 'r') as f:
-            countries = json.load(f)
-        
-        # Get VAT rate for selected country (default to NL if country not found)
-        vat_rate = countries.get(country, countries['nl'])['vat_rate'] / 100
-        logging.info(f"BTW percentage voor {country}: {vat_rate*100}%")
-        
-        # Convert dimension names to match configuration
-        converted_dimensions = {
-            'thickness': dimensions.get('dikte', 0),
-            'length': dimensions.get('lengte', 0),
-            'width': dimensions.get('breedte', 0)
-        }
-        logging.info(f"Omgezette dimensies: {converted_dimensions}")
-        
-        config = self.domain_config.get_config(url)
-        if not config:
-            raise ValueError(f"No configuration found for URL: {url}")
-        logging.info(f"Gevonden configuratie: {config}")
+        domain = urlparse(url).netloc.replace('www.', '')
+        if domain not in self.configs:
+            raise ValueError(f"No configuration found for domain {domain}")
 
+        logging.info(f"Calculating price for {url}")
+        logging.info(f"Original dimensions: {dimensions}")
+        
+        config = self.configs[domain]
+        logging.info(f"Using config: {config}")
+        
         async with async_playwright() as p:
-            logging.info("Starting browser...")
             browser = await p.chromium.launch(headless=False)
-            page = await browser.new_page()
+            context = await browser.new_context(viewport={'width': 1280, 'height': 1024})  # Fixed viewport
+            page = await context.new_page()
             
             try:
-                # Wacht tot de pagina volledig geladen is
-                logging.info(f"Navigeren naar {url}")
-                await page.goto(url, wait_until="networkidle")
-                
-                logging.info("Pagina geladen, wachten op stabilisatie...")
-                await page.wait_for_load_state("domcontentloaded")
-                await page.wait_for_timeout(1000)
-                
-                # Klik op positie (0,0) om focus te verwijderen
-                logging.info("Klikken op positie (0,0) om focus te verwijderen")
-                await page.mouse.click(0, 0)
-                await page.wait_for_timeout(1000)  # Wacht na de klik
-                
-                # Convert dimensions based on domain units
-                converted_units = self._convert_dimensions(converted_dimensions, config['units'])
-                logging.info(f"Dimensies omgezet naar juiste eenheden: {converted_units}")
-                
-                # Track successful field fills
-                successful_fills = []
-                
-                # Fill in dimensions in specific order
-                logging.info("\nInvullen van dimensies in vaste volgorde:")
-                field_order = ['thickness', 'length', 'width']  # Vaste volgorde
-                
-                for field_type in field_order:
-                    if field_type not in converted_units:
-                        logging.info(f"Veld {field_type} niet aanwezig in dimensies, overslaan")
-                        continue
-                        
-                    value = converted_units[field_type]
-                    field_config = config['selectors'].get(field_type)
-                    if not field_config or not field_config['exists']:
-                        logging.info(f"Veld {field_type} niet geconfigureerd of bestaat niet, overslaan")
-                        continue
-                        
-                    try:
-                        logging.info(f"\nZoeken naar {field_type} veld met selector: {field_config['selector']}")
-                        
-                        if field_config['type'] == 'custom_dropdown':
-                            # Handle custom dropdown
-                            trigger = await page.wait_for_selector(field_config['selector'])
-                            if not trigger:
-                                raise ValueError(f"Kon geen dropdown trigger vinden met selector: {field_config['selector']}")
-                            
-                            # Click the trigger to open the dropdown
-                            await trigger.click()
-                            await page.wait_for_timeout(1000)  # Wait longer for dropdown to open
-                            
-                            # Wait for the option container to be visible
-                            container = await page.wait_for_selector(field_config['option_container'], state="visible", timeout=5000)
-                            if not container:
-                                raise ValueError(f"Kon geen dropdown container vinden met selector: {field_config['option_container']}")
-                            
-                            # Find and click the option with the correct value
-                            option_selector = field_config['option_selector'].format(value=int(value))
-                            option = await container.query_selector(option_selector)
-                            if not option:
-                                raise ValueError(f"Kon geen optie vinden voor waarde {value}mm")
-                            
-                            await option.click()
-                            await page.wait_for_timeout(1000)  # Wait for selection to process
-                            logging.info(f"Custom dropdown: waarde {value}mm geselecteerd")
-                            successful_fills.append(field_type)
-                            
-                        elif field_config['type'] == 'select':
-                            # Handle regular select element
-                            select_element = await page.wait_for_selector(field_config['selector'])
-                            if not select_element:
-                                raise ValueError(f"Kon geen select element vinden met selector: {field_config['selector']}")
-                            
-                            # Get all available options
-                            options = await select_element.evaluate('''(select) => {
-                                return Array.from(select.options).map(option => ({
-                                    value: option.value,
-                                    text: option.text.trim()
-                                }));
-                            }''')
-                            
-                            # Find matching option
-                            match_found = False
-                            for option in options:
-                                option_text = option['text']
-                                number_match = re.search(r'(\d+(?:\.\d+)?)', option_text)
-                                if number_match:
-                                    option_value = float(number_match.group(1))
-                                    if abs(option_value - value) < 0.1:
-                                        # Select the option and trigger events
-                                        await select_element.select_option(value=option['value'])
-                                        await select_element.evaluate('''(el) => {
-                                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                                            el.dispatchEvent(new Event('input', { bubbles: true }));
-                                            el.dispatchEvent(new Event('blur', { bubbles: true }));
-                                        }''')
-                                        
-                                        logging.info(f"Select element: waarde {value}mm geselecteerd")
-                                        await page.wait_for_timeout(1000)  # Wait for selection to process
-                                        match_found = True
-                                        successful_fills.append(field_type)
-                                        break
-                            
-                            if not match_found:
-                                raise ValueError(f"Kon geen passende optie vinden voor waarde {value}mm")
-                            
-                        else:
-                            # Handle regular input fields
-                            element = await page.wait_for_selector(field_config['selector'], state="visible", timeout=5000)
-                            if not element:
-                                raise ValueError(f"Kon geen element vinden met selector: {field_config['selector']}")
-                            
-                            # Eerst klikken op het veld
-                            logging.info(f"Klikken op input veld voor {field_type}")
-                            await element.click()
-                            await page.wait_for_timeout(500)
-                            
-                            # Dan de waarde invullen
-                            logging.info(f"Input veld gevonden, waarde invullen: {value}")
-                            await element.fill(str(value))
-                            await page.wait_for_timeout(500)
-                            
-                            # Trigger events
-                            await element.evaluate('''(el) => {
-                                el.dispatchEvent(new Event('blur', { bubbles: true }));
-                                el.dispatchEvent(new Event('change', { bubbles: true }));
-                                el.dispatchEvent(new Event('input', { bubbles: true }));
-                            }''')
-                            
-                            # Als dit het laatste veld is (width), druk op tab
-                            if field_type == 'width':
-                                logging.info("Laatste veld (width) ingevuld, tab-toets simuleren")
-                                await page.keyboard.press('Tab')
-                                await page.wait_for_timeout(2000)  # Langere wachttijd na tab
-                            
-                            successful_fills.append(field_type)
-                            
-                    except Exception as e:
-                        logging.error(f"Error bij invullen van {field_type}: {str(e)}")
-                        await browser.close()
-                        raise ValueError(f"Error bij invullen van {field_type}: {str(e)}")
-                
-                # Wait for price updates
-                await page.wait_for_timeout(2000)
-                
-                # Wacht tot prijs update
-                try:
-                    logging.info("\nWachten op prijs update:")
-                    price_config = config['price']
-                    logging.info(f"Zoeken naar prijs element met selector: {price_config['selector']}")
+                logging.info(f"Navigating to {url}")
+                await page.goto(url)
+                await page.wait_for_load_state("networkidle")
+                await asyncio.sleep(1)  # Reduced wait time
+
+                for step in config['steps']:
+                    logging.info(f"Executing step: {step['type']}")
                     
-                    # Wacht tot prijs element zichtbaar is, gebruik xpath indien gespecificeerd
-                    if price_config.get('selector_type') == 'xpath':
-                        price_element = await page.wait_for_selector(f"xpath={price_config['selector']}", state="visible", timeout=10000)
-                    else:
-                        price_element = await page.wait_for_selector(price_config['selector'], state="visible", timeout=10000)
-                    
-                    if price_element:
-                        # Wacht op mogelijke prijs updates
-                        initial_price = await price_element.text_content()
-                        logging.info(f"Initiële prijs tekst: '{initial_price}'")
+                    if step['type'] == 'select':
+                        await self._handle_select(page, step, dimensions)
+                    elif step['type'] == 'input':
+                        await self._handle_input(page, step, dimensions)
+                    elif step['type'] == 'click':
+                        await self._handle_click(page, step)
+                    elif step['type'] == 'wait':
+                        await self._handle_wait(step)
+                    elif step['type'] == 'read_price':
+                        price = await self._handle_read_price(page, step)
                         
-                        # Wacht maximaal 10 seconden op prijswijziging
-                        max_attempts = 20
-                        current_price = initial_price
-                        for attempt in range(max_attempts):
-                            await page.wait_for_timeout(500)
-                            current_price = await price_element.text_content()
-                            
-                            if current_price != initial_price and current_price != '0,00':
-                                logging.info(f"Prijs gewijzigd van '{initial_price}' naar '{current_price}'")
-                                break
-                            elif attempt == max_attempts - 1:
-                                logging.info("Geen prijswijziging gedetecteerd na wachten")
+                        # Load VAT rates from configuration
+                        with open('config/countries.json') as f:
+                            countries = json.load(f)
+                        vat_rate = countries.get(country, countries['nl'])['vat_rate'] / 100
                         
-                        price = self._extract_price(current_price)
-                        logging.info(f"Geëxtraheerde prijs: {price}")
-                        
-                        # Voer aangepaste prijsberekeningen uit indien gespecificeerd
-                        if 'calculation' in price_config and 'steps' in price_config['calculation']:
-                            original_price = price
-                            for step in price_config['calculation']['steps']:
-                                if step['operation'] == 'divide':
-                                    price = price / step['value']
-                                    logging.info(f"Prijs na deling door {step['value']}: {price}")
-                                elif step['operation'] == 'add':
-                                    price = price + step['value']
-                                    logging.info(f"Prijs na optelling van {step['value']}: {price}")
-                                elif step['operation'] == 'multiply':
-                                    price = price * step['value']
-                                    logging.info(f"Prijs na vermenigvuldiging met {step['value']}: {price}")
-                                elif step['operation'] == 'subtract':
-                                    price = price - step['value']
-                                    logging.info(f"Prijs na aftrekking van {step['value']}: {price}")
-                            logging.info(f"Prijs na berekeningen: {price} (was: {original_price})")
-                        
-                        # Als er geen prijs gevonden is, probeer nog een klik en check
-                        if price == 0:
-                            logging.info("Geen prijs gevonden, probeer nog een klik en check")
-                            await page.mouse.click(0, 0)
-                            await page.wait_for_timeout(2000)  # Langere timeout na extra klik
-                            
-                            current_price = await price_element.text_content()
-                            price = self._extract_price(current_price)
-                            logging.info(f"Prijs na extra klik: {price}")
-                        
-                        if price_config['includes_vat']:
-                            logging.info(f"Prijs is inclusief BTW ({vat_rate*100}%), berekenen excl. BTW")
+                        if step.get('includes_vat', False):
                             price_incl_vat = price
                             price_excl_vat = price / (1 + vat_rate)
                         else:
-                            logging.info(f"Prijs is exclusief BTW ({vat_rate*100}%), berekenen incl. BTW")
                             price_excl_vat = price
                             price_incl_vat = price * (1 + vat_rate)
-                        
-                        # Rond de prijzen af op 2 decimalen
-                        price_excl_vat = round(price_excl_vat, 2)
-                        price_incl_vat = round(price_incl_vat, 2)
-                        
-                        logging.info(f"Finale prijzen: €{price_excl_vat:.2f} ex BTW / €{price_incl_vat:.2f} incl BTW")
-                        await browser.close()
+                            
                         return price_excl_vat, price_incl_vat
-                    else:
-                        logging.error("Prijs element niet gevonden")
-                except Exception as e:
-                    logging.error(f"Error bij ophalen prijs: {str(e)}")
-                
-                await browser.close()
-                return 0, 0
+
             except Exception as e:
+                logging.error(f"Error calculating price: {str(e)}")
+                raise
+            finally:
+                await asyncio.sleep(2)  # Reduced wait time
                 await browser.close()
-                raise ValueError(f"Error bij berekenen prijs: {str(e)}")
 
-    async def _detect_unit(self, page) -> bool:
-        """Detecteert of de pagina centimeters of millimeters gebruikt"""
-        try:
-            # Zoek eerst in de buurt van het formulier
-            form_area_selectors = [
-                "form",
-                ".form",
-                ".calculator",
-                "#calculator",
-                ".product-options",
-                ".configurator"
-            ]
-            
-            for selector in form_area_selectors:
-                try:
-                    elements = await page.query_selector_all(selector)
-                    for element in elements:
-                        text = await element.inner_text()
-                        text = text.lower()
-                        if any(term in text for term in ['cm', 'centimeter', 'centimeters']):
-                            print("Centimeters (cm) gedetecteerd in formulier gebied")
-                            return True
-                        elif any(term in text for term in ['mm', 'millimeter', 'millimeters']):
-                            print("Millimeters (mm) gedetecteerd in formulier gebied")
-                            return False
-                except Exception as e:
-                    print(f"Error bij zoeken in formulier gebied: {str(e)}")
-                    continue
-            
-            # Als nog geen eenheid gevonden, zoek in labels
-            content = await page.content()
-            if not any(term in content.lower() for term in ['cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters']):
-                elements = await page.query_selector_all("label, .form-label, .input-label, .field-label")
-                for element in elements:
-                    try:
-                        text = await element.inner_text()
-                        text = text.lower()
-                        if any(term in text for term in ['cm', 'centimeter', 'centimeters']):
-                            print("Centimeters (cm) gedetecteerd in labels")
-                            return True
-                        elif any(term in text for term in ['mm', 'millimeter', 'millimeters']):
-                            print("Millimeters (mm) gedetecteerd in labels")
-                            return False
-                    except Exception as e:
-                        print(f"Error bij label check: {str(e)}")
-                        continue
-            
-            # Standaard millimeters
-            return False
-            
-        except Exception as e:
-            print(f"Error bij eenheid detectie: {str(e)}")
-            return False
+    def _convert_value(self, value: float, unit: str) -> float:
+        """Convert a value from millimeters to the target unit"""
+        if unit == 'cm':
+            return value / 10
+        return value  # Default is mm
 
-    async def _fill_dimension_field(self, page, field_info, value, uses_centimeters):
-        """Vult een dimensie veld in"""
-        try:
-            # Voor select velden laten we de eenheid conversie over aan _handle_select_field
-            if field_info['tag'] == 'select':
-                success = await self._handle_select_field(page, field_info, value)
-                if not success:
-                    print(f"Kon geen passende optie vinden voor waarde {value}mm in {field_info.get('label', 'select veld')}")
-                    return False
-            else:
-                # Alleen voor gewone input velden converteren we naar cm indien nodig
-                display_value = value
-                if uses_centimeters:
-                    display_value = value / 10  # mm naar cm
-                    print(f"Waarde geconverteerd van {value}mm naar {display_value}cm")
-
-                selector = f"#{field_info['id']}"
-                input_element = await page.wait_for_selector(selector)
-                await input_element.fill(str(display_value))
-                await input_element.evaluate('element => element.blur()')
-                await page.wait_for_timeout(500)
-
-            return True
-
-        except Exception as e:
-            print(f"Error bij invullen veld: {str(e)}")
-            return False
-
-    async def _handle_select_field(self, page, field_info, value):
-        """Handelt select velden af"""
-        try:
-            selector = f"#{field_info['id']}"
-            if not await page.query_selector(selector):
-                # Als we het veld niet direct kunnen vinden, probeer alternatieve selectors
-                alternative_selectors = [
-                    "select:has(option:has-text('mm'))",
-                    "select.variation__select",
-                    "[class*='variation'] select",
-                    "select:has-text('dikte')",
-                    "select:has-text('Dikte')"
-                ]
-                for alt_selector in alternative_selectors:
-                    element = await page.query_selector(alt_selector)
-                    if element:
-                        selector = alt_selector
-                        break
-
-            # Haal alle opties op
-            options = await page.evaluate(f"""
-                () => {{
-                    const select = document.querySelector('{selector}');
-                    if (!select) return [];
-                    return Array.from(select.options).map(option => ({{
-                        value: option.value,
-                        text: option.text.trim()
-                    }}));
-                }}
-            """)
-
-            print(f"\nBeschikbare opties voor {field_info.get('label', 'select veld')}:")
-            for opt in options:
-                print(f"- {opt['text']} (waarde: {opt['value']})")
-
-            # Zoek de beste match
-            best_match = None
-            smallest_diff = float('inf')
-            target_value = value  # We werken altijd in mm
-
-            for option in options:
-                try:
-                    # Haal numerieke waarde uit de tekst
-                    numeric_match = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:mm|cm)?', option['text'].lower())
-                    if numeric_match:
-                        option_value = float(numeric_match.group(1).replace(',', '.'))
-                        
-                        # Als er een eenheid is gespecificeerd, gebruik die
-                        if 'cm' in option['text'].lower():
-                            option_value *= 10  # Converteer cm naar mm
-                        # Als er geen eenheid is, kijk naar de context van het veld
-                        elif not any(unit in option['text'].lower() for unit in ['mm', 'cm']):
-                            # Kijk naar het label of omliggende tekst voor eenheid indicatie
-                            label_text = field_info.get('label', '').lower()
-                            if 'cm' in label_text or 'centimeter' in label_text:
-                                option_value *= 10  # Converteer cm naar mm
-                            # Anders gaan we ervan uit dat het dezelfde eenheid is als onze target
-
-                        diff = abs(option_value - target_value)
-                        print(f"Vergelijking: {option_value}mm vs {target_value}mm (verschil: {diff})")
-                        
-                        if diff < smallest_diff:
-                            smallest_diff = diff
-                            best_match = option['value']
-                            print(f"Nieuwe beste match gevonden: {option['text']} (verschil: {diff})")
-                    else:
-                        # Probeer pure getallen te matchen (zonder eenheid)
-                        pure_number_match = re.search(r'^\s*(\d+(?:[.,]\d+)?)\s*$', option['text'])
-                        if pure_number_match:
-                            option_value = float(pure_number_match.group(1).replace(',', '.'))
-                            # Kijk naar het label of omliggende tekst voor eenheid indicatie
-                            label_text = field_info.get('label', '').lower()
-                            if 'cm' in label_text or 'centimeter' in label_text:
-                                option_value *= 10  # Converteer cm naar mm
-                            
-                            diff = abs(option_value - target_value)
-                            print(f"Vergelijking (puur getal): {option_value}mm vs {target_value}mm (verschil: {diff})")
-                            
-                            if diff < smallest_diff:
-                                smallest_diff = diff
-                                best_match = option['value']
-                                print(f"Nieuwe beste match gevonden (puur getal): {option['text']} (verschil: {diff})")
-
-                except Exception as e:
-                    print(f"Error bij verwerken optie {option['text']}: {str(e)}")
-                    continue
-
-            if best_match and smallest_diff < 1.0:  # Alleen accepteren als verschil kleiner is dan 1mm
-                await page.select_option(selector, best_match)
-                await page.wait_for_timeout(500)
-                # Trigger change event
-                await page.evaluate('(el) => { el.dispatchEvent(new Event("change")); }')
-                logging.info("Optie geselecteerd en change event getriggerd")
-                return True
-            else:
-                print(f"Geen geschikte optie gevonden voor {value}mm")
-                return False
-
-        except Exception as e:
-            print(f"Error bij select veld: {str(e)}")
-            return False
-
-    async def _get_m2_price(self, page: Page) -> Tuple[float, float]:
-        """Get the price per m² from the page."""
-        print("Zoeken naar m² prijs...")
+    async def _handle_select(self, page, step, dimensions):
+        value = step['value']
+        for key in ['thickness', 'width', 'length']:
+            if f"{{{key}}}" in value:
+                converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
+                # Convert to integer if it's a whole number
+                if converted_value.is_integer():
+                    converted_value = int(converted_value)
+                value = value.replace(f"{{{key}}}", str(converted_value))
         
-        try:
-            # Zoek eerst in de product header waar prijzen vaak staan
-            header_selectors = [
-                '.product-header',
-                '.product-info',
-                '.product-details',
-                '.product-price-container',
-                '[class*="product-header"]',
-                '[class*="product-info"]',
-                '[class*="price-container"]',
-                '.product-price',
-                '.product-price-ex',
-                '.product-price-inc'
-            ]
+        logging.info(f"Handling select: {step['selector']} with value {value}")
+        
+        element = await page.wait_for_selector(step['selector'])
+        
+        # Check if this is a custom dropdown with option_container
+        if 'option_container' in step:
+            logging.info("Handling custom dropdown")
+            await element.click()
+            await asyncio.sleep(1)
             
-            for selector in header_selectors:
-                try:
-                    containers = await page.query_selector_all(selector)
-                    for container in containers:
-                        # Haal alle tekst op uit de container
-                        container_text = await container.evaluate('node => node.innerText')
-                        if not container_text:
-                            continue
-                            
-                        container_text = container_text.lower().strip()
-                        print(f"Gevonden container tekst: {container_text}")
-                        
-                        # Zoek naar m² prijzen
-                        if any(term in container_text for term in ['m²', 'm2', 'vierkante meter']):
-                            # Zoek eerst naar excl. BTW prijs
-                            if 'excl' in container_text:
-                                # Probeer verschillende prijs patronen
-                                price_patterns = [
-                                    r'€\s*(\d+(?:[.,]\d{2})?)',  # €20,00
-                                    r'(\d+(?:[.,]\d{2})?)\s*€',  # 20,00€
-                                    r'eur\s*(\d+(?:[.,]\d{2})?)',  # EUR 20,00
-                                    r'(\d+(?:[.,]\d{2})?)\s*eur'   # 20,00 EUR
-                                ]
-                                
-                                for pattern in price_patterns:
-                                    price_matches = re.findall(pattern, container_text)
-                                    if price_matches:
-                                        excl_price = float(price_matches[0].replace(',', '.'))
-                                        if 5.0 <= excl_price <= 500.0:  # Valideer dat prijs realistisch is
-                                            print(f"Gevonden m² prijs (excl. BTW): €{excl_price:.2f}")
-                                            return excl_price, excl_price * 1.21
-                            
-                            # Zoek naar incl. BTW prijs
-                            if 'incl' in container_text:
-                                # Probeer verschillende prijs patronen
-                                price_patterns = [
-                                    r'€\s*(\d+(?:[.,]\d{2})?)',  # €20,00
-                                    r'(\d+(?:[.,]\d{2})?)\s*€',  # 20,00€
-                                    r'eur\s*(\d+(?:[.,]\d{2})?)',  # EUR 20,00
-                                    r'(\d+(?:[.,]\d{2})?)\s*eur'   # 20,00 EUR
-                                ]
-                                
-                                for pattern in price_patterns:
-                                    price_matches = re.findall(pattern, container_text)
-                                    if price_matches:
-                                        incl_price = float(price_matches[0].replace(',', '.'))
-                                        if 5.0 <= incl_price <= 500.0:  # Valideer dat prijs realistisch is
-                                            print(f"Gevonden m² prijs (incl. BTW): €{incl_price:.2f}")
-                                            return incl_price / 1.21, incl_price
-                except Exception as e:
-                    print(f"Error bij container {selector}: {str(e)}")
-                    continue
+            option_container = await page.wait_for_selector(step['option_container'])
+            option_selector = step['option_selector'].replace('{value}', str(value))
+            logging.info(f"Looking for option with selector: {option_selector}")
             
-            # Als geen prijs gevonden in headers, zoek in alle prijs-gerelateerde containers
-            price_selectors = [
-                '[class*="price"]',
-                '[class*="prijs"]',
-                '.price-wrapper',
-                '.price-container',
-                '.product-price',
-                'span',  # Ook in losse span elementen zoeken
-                'div'    # En div elementen
-            ]
+            option = await option_container.wait_for_selector(option_selector)
+            await option.click()
+            await asyncio.sleep(1)
+            return
+        
+        # Standard select element handling
+        logging.info("Handling standard select element")
+        
+        # Get all available options without clicking first
+        options = await element.evaluate('''(select) => {
+            return Array.from(select.options).map(option => ({
+                value: option.value,
+                text: option.text.trim()
+            }));
+        }''')
+        
+        logging.info(f"Available options: {options}")
+        
+        # Find best matching option
+        target_value = float(value)
+        best_match = None
+        smallest_diff = float('inf')
+        
+        for option in options:
+            try:
+                # Try to find numeric value in option text
+                numeric_match = re.search(r'(\d+)(?:\s*mm)?', option['text'].lower())
+                if numeric_match:
+                    option_value = float(numeric_match.group(1))
+                    
+                    diff = abs(option_value - target_value)
+                    logging.info(f"Comparing {option_value}mm vs {target_value}mm (diff: {diff})")
+                    
+                    if diff < smallest_diff:
+                        smallest_diff = diff
+                        best_match = option['value']
+                        logging.info(f"New best match: {option['text']} (value: {option['value']})")
+            except Exception as e:
+                logging.error(f"Error processing option {option['text']}: {str(e)}")
+                continue
+        
+        if best_match is not None and smallest_diff < 0.1:  # Match within 0.1mm
+            logging.info(f"Selecting option with value: {best_match}")
+            # Select the option without clicking first
+            await element.select_option(value=best_match)
+            # Trigger only the change event
+            await element.evaluate('(el) => el.dispatchEvent(new Event("change", { bubbles: true }))')
+            await asyncio.sleep(1)
+        else:
+            raise ValueError(f"Could not find matching option for thickness {value}mm")
+
+    async def _handle_input(self, page, step, dimensions):
+        value = step['value']
+        for key in ['thickness', 'width', 'length']:
+            if f"{{{key}}}" in value:
+                converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
+                # Convert to integer if it's a whole number
+                if converted_value.is_integer():
+                    converted_value = int(converted_value)
+                value = value.replace(f"{{{key}}}", str(converted_value))
+
+        logging.info(f"Handling input: {step['selector']} with value {value}")
+        
+        element = await page.wait_for_selector(step['selector'])
+        
+        # Fill the value without clicking first
+        await element.fill(str(value))
+        
+        # Dispatch all events at once
+        await element.evaluate('''(el) => {
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            el.dispatchEvent(new Event('blur', { bubbles: true }));
+        }''')
+        
+        await asyncio.sleep(0.5)  # Single wait after all events
+
+    async def _handle_click(self, page, step):
+        logging.info(f"Handling click: {step['selector']}")
+        element = await page.wait_for_selector(step['selector'])
+        await element.click()
+        await asyncio.sleep(0.5)
+
+    async def _handle_wait(self, step):
+        duration = step['duration'] / 1000
+        logging.info(f"Waiting for {duration} seconds")
+        await asyncio.sleep(duration)
+
+    async def _handle_read_price(self, page, step):
+        logging.info(f"Reading price with selector: {step['selector']}")
+        
+        if step['selector'].startswith('//'):
+            element = await page.wait_for_selector(f"xpath={step['selector']}")
+        else:
+            element = await page.wait_for_selector(step['selector'])
             
-            for selector in price_selectors:
-                try:
-                    containers = await page.query_selector_all(selector)
-                    for container in containers:
-                        # Haal alle tekst op uit de container
-                        container_text = await container.evaluate('node => node.innerText')
-                        if not container_text:
-                            continue
-                            
-                        container_text = container_text.lower().strip()
-                        print(f"Gevonden prijs container tekst: {container_text}")
-                        
-                        # Zoek naar m² prijzen
-                        if any(term in container_text for term in ['m²', 'm2', 'vierkante meter']):
-                            # Zoek eerst naar excl. BTW prijs
-                            if 'excl' in container_text:
-                                # Probeer verschillende prijs patronen
-                                price_patterns = [
-                                    r'€\s*(\d+(?:[.,]\d{2})?)',  # €20,00
-                                    r'(\d+(?:[.,]\d{2})?)\s*€',  # 20,00€
-                                    r'eur\s*(\d+(?:[.,]\d{2})?)',  # EUR 20,00
-                                    r'(\d+(?:[.,]\d{2})?)\s*eur'   # 20,00 EUR
-                                ]
-                                
-                                for pattern in price_patterns:
-                                    price_matches = re.findall(pattern, container_text)
-                                    if price_matches:
-                                        excl_price = float(price_matches[0].replace(',', '.'))
-                                        if 5.0 <= excl_price <= 500.0:  # Valideer dat prijs realistisch is
-                                            print(f"Gevonden m² prijs (excl. BTW): €{excl_price:.2f}")
-                                            return excl_price, excl_price * 1.21
-                            
-                            # Zoek naar incl. BTW prijs
-                            if 'incl' in container_text:
-                                # Probeer verschillende prijs patronen
-                                price_patterns = [
-                                    r'€\s*(\d+(?:[.,]\d{2})?)',  # €20,00
-                                    r'(\d+(?:[.,]\d{2})?)\s*€',  # 20,00€
-                                    r'eur\s*(\d+(?:[.,]\d{2})?)',  # EUR 20,00
-                                    r'(\d+(?:[.,]\d{2})?)\s*eur'   # 20,00 EUR
-                                ]
-                                
-                                for pattern in price_patterns:
-                                    price_matches = re.findall(pattern, container_text)
-                                    if price_matches:
-                                        incl_price = float(price_matches[0].replace(',', '.'))
-                                        if 5.0 <= incl_price <= 500.0:  # Valideer dat prijs realistisch is
-                                            print(f"Gevonden m² prijs (incl. BTW): €{incl_price:.2f}")
-                                            return incl_price / 1.21, incl_price
-                except Exception as e:
-                    print(f"Error bij price container {selector}: {str(e)}")
-                    continue
+        text = await element.text_content()
+        logging.info(f"Found price text: {text}")
+        
+        # Clean the price text:
+        # 1. Replace comma with dot for decimal
+        # 2. Remove any trailing dots
+        # 3. Keep only digits and one decimal point
+        cleaned_text = text.replace(',', '.').rstrip('.')
+        price_str = ''.join(char for char in cleaned_text if char.isdigit() or char == '.')
+        
+        # If we have multiple dots, keep only the first one
+        if price_str.count('.') > 1:
+            parts = price_str.split('.')
+            price_str = parts[0] + '.' + ''.join(parts[1:])
+        
+        logging.info(f"Cleaned price text: {price_str}")
+        price = float(price_str)
+        logging.info(f"Extracted price: {price}")
+        
+        if 'calculation' in step:
+            if 'divide_by' in step['calculation']:
+                price = price / step['calculation']['divide_by']
+                logging.info(f"Price after division: {price}")
+            if 'add' in step['calculation']:
+                price = price + step['calculation']['add']
+                logging.info(f"Price after addition: {price}")
                 
-            print("Geen directe m² prijs gevonden op de pagina")
-            # Return None in plaats van 0.0, 0.0 om aan te geven dat we verder moeten gaan met form-based berekening
-            return None
-            
-        except Exception as e:
-            print(f"Error bij zoeken naar m² prijs: {str(e)}")
-            return None
+        return price
 
     def _convert_dimensions(self, dimensions: Dict[str, float], units: Dict[str, str]) -> Dict[str, float]:
         """Convert dimensions to the units required by the domain"""

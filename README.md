@@ -1,68 +1,91 @@
-# Materiaal Prijs Calculator
+# Competitor Price Scraper
 
-Een tool voor het automatisch berekenen van prijzen op basis van materiaal dimensies op webpagina's.
+A web application for scraping and comparing prices from various plastic/plexi suppliers across Europe. The application supports custom configurations for different domains and handles various types of input methods and price calculations.
 
 ## Features
 
-- Detecteert automatisch dikte, lengte/hoogte en breedte velden
-- Vult dimensies automatisch in op de webpagina
-- Berekent prijzen inclusief en exclusief BTW
-- Ondersteunt verschillende talen (Nederlands, Engels)
-- Beschikbaar als API endpoint
+- Price calculation based on dimensions (thickness, length, width)
+- Support for multiple countries with different VAT rates and currencies
+- Configurable scraping steps for each domain
+- Interactive configuration management interface
+- Comprehensive API documentation
 
-## API Gebruik
+## Installation
 
+1. Clone the repository:
 ```bash
-curl -X POST "https://competitor-price-watcher.fly.dev/calculate-price" \
--H "Content-Type: application/json" \
--d '{
-    "url": "https://voorbeeld.nl/product",
-    "thickness": 2.0,
-    "length": 100,
-    "width": 50,
-    "country": "nl"
-}'
+git clone https://github.com/yourusername/competitor-price-watcher.git
+cd competitor-price-watcher
 ```
 
-Response:
-```json
-{
-    "price_excl_vat": 42.54,
-    "price_incl_vat": 51.47,
-    "currency": "EUR",
-    "vat_rate": 21.0,
-    "error": null
-}
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-## Lokaal Draaien
-
+3. Install dependencies:
 ```bash
-# Installeer dependencies
 pip install -r requirements.txt
+```
 
-# Start de API
+4. Install Playwright browsers:
+```bash
+playwright install
+```
+
+## Usage
+
+1. Start the application:
+```bash
 uvicorn api:app --reload --port 8080
 ```
 
-## Deployment
+2. Open your browser and navigate to:
+- Home page: http://localhost:8080
+- Configuration page: http://localhost:8080/config
+- Documentation: http://localhost:8080/docs
 
-De app draait op Fly.io met de volgende configuratie:
+## API Usage
 
-- 8 CPUs
-- 4GB geheugen
-- Auto-scaling enabled
-- Health checks op /docs endpoint
+The application provides a REST API for price calculations. Example request:
 
-Deploy commando:
 ```bash
-fly deploy
+curl -X POST http://localhost:8080/api/calculate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/product",
+    "dikte": 3.0,
+    "lengte": 1000.0,
+    "breedte": 500.0,
+    "country": "nl"
+  }'
 ```
 
-## Technologie
+For detailed API documentation and configuration options, visit the documentation page in the application.
 
-- Python 3.11
-- FastAPI
-- Selenium
-- Chrome WebDriver
-- Fly.io voor hosting 
+## Configuration
+
+The application uses two types of configurations:
+
+1. Domain Configurations (`config/domains/*.json`):
+   - Define scraping steps for each website
+   - Support various input types (select, input, click)
+   - Handle custom dropdowns and dynamic content
+
+2. Country Configurations (`config/countries.json`):
+   - Define VAT rates per country
+   - Set currency and formatting preferences
+   - Configure regional settings
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details. 

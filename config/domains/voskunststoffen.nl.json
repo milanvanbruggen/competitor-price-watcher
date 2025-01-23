@@ -1,26 +1,22 @@
 {
     "domain": "voskunststoffen.nl",
-    "units": {
-        "thickness": "mm",
-        "dimensions": "mm"
-    },
-    "selectors": {
-        "thickness": {
-            "type": "custom_dropdown",
-            "selector": "#partControlDropDownThickness",
+    "steps": [
+        {
             "option_container": "#popperpartControlDropDownThickness ul",
             "option_selector": "li[data-value='{value}']",
-            "exists": true
+            "selector": "#partControlDropDownThickness",
+            "type": "select",
+            "unit": "mm",
+            "value": "{thickness}"
         },
-        "width": {
-            "exists": false
+        {
+            "duration": 1000,
+            "type": "wait"
         },
-        "length": {
-            "exists": false
+        {
+            "includes_vat": false,
+            "selector": "#calculatorPrice > .value",
+            "type": "read_price"
         }
-    },
-    "price": {
-        "selector": "#calculatorPrice > .value",
-        "includes_vat": false
-    }
-} 
+    ]
+}

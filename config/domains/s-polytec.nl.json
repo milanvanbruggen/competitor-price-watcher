@@ -1,28 +1,36 @@
 {
     "domain": "s-polytec.nl",
-    "units": {
-        "thickness": "mm",
-        "dimensions": "mm"
-    },
-    "selectors": {
-        "thickness": {
+    "steps": [
+        {
             "type": "select",
             "selector": "#attribute268",
-            "exists": true
+            "value": "{thickness}",
+            "unit": "mm"
         },
-        "width": {
+        {
             "type": "input",
             "selector": "#width",
-            "exists": true
+            "value": "{width}",
+            "unit": "mm"
         },
-        "length": {
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
             "type": "input",
             "selector": "#length",
-            "exists": true
+            "value": "{length}",
+            "unit": "mm"
+        },
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
+            "type": "read_price",
+            "selector": "#price-qm",
+            "includes_vat": true
         }
-    },
-    "price": {
-        "selector": "#price-qm",
-        "includes_vat": true
-    }
+    ]
 }

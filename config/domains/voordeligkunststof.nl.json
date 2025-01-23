@@ -1,26 +1,30 @@
 {
     "domain": "voordeligkunststof.nl",
-    "units": {
-        "thickness": "mm",
-        "dimensions": "mm"
-    },
-    "selectors": {
-        "thickness": {
-            "exists": false
-        },
-        "width": {
-            "type": "input",
-            "selector": "#pewc_group_19713_19715",
-            "exists": true
-        },
-        "length": {
+    "steps": [
+        {
             "type": "input",
             "selector": "#pewc_group_19713_19714",
-            "exists": true
+            "value": "{width}",
+            "unit": "mm"
+        },
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
+            "type": "input",
+            "selector": "#pewc_group_19713_19715",
+            "value": "{length}",
+            "unit": "mm"
+        },
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
+            "type": "read_price",
+            "selector": "#pewc-calculation-value span",
+            "includes_vat": false
         }
-    },
-    "price": {
-        "selector": ".pewc-calculation-span > .woocommerce-Price-amount",
-        "includes_vat": false
-    }
-} 
+    ]
+}

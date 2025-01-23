@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Domein Configuratie Beheer{% endblock %}
+{% block title %}Competitor Pricing Scraper - Configuration{% endblock %}
 
 {% block styles %}
 <style>
@@ -10,43 +10,117 @@
     }
     .json-editor {
         font-family: monospace;
-        height: 400px;
+        height: 300px;
+        width: 100%;
+        margin-top: 10px;
+    }
+    .editor-buttons {
+        margin-top: 10px;
+    }
+    .editor-buttons button {
+        margin-right: 10px;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="config-form">
-        <h2 class="mb-4">Domein Configuraties</h2>
-        
-        <!-- Domain List -->
-        <div class="mb-4">
-            <h4>Bestaande Configuraties</h4>
-            <div class="list-group" id="domainList">
-                {% for domain in domains %}
-                <button class="list-group-item list-group-item-action" onclick="loadConfig('{{ domain }}')">
+<div class="container mt-4">
+    <h2>Domain Configurations</h2>
+    <button class="btn btn-primary mb-3" onclick="newDomainConfig()">Add New Domain</button>
+    
+    <div class="accordion" id="domainAccordion">
+        {% for domain, config in domain_configs.items() %}
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}">
                     {{ domain }}
                 </button>
-                {% endfor %}
+            </h2>
+            <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#domainAccordion">
+                <div class="accordion-body">
+                    <textarea class="json-editor" id="domain_{{ domain }}">{{ config | tojson(indent=2) }}</textarea>
+                    <div class="editor-buttons">
+                        <button class="btn btn-success" onclick="saveDomainConfig('{{ domain }}')">Save</button>
+                        <button class="btn btn-danger" onclick="deleteDomainConfig('{{ domain }}')">Delete</button>
+                    </div>
+                </div>
             </div>
-            <button class="btn btn-primary mt-3" onclick="newConfig()">Nieuwe Configuratie</button>
         </div>
+        {% endfor %}
+    </div>
 
-        <!-- Configuration Editor -->
-        <div class="mb-4">
-            <h4>Configuratie Editor</h4>
-            <div class="form-group">
-                <label for="domainInput">Domein:</label>
-                <input type="text" class="form-control" id="domainInput" placeholder="example.com">
+    <h2 class="mt-4">Country Configurations</h2>
+    <button class="btn btn-primary mb-3" onclick="newCountryConfig()">Add New Country</button>
+    
+    <div class="accordion" id="countryAccordion">
+        {% for country, config in country_configs.items() %}
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCountry{{ loop.index }}">
+                    {{ country }} ({{ config.name }})
+                </button>
+            </h2>
+            <div id="collapseCountry{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#countryAccordion">
+                <div class="accordion-body">
+                    <textarea class="json-editor" id="country_{{ country }}">{{ config | tojson(indent=2) }}</textarea>
+                    <div class="editor-buttons">
+                        <button class="btn btn-success" onclick="saveCountryConfig('{{ country }}')">Save</button>
+                        <button class="btn btn-danger" onclick="deleteCountryConfig('{{ country }}')">Delete</button>
+                    </div>
+                </div>
             </div>
-            <div class="form-group mt-3">
-                <label for="configEditor">JSON Configuratie:</label>
-                <textarea class="form-control json-editor" id="configEditor"></textarea>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- New Domain Modal -->
+<div class="modal fade" id="newDomainModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Domain Configuration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="mt-3">
-                <button class="btn btn-success" onclick="saveConfig()">Opslaan</button>
-                <button class="btn btn-danger" onclick="deleteConfig()">Verwijderen</button>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="newDomainName" class="form-label">Domain Name</label>
+                    <input type="text" class="form-control" id="newDomainName" placeholder="example.com">
+                </div>
+                <div class="mb-3">
+                    <label for="newDomainConfig" class="form-label">Configuration</label>
+                    <textarea class="json-editor" id="newDomainConfig"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createDomainConfig()">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Country Modal -->
+<div class="modal fade" id="newCountryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Country Configuration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="newCountryCode" class="form-label">Country Code</label>
+                    <input type="text" class="form-control" id="newCountryCode" placeholder="fr">
+                </div>
+                <div class="mb-3">
+                    <label for="newCountryConfig" class="form-label">Configuration</label>
+                    <textarea class="json-editor" id="newCountryConfig"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createCountryConfig()">Create</button>
             </div>
         </div>
     </div>
@@ -55,100 +129,202 @@
 
 {% block scripts %}
 <script>
-    // Load configuration for a domain
-    async function loadConfig(domain) {
-        try {
-            const response = await fetch(`/api/config/${domain}`);
-            const config = await response.json();
-            document.getElementById('domainInput').value = domain;
-            document.getElementById('configEditor').value = JSON.stringify(config, null, 2);
-        } catch (error) {
-            alert('Error loading configuration: ' + error);
+// Domain configuration functions
+async function saveDomainConfig(domain) {
+    try {
+        const textarea = document.getElementById(`domain_${domain}`);
+        const config = JSON.parse(textarea.value);
+        
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                domain: domain,
+                config: config
+            })
+        });
+        
+        if (response.ok) {
+            alert('Configuration saved successfully!');
+            location.reload();
+        } else {
+            alert('Error saving configuration');
         }
+    } catch (error) {
+        alert('Error: ' + error.message);
     }
+}
 
-    // Save configuration
-    async function saveConfig() {
-        const domain = document.getElementById('domainInput').value;
-        const config = document.getElementById('configEditor').value;
-
-        try {
-            const response = await fetch('/api/config', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    domain: domain,
-                    config: JSON.parse(config)
-                })
-            });
-
-            if (response.ok) {
-                alert('Configuration saved successfully!');
-                location.reload();
-            } else {
-                alert('Error saving configuration');
-            }
-        } catch (error) {
-            alert('Error saving configuration: ' + error);
-        }
+async function deleteDomainConfig(domain) {
+    if (!confirm(`Are you sure you want to delete the configuration for ${domain}?`)) {
+        return;
     }
-
-    // Delete configuration
-    async function deleteConfig() {
-        const domain = document.getElementById('domainInput').value;
-        if (!confirm(`Are you sure you want to delete the configuration for ${domain}?`)) {
-            return;
+    
+    try {
+        const response = await fetch(`/api/config/${domain}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            alert('Configuration deleted successfully!');
+            location.reload();
+        } else {
+            alert('Error deleting configuration');
         }
-
-        try {
-            const response = await fetch(`/api/config/${domain}`, {
-                method: 'DELETE'
-            });
-
-            if (response.ok) {
-                alert('Configuration deleted successfully!');
-                location.reload();
-            } else {
-                alert('Error deleting configuration');
-            }
-        } catch (error) {
-            alert('Error deleting configuration: ' + error);
-        }
+    } catch (error) {
+        alert('Error: ' + error.message);
     }
+}
 
-    // Create new configuration
-    function newConfig() {
-        document.getElementById('domainInput').value = '';
-        document.getElementById('configEditor').value = JSON.stringify({
-            "domain": "",
-            "units": {
-                "thickness": "mm",
-                "dimensions": "mm"
-            },
-            "selectors": {
-                "thickness": {
-                    "type": "select",
-                    "selector": "",
-                    "exists": true
-                },
-                "width": {
-                    "type": "input",
-                    "selector": "",
-                    "exists": true
-                },
-                "length": {
-                    "type": "input",
-                    "selector": "",
-                    "exists": true
-                }
-            },
-            "price": {
+function newDomainConfig() {
+    document.getElementById('newDomainName').value = '';
+    document.getElementById('newDomainConfig').value = JSON.stringify({
+        "domain": "",
+        "steps": [
+            {
+                "type": "select",
                 "selector": "",
-                "includes_vat": true
+                "value": "{thickness}",
+                "unit": "mm"
+            },
+            {
+                "type": "input",
+                "selector": "",
+                "value": "{width}",
+                "unit": "mm"
+            },
+            {
+                "type": "wait",
+                "duration": 1000
+            },
+            {
+                "type": "input",
+                "selector": "",
+                "value": "{length}",
+                "unit": "mm"
+            },
+            {
+                "type": "wait",
+                "duration": 1000
+            },
+            {
+                "type": "read_price",
+                "selector": "",
+                "includes_vat": false
             }
-        }, null, 2);
+        ]
+    }, null, 2);
+    
+    new bootstrap.Modal(document.getElementById('newDomainModal')).show();
+}
+
+async function createDomainConfig() {
+    try {
+        const domain = document.getElementById('newDomainName').value;
+        const config = JSON.parse(document.getElementById('newDomainConfig').value);
+        
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                domain: domain,
+                config: config
+            })
+        });
+        
+        if (response.ok) {
+            alert('Configuration created successfully!');
+            location.reload();
+        } else {
+            alert('Error creating configuration');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
     }
+}
+
+// Country configuration functions
+async function saveCountryConfig(country) {
+    try {
+        const textarea = document.getElementById(`country_${country}`);
+        const config = JSON.parse(textarea.value);
+        
+        const response = await fetch('/api/country', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                country: country,
+                config: config
+            })
+        });
+        
+        if (response.ok) {
+            alert('Configuration saved successfully!');
+            location.reload();
+        } else {
+            alert('Error saving configuration');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function deleteCountryConfig(country) {
+    if (!confirm(`Are you sure you want to delete the configuration for ${country}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/country/${country}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            alert('Configuration deleted successfully!');
+            location.reload();
+        } else {
+            alert('Error deleting configuration');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+function newCountryConfig() {
+    document.getElementById('newCountryCode').value = '';
+    document.getElementById('newCountryConfig').value = JSON.stringify({
+        "name": "",
+        "currency": "EUR",
+        "currency_symbol": "€",
+        "vat_rate": 21
+    }, null, 2);
+    
+    new bootstrap.Modal(document.getElementById('newCountryModal')).show();
+}
+
+async function createCountryConfig() {
+    try {
+        const country = document.getElementById('newCountryCode').value;
+        const config = JSON.parse(document.getElementById('newCountryConfig').value);
+        
+        const response = await fetch('/api/country', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                country: country,
+                config: config
+            })
+        });
+        
+        if (response.ok) {
+            alert('Configuration created successfully!');
+            location.reload();
+        } else {
+            alert('Error creating configuration');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
 </script>
 {% endblock %} 

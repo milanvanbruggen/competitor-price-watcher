@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Competitor Pricing Scraper - Documentation{% endblock %}
+
+{% block styles %}
+<style>
+    .docs-section {
+        margin-bottom: 3rem;
+    }
+    .endpoint {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        margin-bottom: 1rem;
+    }
+    .config-example {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        font-family: monospace;
+        white-space: pre;
+    }
+    .header {
+        background: #343a40;
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    .header h1 {
+        margin: 0;
+    }
+    .header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header">
+    <div class="container">
+        <h1>Documentation</h1>
+        <p>Complete guide to using and configuring the Competitor Price Scraper</p>
+    </div>
+</div>
+
+<div class="container">
+    <!-- API Documentation -->
+    <div class="docs-section">
+        <h2>API Endpoints</h2>
+
+        <div class="endpoint">
+            <h4>Calculate Price</h4>
+            <p><code>POST /api/calculate</code></p>
+            <p>Calculate the price for a specific product based on dimensions.</p>
+            <h5>Request Body:</h5>
+            <pre>{
+    "url": "https://example.com/product",
+    "dikte": 3.0,
+    "lengte": 1000.0,
+    "breedte": 500.0,
+    "country": "nl"  // optional, defaults to "nl"
+}</pre>
+            <h5>Response:</h5>
+            <pre>{
+    "success": true,
+    "price_excl_vat": 45.80,
+    "price_incl_vat": 55.42,
+    "currency": "EUR",
+    "currency_symbol": "€",
+    "vat_rate": 21
+}</pre>
+        </div>
+    </div>
+
+    <!-- Configuration Documentation -->
+    <div class="docs-section">
+        <h2>Domain Configuration</h2>
+        <p>Each domain configuration defines the steps needed to calculate a price on a specific website.</p>
+
+        <h3>Configuration Structure</h3>
+        <div class="config-example">{
+    "domain": "example.com",
+    "steps": [
+        // Array of steps to execute in order
+    ]
+}</div>
+
+        <h3 class="mt-4">Step Types Overview</h3>
+        <p>Steps are executed in sequence. Each step has a specific type and required/optional parameters.</p>
+
+        <h4>1. Select Step</h4>
+        <p>Used for selecting options from dropdowns. Supports both standard HTML select elements and custom dropdowns.</p>
+        
+        <h5>Standard Select</h5>
+        <div class="config-example">{
+    "type": "select",
+    "selector": "#thickness",          // CSS selector for the select element
+    "value": "{thickness}",            // Value to select (supports placeholders)
+    "unit": "mm"                       // Optional unit conversion
+}</div>
+        
+        <h5>Custom Dropdown</h5>
+        <div class="config-example">{
+    "type": "select",
+    "selector": ".dropdown-button",    // CSS selector for the dropdown trigger
+    "option_container": ".dropdown-list",  // Container with the options
+    "option_selector": "li[data-value='{value}']",  // Template for finding the option
+    "value": "{thickness}",
+    "unit": "mm"
+}</div>
+
+        <h4>2. Input Step</h4>
+        <p>Used for filling in input fields. Supports automatic unit conversion and triggers necessary events.</p>
+        <div class="config-example">{
+    "type": "input",
+    "selector": "#width",             // CSS selector for the input field
+    "value": "{width}",               // Value to fill in (supports placeholders)
+    "unit": "mm"                      // Optional unit conversion
+}</div>
+
+        <h4>3. Click Step</h4>
+        <p>Used for clicking buttons or elements. Often needed after filling inputs or between steps.</p>
+        <div class="config-example">{
+    "type": "click",
+    "selector": "#calculate-button"    // CSS selector for the element to click
+}</div>
+
+        <h4>4. Wait Step</h4>
+        <p>Used for adding delays between actions. Helpful when waiting for calculations or animations.</p>
+        <div class="config-example">{
+    "type": "wait",
+    "duration": 1000                   // Duration in milliseconds
+}</div>
+
+        <h4>5. Read Price Step</h4>
+        <p>Used for extracting the price from the page. Can handle prices with or without VAT.</p>
+        <div class="config-example">{
+    "type": "read_price",
+    "selector": ".price",              // CSS selector for the price element
+    "includes_vat": false,             // Whether the displayed price includes VAT
+    "calculation": {                   // Optional price adjustments
+        "divide_by": 1.02,             // Divide the price by this value
+        "add": 2.72                    // Add this value after division
+    }
+}</div>
+
+        <h3 class="mt-4">Value Placeholders</h3>
+        <p>The following placeholders can be used in values:</p>
+        <ul>
+            <li><code>{thickness}</code> - Will be replaced with the thickness value</li>
+            <li><code>{width}</code> - Will be replaced with the width value</li>
+            <li><code>{length}</code> - Will be replaced with the length value</li>
+        </ul>
+
+        <h3 class="mt-4">Unit Conversion</h3>
+        <p>The following units are supported:</p>
+        <ul>
+            <li><code>mm</code> - Millimeters (default)</li>
+            <li><code>cm</code> - Centimeters (will convert from mm)</li>
+        </ul>
+
+        <h3 class="mt-4">Example Complete Configuration</h3>
+        <div class="config-example">{
+    "domain": "example.com",
+    "steps": [
+        {
+            "type": "select",
+            "selector": ".thickness-dropdown",
+            "option_container": ".dropdown-list",
+            "option_selector": "li[data-value='{value}']",
+            "value": "{thickness}",
+            "unit": "mm"
+        },
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
+            "type": "input",
+            "selector": "#length",
+            "value": "{length}",
+            "unit": "mm"
+        },
+        {
+            "type": "input",
+            "selector": "#width",
+            "value": "{width}",
+            "unit": "mm"
+        },
+        {
+            "type": "click",
+            "selector": "#calculate-button"
+        },
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
+            "type": "read_price",
+            "selector": "#price",
+            "includes_vat": false
+        }
+    ]
+}</div>
+    </div>
+
+    <!-- Country Configuration -->
+    <div class="docs-section">
+        <h2>Country Configuration</h2>
+        <p>Country configurations define VAT rates and currency formatting for different countries.</p>
+
+        <h3>Configuration Structure</h3>
+        <div class="config-example">{
+    "name": "Netherlands",             // Country name
+    "currency": "EUR",                 // Currency code
+    "currency_symbol": "€",            // Currency symbol
+    "vat_rate": 21.0,                 // VAT rate in percentage
+    "decimal_separator": ",",          // Decimal point character
+    "thousands_separator": "."         // Thousands separator character
+}</div>
+    </div>
+</div>
+{% endblock %} 

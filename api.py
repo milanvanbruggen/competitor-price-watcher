@@ -1,149 +1,158 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.requests import Request
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
-from price_calculator import PriceCalculator
-from domain_config import DomainConfig
-import logging
 import json
 import os
-
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+from price_calculator import PriceCalculator
 
 app = FastAPI()
-
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
-)
-
-# Templates configuration
+app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Initialize calculator
+calculator = PriceCalculator()
+
+# Load countries configuration
+with open('config/countries.json') as f:
+    countries = json.load(f)
 
 class PriceRequest(BaseModel):
     url: str
     dikte: float
     lengte: float
     breedte: float
-    country: str
-
-class PriceResponse(BaseModel):
-    price_excl_vat: float
-    price_incl_vat: float
-    currency: str = "EUR"
-    currency_symbol: str = "€"
-    vat_rate: float = 21.0
-    error: Optional[str] = None
+    country: str = 'nl'
 
 class ConfigRequest(BaseModel):
     domain: str
-    config: Dict[str, Any]
+    config: dict
 
-# Initialize domain config and price calculator
-domain_config = DomainConfig()
-calculator = PriceCalculator(domain_config)
-
-# Countries configuration
-countries = {
-    'nl': {'name': 'Nederland', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 21.0},
-    'uk': {'name': 'United Kingdom', 'currency': 'GBP', 'currency_symbol': '£', 'vat_rate': 20.0},
-    'de': {'name': 'Deutschland', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 19.0},
-    'fr': {'name': 'France', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 20.0},
-    'be': {'name': 'België', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 21.0},
-    'es': {'name': 'España', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 21.0},
-    'it': {'name': 'Italia', 'currency': 'EUR', 'currency_symbol': '€', 'vat_rate': 22.0},
-    'pl': {'name': 'Polska', 'currency': 'PLN', 'currency_symbol': 'zł', 'vat_rate': 23.0},
-    'se': {'name': 'Sverige', 'currency': 'SEK', 'currency_symbol': 'kr', 'vat_rate': 25.0},
-    'dk': {'name': 'Danmark', 'currency': 'DKK', 'currency_symbol': 'kr', 'vat_rate': 25.0}
-}
+class CountryRequest(BaseModel):
+    country: str
+    config: dict
 
 @app.get("/", response_class=HTMLResponse)
-async def root(request: Request):
+async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request, "countries": countries})
 
-@app.post("/calculate-price")
-async def calculate_price(request: PriceRequest) -> PriceResponse:
+@app.get("/config")
+async def config_page(request: Request):
+    # Load domain configurations
+    domain_configs = {}
+    domain_config_dir = os.path.join(os.path.dirname(__file__), 'config', 'domains')
+    for filename in os.listdir(domain_config_dir):
+        if filename.endswith('.json'):
+            with open(os.path.join(domain_config_dir, filename)) as f:
+                config = json.load(f)
+                domain_configs[config['domain']] = config
+    
+    # Load country configurations
+    with open(os.path.join(os.path.dirname(__file__), 'config', 'countries.json')) as f:
+        country_configs = json.load(f)
+    
+    return templates.TemplateResponse("config.html", {
+        "request": request,
+        "domain_configs": domain_configs,
+        "country_configs": country_configs
+    })
+
+@app.post("/api/calculate")
+async def calculate_price(request: PriceRequest):
     try:
         dimensions = {
-            'dikte': request.dikte,
-            'lengte': request.lengte,
-            'breedte': request.breedte
+            'thickness': request.dikte,
+            'length': request.lengte,
+            'width': request.breedte
         }
         
-        price_excl_vat, price_incl_vat = await calculator.calculate_price(
-            request.url, 
-            dimensions,
-            country=request.country
-        )
+        price_excl_vat, price_incl_vat = await calculator.calculate_price(request.url, dimensions, country=request.country)
         
-        # Get country specific info
         country_info = countries.get(request.country, countries['nl'])
         
-        return PriceResponse(
-            price_excl_vat=price_excl_vat,
-            price_incl_vat=price_incl_vat,
-            currency=country_info['currency'],
-            currency_symbol=country_info['currency_symbol'],
-            vat_rate=country_info['vat_rate']
-        )
-        
+        return {
+            "success": True,
+            "price_excl_vat": price_excl_vat,
+            "price_incl_vat": price_incl_vat,
+            "currency": country_info['currency'],
+            "currency_symbol": country_info['currency_symbol'],
+            "vat_rate": country_info['vat_rate']
+        }
     except Exception as e:
-        return PriceResponse(
-            price_excl_vat=0,
-            price_incl_vat=0,
-            error=str(e)
-        )
-
-@app.get("/config", response_class=HTMLResponse)
-async def config_page(request: Request):
-    """Configuration management interface"""
-    domain_config = DomainConfig()
-    domains = list(domain_config.configs.keys())
-    return templates.TemplateResponse("config.html", {"request": request, "domains": domains})
+        return {"success": False, "error": str(e)}
 
 @app.get("/api/config/{domain}")
 async def get_config(domain: str):
-    """Get configuration for a specific domain"""
-    domain_config = DomainConfig()
-    config = domain_config.configs.get(domain)
-    if not config:
-        raise HTTPException(status_code=404, detail="Domain configuration not found")
-    return config
+    config_path = os.path.join('config', 'domains', f'{domain}.json')
+    if not os.path.exists(config_path):
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    
+    with open(config_path) as f:
+        return json.load(f)
 
 @app.post("/api/config")
-async def save_config(config_request: ConfigRequest):
-    """Save or update domain configuration"""
+async def save_config(request: ConfigRequest):
     try:
-        config_path = os.path.join('config', 'domains', f'{config_request.domain}.json')
+        config_path = os.path.join('config', 'domains', f'{request.domain}.json')
         with open(config_path, 'w') as f:
-            json.dump(config_request.config, f, indent=4)
-        return {"status": "success"}
+            json.dump(request.config, f, indent=4)
+        return {"success": True}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"success": False, "error": str(e)}
 
 @app.delete("/api/config/{domain}")
 async def delete_config(domain: str):
-    """Delete domain configuration"""
+    config_path = os.path.join('config', 'domains', f'{domain}.json')
+    if not os.path.exists(config_path):
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    
+    os.remove(config_path)
+    return {"success": True}
+
+@app.get("/api/country/{country}")
+async def get_country_config(country: str):
+    config_path = os.path.join('config', 'countries.json')
+    if not os.path.exists(config_path):
+        raise HTTPException(status_code=404, detail="Country configurations not found")
+    
+    with open(config_path) as f:
+        countries = json.load(f)
+        if country not in countries:
+            raise HTTPException(status_code=404, detail="Country not found")
+        return countries[country]
+
+@app.post("/api/country")
+async def save_country_config(request: CountryRequest):
     try:
-        config_path = os.path.join('config', 'domains', f'{domain}.json')
-        if os.path.exists(config_path):
-            os.remove(config_path)
-            return {"status": "success"}
-        raise HTTPException(status_code=404, detail="Domain configuration not found")
+        config_path = os.path.join('config', 'countries.json')
+        with open(config_path) as f:
+            countries = json.load(f)
+        
+        countries[request.country] = request.config
+        
+        with open(config_path, 'w') as f:
+            json.dump(countries, f, indent=4)
+        return {"success": True}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        return {"success": False, "error": str(e)}
+
+@app.delete("/api/country/{country}")
+async def delete_country_config(country: str):
+    config_path = os.path.join('config', 'countries.json')
+    if not os.path.exists(config_path):
+        raise HTTPException(status_code=404, detail="Country configurations not found")
+    
+    with open(config_path) as f:
+        countries = json.load(f)
+        if country not in countries:
+            raise HTTPException(status_code=404, detail="Country not found")
+        del countries[country]
+    
+    with open(config_path, 'w') as f:
+        json.dump(countries, f, indent=4)
+    return {"success": True}
+
+@app.get("/docs", response_class=HTMLResponse)
+async def docs_page(request: Request):
+    return templates.TemplateResponse("docs.html", {"request": request}) 

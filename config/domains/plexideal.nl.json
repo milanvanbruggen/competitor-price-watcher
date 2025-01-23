@@ -1,26 +1,30 @@
 {
     "domain": "plexideal.nl",
-    "units": {
-        "thickness": "mm",
-        "dimensions": "cm"
-    },
-    "selectors": {
-        "thickness": {
-            "exists": false
-        },
-        "width": {
-            "type": "input",
-            "selector": "#input_width",
-            "exists": true
-        },
-        "length": {
+    "steps": [
+        {
             "type": "input",
             "selector": "#input_length",
-            "exists": true
+            "value": "{length}",
+            "unit": "cm"
+        },
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
+            "type": "input",
+            "selector": "#input_width",
+            "value": "{width}",
+            "unit": "cm"
+        },
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
+            "type": "read_price",
+            "selector": ".price-box__price--untaxed .amount",
+            "includes_vat": false
         }
-    },
-    "price": {
-        "selector": ".price-box__price--taxed .woocommerce-Price-amount",
-        "includes_vat": true
-    }
+    ]
 } 

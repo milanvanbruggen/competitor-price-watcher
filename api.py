@@ -72,15 +72,37 @@ async def calculate_price(request: PriceRequest):
         country_info = countries.get(request.country, countries['nl'])
         
         return {
-            "success": True,
-            "price_excl_vat": price_excl_vat,
-            "price_incl_vat": price_incl_vat,
-            "currency": country_info['currency'],
-            "currency_symbol": country_info['currency_symbol'],
-            "vat_rate": country_info['vat_rate']
+            "status": "success",
+            "status_code": 200,
+            "message": "Price calculated successfully",
+            "data": {
+                "price_excl_vat": price_excl_vat,
+                "price_incl_vat": price_incl_vat,
+                "currency": country_info['currency'],
+                "currency_symbol": country_info['currency_symbol'],
+                "vat_rate": country_info['vat_rate']
+            }
         }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "status_code": 400,
+                "message": str(e),
+                "error_type": "ValueError"
+            }
+        )
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "status_code": 500,
+                "message": str(e),
+                "error_type": type(e).__name__
+            }
+        )
 
 @app.get("/api/config/{domain}")
 async def get_config(domain: str):

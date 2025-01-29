@@ -36,16 +36,21 @@ class PriceCalculator:
         config = self.configs[domain]
         logging.info(f"Using config: {config}")
         
+        # Determine if we should run in headless mode based on environment
+        is_production = os.getenv('FLY_APP_NAME') is not None
+        headless = is_production
+        logging.info(f"Running in {'headless' if headless else 'headed'} mode")
+        
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
-            context = await browser.new_context(viewport={'width': 1280, 'height': 1024})  # Fixed viewport
+            browser = await p.chromium.launch(headless=headless)
+            context = await browser.new_context(viewport={'width': 1280, 'height': 1024})
             page = await context.new_page()
             
             try:
                 logging.info(f"Navigating to {url}")
                 await page.goto(url)
                 await page.wait_for_load_state("networkidle")
-                await asyncio.sleep(1)  # Reduced wait time
+                await asyncio.sleep(1)
 
                 for step in config['steps']:
                     logging.info(f"Executing step: {step['type']}")
@@ -79,7 +84,7 @@ class PriceCalculator:
                 logging.error(f"Error calculating price: {str(e)}")
                 raise
             finally:
-                await asyncio.sleep(2)  # Reduced wait time
+                await asyncio.sleep(2)
                 await browser.close()
 
     def _convert_value(self, value: float, unit: str) -> float:

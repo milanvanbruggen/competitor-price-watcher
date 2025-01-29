@@ -76,8 +76,8 @@ async def calculate_price(request: PriceRequest):
             "status_code": 200,
             "message": "Price calculated successfully",
             "data": {
-                "price_excl_vat": price_excl_vat,
-                "price_incl_vat": price_incl_vat,
+                "price_excl_vat": round(price_excl_vat, 2),
+                "price_incl_vat": round(price_incl_vat, 2),
                 "currency": country_info['currency'],
                 "currency_symbol": country_info['currency_symbol'],
                 "vat_rate": country_info['vat_rate']

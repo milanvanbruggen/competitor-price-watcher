@@ -150,7 +150,7 @@
             };
             
             // Rond het bedrag af op 2 decimalen
-            const roundedAmount = Number(Math.round(amount + 'e2') + 'e-2');
+            const roundedAmount = Math.round((amount + Number.EPSILON) * 100) / 100;
             
             const locale = localeMap[country] || 'nl-NL';
             return new Intl.NumberFormat(locale, {
@@ -188,25 +188,26 @@
             
             const data = await response.json();
             
-            if (data.error || (data.price_excl_vat === 0 && data.price_incl_vat === 0)) {
-                const errorMessage = data.error || "Kon geen prijs berekenen voor de opgegeven dimensies";
+            if (data.status === 'error' || !data.data || (data.data.price_excl_vat === 0 && data.data.price_incl_vat === 0)) {
+                const errorMessage = data.message || "Kon geen prijs berekenen voor de opgegeven dimensies";
                 document.getElementById('result').innerHTML = `
                     <div class="alert alert-danger">
                         <p class="mb-0">${errorMessage}</p>
                     </div>
                 `;
             } else {
-                const priceExclVat = data.price_excl_vat !== null && data.price_excl_vat !== undefined 
-                    ? formatCurrency(data.price_excl_vat, data.currency, country)
+                const priceData = data.data;
+                const priceExclVat = priceData.price_excl_vat !== null && priceData.price_excl_vat !== undefined 
+                    ? formatCurrency(priceData.price_excl_vat, priceData.currency, country)
                     : 'Niet beschikbaar';
-                const priceInclVat = data.price_incl_vat !== null && data.price_incl_vat !== undefined
-                    ? formatCurrency(data.price_incl_vat, data.currency, country)
+                const priceInclVat = priceData.price_incl_vat !== null && priceData.price_incl_vat !== undefined
+                    ? formatCurrency(priceData.price_incl_vat, priceData.currency, country)
                     : 'Niet beschikbaar';
                 
                 document.getElementById('result').innerHTML = `
                     <div class="alert alert-success">
                         <p class="mb-0"><strong>Prijs excl. BTW:</strong> ${priceExclVat}</p>
-                        <p class="mb-0"><strong>Prijs incl. ${data.vat_rate}% BTW:</strong> ${priceInclVat}</p>
+                        <p class="mb-0"><strong>Prijs incl. ${priceData.vat_rate}% BTW:</strong> ${priceInclVat}</p>
                     </div>
                 `;
             }
@@ -217,11 +218,8 @@
                 `Response:\n${JSON.stringify(data, null, 2)}`;
         } catch (error) {
             document.getElementById('result').innerHTML = `
-                <div class="card border-danger">
-                    <div class="card-body text-danger">
-                        <h5 class="card-title">Error</h5>
-                        <p class="card-text">${error.message}</p>
-                    </div>
+                <div class="alert alert-danger">
+                    <p class="mb-0">Er is een fout opgetreden: ${error.message}</p>
                 </div>
             `;
             document.getElementById('debug').style.display = 'block';

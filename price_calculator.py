@@ -108,6 +108,29 @@ class PriceCalculator:
 
     async def _handle_select(self, page, step, dimensions):
         value = step['value']
+        
+        # Handle index-based selection
+        if step.get('select_by') == 'index':
+            try:
+                index = int(value)
+                element = await page.wait_for_selector(step['selector'])
+                options = await element.evaluate('''(select) => {
+                    return Array.from(select.options).map(option => ({
+                        value: option.value
+                    }));
+                }''')
+                
+                if 0 <= index < len(options):
+                    await element.select_option(index=index)
+                    await element.evaluate('(el) => el.dispatchEvent(new Event("change", { bubbles: true }))')
+                    await asyncio.sleep(1)
+                    return
+                else:
+                    raise ValueError(f"Index {index} out of range for select options")
+            except Exception as e:
+                raise ValueError(f"Error in index-based selection: {str(e)}")
+        
+        # Handle regular value-based selection
         for key in ['thickness', 'width', 'length']:
             if f"{{{key}}}" in value:
                 converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))

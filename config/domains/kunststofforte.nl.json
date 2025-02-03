@@ -2,35 +2,49 @@
     "domain": "kunststofforte.nl",
     "steps": [
         {
+            "selector": "#dikte",
             "type": "select",
-            "selector": "",
-            "value": "{thickness}",
-            "unit": "mm"
+            "unit": "mm",
+            "value": "{thickness}"
         },
         {
+            "duration": 1000,
+            "type": "wait"
+        },
+        {
+            "selector": "#kleur",
+            "type": "select",
+            "select_by": "index",
+            "value": "1"
+        },
+        {
+            "duration": 1000,
+            "type": "wait"
+        },
+        {
+            "selector": "#length_needed",
             "type": "input",
-            "selector": "",
-            "value": "{width}",
-            "unit": "mm"
+            "unit": "mm",
+            "value": "{length}"
         },
         {
-            "type": "wait",
-            "duration": 1000
+            "duration": 1000,
+            "type": "wait"
         },
         {
+            "selector": "#width_needed",
             "type": "input",
-            "selector": "",
-            "value": "{length}",
-            "unit": "mm"
+            "unit": "mm",
+            "value": "{width}"
         },
         {
-            "type": "wait",
-            "duration": 1000
+            "duration": 1000,
+            "type": "wait"
         },
         {
-            "type": "read_price",
-            "selector": "",
-            "includes_vat": false
+            "includes_vat": false,
+            "selector": ".product_price .amount",
+            "type": "read_price"
         }
     ]
 }

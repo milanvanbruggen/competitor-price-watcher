@@ -1,0 +1,36 @@
+{
+    "domain": "kunststofforte.nl",
+    "steps": [
+        {
+            "type": "select",
+            "selector": "",
+            "value": "{thickness}",
+            "unit": "mm"
+        },
+        {
+            "type": "input",
+            "selector": "",
+            "value": "{width}",
+            "unit": "mm"
+        },
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
+            "type": "input",
+            "selector": "",
+            "value": "{length}",
+            "unit": "mm"
+        },
+        {
+            "type": "wait",
+            "duration": 1000
+        },
+        {
+            "type": "read_price",
+            "selector": "",
+            "includes_vat": false
+        }
+    ]
+}

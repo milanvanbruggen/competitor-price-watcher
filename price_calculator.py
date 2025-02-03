@@ -49,8 +49,21 @@ class PriceCalculator:
             try:
                 logging.info(f"Navigating to {url}")
                 await page.goto(url)
-                await page.wait_for_load_state("networkidle")
-                await asyncio.sleep(1)
+                
+                # Wait for different load states to ensure complete loading
+                logging.info("Waiting for page to be completely loaded...")
+                await page.wait_for_load_state("domcontentloaded")  # Wait for initial HTML document loaded and parsed
+                await page.wait_for_load_state("load")  # Wait for page load event fired
+                await page.wait_for_load_state("networkidle")  # Wait for network to be idle
+                
+                # Additional wait to ensure JavaScript has finished executing
+                try:
+                    await page.wait_for_function("document.readyState === 'complete'")
+                    logging.info("Page fully loaded and JavaScript executed")
+                except Exception as e:
+                    logging.warning(f"Could not verify JavaScript completion: {str(e)}")
+                
+                await asyncio.sleep(1)  # Extra safety margin
 
                 for step in config['steps']:
                     logging.info(f"Executing step: {step['type']}")

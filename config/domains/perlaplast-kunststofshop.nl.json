@@ -2,9 +2,29 @@
     "domain": "perlaplast-kunststofshop.nl",
     "steps": [
         {
-            "type": "read_price",
-            "selector": ".unit-price-including-tax .price",
-            "includes_vat": false
+            "selector": "#options_137326_text_0",
+            "type": "input",
+            "unit": "mm",
+            "value": "{width}"
+        },
+        {
+            "duration": 1000,
+            "type": "wait"
+        },
+        {
+            "selector": "#options_137327_text_0",
+            "type": "input",
+            "unit": "mm",
+            "value": "{length}"
+        },
+        {
+            "duration": 1000,
+            "type": "wait"
+        },
+        {
+            "includes_vat": false,
+            "selector": ".price-excluding-tax .price",
+            "type": "read_price"
         }
     ]
 }

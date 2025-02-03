@@ -1,0 +1,10 @@
+{
+    "domain": "perlaplast-kunststofshop.nl",
+    "steps": [
+        {
+            "type": "read_price",
+            "selector": ".unit-price-including-tax .price",
+            "includes_vat": false
+        }
+    ]
+}

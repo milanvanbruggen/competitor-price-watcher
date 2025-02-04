@@ -2,7 +2,7 @@
     "domain": "perlaplast-kunststofshop.nl",
     "steps": [
         {
-            "selector": "#options_137326_text_0",
+            "selector": ".itoris-dynamicoptions-template .is-detached:nth-child(1) .product-custom-option",
             "type": "input",
             "unit": "mm",
             "value": "{width}"
@@ -12,7 +12,7 @@
             "type": "wait"
         },
         {
-            "selector": "#options_137327_text_0",
+            "selector": ".itoris-dynamicoptions-template .is-detached:nth-child(2) .product-custom-option",
             "type": "input",
             "unit": "mm",
             "value": "{length}"

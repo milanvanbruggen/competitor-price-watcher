@@ -1,22 +1,113 @@
 {
     "domain": "voskunststoffen.nl",
-    "steps": [
-        {
-            "option_container": "#popperpartControlDropDownThickness ul",
-            "option_selector": "li[data-value='{value}']",
-            "selector": "#partControlDropDownThickness",
-            "type": "select",
-            "unit": "mm",
-            "value": "{thickness}"
+    "categories": {
+        "square_meter_price": {
+            "steps": [
+                {
+                    "option_container": "#popperpartControlDropDownThickness ul",
+                    "option_selector": "li[data-value='{value}']",
+                    "selector": "#partControlDropDownThickness",
+                    "type": "select",
+                    "unit": "mm",
+                    "value": "{thickness}"
+                },
+                {
+                    "duration": 1000,
+                    "type": "wait"
+                },
+                {
+                    "type": "input",
+                    "selector": "#sizeA",
+                    "value": "2000",
+                    "unit": "mm"
+                },
+                {
+                    "duration": 1000,
+                    "type": "wait"
+                },
+                {
+                    "type": "input",
+                    "selector": "#sizeB",
+                    "value": "2000",
+                    "unit": "mm"
+                },
+                {
+                    "type": "wait",
+                    "duration": 1000
+                },
+                {
+                    "includes_vat": false,
+                    "selector": "#calculatorPrice > .value",
+                    "type": "read_price"
+                }
+            ]
         },
-        {
-            "duration": 1000,
-            "type": "wait"
-        },
-        {
-            "includes_vat": false,
-            "selector": "#calculatorPrice > .value",
-            "type": "read_price"
+        "shipping": {
+            "steps": [
+                {
+                    "option_container": "#popperpartControlDropDownThickness ul",
+                    "option_selector": "li[data-value='{value}']",
+                    "selector": "#partControlDropDownThickness",
+                    "type": "select",
+                    "unit": "mm",
+                    "value": "{thickness}"
+                },
+                {
+                    "duration": 1000,
+                    "type": "wait"
+                },
+                {
+                    "type": "input",
+                    "selector": "#sizeA",
+                    "value": "{width}",
+                    "unit": "mm"
+                },
+                {
+                    "duration": 1000,
+                    "type": "wait"
+                },
+                {
+                    "type": "input",
+                    "selector": "#sizeB",
+                    "value": "{length}",
+                    "unit": "mm"
+                },
+                {
+                    "type": "wait",
+                    "duration": 1000
+                },
+                {
+                    "type": "click",
+                    "selector": ".shoppingCartButton"
+                },
+                {
+                    "type": "wait",
+                    "duration": 1000
+                },
+                {
+                    "type": "click",
+                    "selector": ".trackingIdNaarwinkelwagen"
+                },
+                {
+                    "type": "wait",
+                    "duration": 1000
+                },
+                {
+                    "type": "input",
+                    "selector": ".shoppingCartQuantity-input",
+                    "value": "{quantity}",
+                    "unit": "pieces"
+                },
+                {
+                    "type": "wait",
+                    "duration": 1000
+                },
+                {
+                    "includes_vat": false,
+                    "selector": "#shoppingCartSummaryPrice .table-row:nth-child(2) .table-row-value:nth-child(2)",
+                    "type": "read_price"
+                }
+            ]
         }
-    ]
+    }
 }

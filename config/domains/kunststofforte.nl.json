@@ -1,50 +1,71 @@
 {
     "domain": "kunststofforte.nl",
-    "steps": [
-        {
-            "selector": "#dikte",
-            "type": "select",
-            "unit": "mm",
-            "value": "{thickness}"
+    "categories": {
+        "square_meter_price": {
+            "steps": [
+                {
+                    "selector": "#dikte",
+                    "type": "select",
+                    "unit": "mm",
+                    "value": "{thickness}"
+                },
+                {
+                    "duration": 1000,
+                    "type": "wait"
+                },
+                {
+                    "selector": "#kleur",
+                    "type": "select",
+                    "select_by": "index",
+                    "value": "1"
+                },
+                {
+                    "duration": 1000,
+                    "type": "wait"
+                },
+                {
+                    "selector": "#length_needed",
+                    "type": "input",
+                    "unit": "mm",
+                    "value": "{length}"
+                },
+                {
+                    "duration": 1000,
+                    "type": "wait"
+                },
+                {
+                    "selector": "#width_needed",
+                    "type": "input",
+                    "unit": "mm",
+                    "value": "{width}"
+                },
+                {
+                    "duration": 1000,
+                    "type": "wait"
+                },
+                {
+                    "includes_vat": false,
+                    "selector": ".product_price .amount",
+                    "type": "read_price"
+                }
+            ]
         },
-        {
-            "duration": 1000,
-            "type": "wait"
-        },
-        {
-            "selector": "#kleur",
-            "type": "select",
-            "select_by": "index",
-            "value": "1"
-        },
-        {
-            "duration": 1000,
-            "type": "wait"
-        },
-        {
-            "selector": "#length_needed",
-            "type": "input",
-            "unit": "mm",
-            "value": "{length}"
-        },
-        {
-            "duration": 1000,
-            "type": "wait"
-        },
-        {
-            "selector": "#width_needed",
-            "type": "input",
-            "unit": "mm",
-            "value": "{width}"
-        },
-        {
-            "duration": 1000,
-            "type": "wait"
-        },
-        {
-            "includes_vat": false,
-            "selector": ".product_price .amount",
-            "type": "read_price"
+        "shipping": {
+            "steps": [
+                {
+                    "type": "click",
+                    "selector": "#shipping-calculator-button"
+                },
+                {
+                    "type": "wait",
+                    "duration": 1000
+                },
+                {
+                    "type": "read_price",
+                    "selector": ".shipping-calculator-result .amount",
+                    "includes_vat": true
+                }
+            ]
         }
-    ]
+    }
 }

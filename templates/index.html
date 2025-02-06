@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Competitor Pricing Scraper{% endblock %}
+{% block title %}360 Competitor Dashboard{% endblock %}
 
 {% block styles %}
 <style>
@@ -13,61 +13,141 @@
         padding: 15px;
         border-radius: 5px;
     }
+    .nav-tabs {
+        margin-bottom: 20px;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
-    <h2>Scrape Competitor Pricing</h2>
+
+    <h2 class="mb-4">Rekenmodules</h2>
     
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Bereken Prijs</h5>
-                    <form id="priceForm">
-                        <div class="mb-3">
-                            <label for="url" class="form-label">Product URL</label>
-                            <input type="url" class="form-control" id="url" required>
+    <!-- Main navigation tabs -->
+    <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="sqm-price-tab" data-bs-toggle="tab" data-bs-target="#sqm-price" type="button" role="tab">
+                Prijs per m²
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="shipping-tab" data-bs-toggle="tab" data-bs-target="#shipping" type="button" role="tab">
+                Verzendkosten
+            </button>
+        </li>
+    </ul>
+    
+    <!-- Tab content -->
+    <div class="tab-content" id="mainTabsContent">
+        <!-- Square meter price tab -->
+        <div class="tab-pane fade show active" id="sqm-price" role="tabpanel">
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Bereken Prijs</h5>
+                            <form id="priceForm">
+                                <div class="mb-3">
+                                    <label for="url" class="form-label">Product URL</label>
+                                    <input type="url" class="form-control" id="url" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="dikte" class="form-label">Dikte (mm)</label>
+                                    <input type="number" class="form-control" id="dikte" value="2">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="lengte" class="form-label">Lengte (mm)</label>
+                                    <input type="number" class="form-control" id="lengte" value="1000">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="breedte" class="form-label">Breedte (mm)</label>
+                                    <input type="number" class="form-control" id="breedte" value="1000">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="country" class="form-label">Land</label>
+                                    <select class="form-control" id="country">
+                                        {% for code, country in countries.items() %}
+                                        <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
+                                            {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% BTW)
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Bereken</button>
+                            </form>
                         </div>
-                        <div class="mb-3">
-                            <label for="dikte" class="form-label">Dikte (mm)</label>
-                            <input type="number" class="form-control" id="dikte" value="2">
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Resultaat</h5>
+                            <div id="result" class="result">
+                                <p>Voer een URL in en klik op Bereken om de prijs te zien.</p>
+                            </div>
+                            <div id="debug" class="debug-info" style="display: none;">
+                                <h6>Debug Informatie:</h6>
+                                <div id="debug-content"></div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="lengte" class="form-label">Lengte (mm)</label>
-                            <input type="number" class="form-control" id="lengte" value="1000">
-                        </div>
-                        <div class="mb-3">
-                            <label for="breedte" class="form-label">Breedte (mm)</label>
-                            <input type="number" class="form-control" id="breedte" value="1000">
-                        </div>
-                        <div class="mb-3">
-                            <label for="country" class="form-label">Land</label>
-                            <select class="form-control" id="country">
-                                {% for code, country in countries.items() %}
-                                <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
-                                    {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% BTW)
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Bereken</button>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Resultaat</h5>
-                    <div id="result" class="result">
-                        <p>Voer een URL in en klik op Bereken om de prijs te zien.</p>
+
+        <!-- Shipping costs tab -->
+        <div class="tab-pane fade" id="shipping" role="tabpanel">
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Bereken Verzendkosten</h5>
+                            <form id="shippingForm">
+                                <div class="mb-3">
+                                    <label for="shipping_url" class="form-label">Product URL</label>
+                                    <input type="url" class="form-control" id="shipping_url" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="shipping_package" class="form-label">Pakkettype</label>
+                                    <select class="form-control" id="shipping_package">
+                                        {% for id, package in packages.items() %}
+                                        <option value="{{ id }}" title="{{ package.description }}">
+                                            {{ package.name }}: {{ package.display }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="form-text text-muted package-description"></small>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="shipping_country" class="form-label">Land</label>
+                                    <select class="form-control" id="shipping_country">
+                                        {% for code, country in countries.items() %}
+                                        <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
+                                            {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% BTW)
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Bereken Verzendkosten</button>
+                            </form>
+                        </div>
                     </div>
-                    <div id="debug" class="debug-info" style="display: none;">
-                        <h6>Debug Informatie:</h6>
-                        <div id="debug-content"></div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Resultaat</h5>
+                            <div id="shipping_result" class="result">
+                                <p>Voer een URL in en klik op Bereken om de verzendkosten te zien.</p>
+                            </div>
+                            <div id="shipping_debug" class="debug-info" style="display: none;">
+                                <h6>Debug Informatie:</h6>
+                                <div id="shipping_debug_content"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -79,42 +159,77 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">API Documentatie</h5>
-                    <p>Deze applicatie biedt een REST API endpoint: <code>/calculate-price</code></p>
-                    <h6>Request Parameters:</h6>
+                    <p>Deze applicatie biedt twee REST API endpoints:</p>
+                    <h6>1. Prijs per m² (<code>/api/calculate-smp</code>)</h6>
+                    <p>Request Parameters:</p>
                     <ul>
                         <li><code>url</code>: De URL van de productpagina</li>
                         <li><code>dikte</code>: Dikte in mm (default: 2)</li>
                         <li><code>lengte</code>: Lengte in mm (default: 1000)</li>
                         <li><code>breedte</code>: Breedte in mm (default: 1000)</li>
-                        <li><code>country</code>: Landcode (default: nl). Beschikbare opties: nl, uk, de, fr, be, es, it, pl, se, dk</li>
+                        <li><code>country</code>: Landcode (default: nl)</li>
                     </ul>
-                    <h6>Response:</h6>
+
+                    <h6>2. Verzendkosten (<code>/api/calculate-shipping</code>)</h6>
+                    <p>Request Parameters:</p>
+                    <ul>
+                        <li><code>url</code>: De URL van de productpagina</li>
+                        <li><code>package_type</code>: Type pakket (1-6, default: 1)</li>
+                        <li><code>thickness</code>: Optionele dikte in mm (overschrijft pakket dikte)</li>
+                        <li><code>country</code>: Landcode (default: nl)</li>
+                    </ul>
+
+                    <h6>Response (beide endpoints):</h6>
                     <ul>
                         <li><code>price_excl_vat</code>: Prijs exclusief BTW</li>
                         <li><code>price_incl_vat</code>: Prijs inclusief BTW</li>
                         <li><code>currency</code>: Valuta code (EUR, GBP, etc.)</li>
                         <li><code>currency_symbol</code>: Valuta symbool (€, £, etc.)</li>
                         <li><code>vat_rate</code>: BTW percentage voor het gekozen land</li>
+                        <li><code>package_info</code>: (Alleen voor shipping) Informatie over het gekozen pakket:
+                            <ul>
+                                <li><code>type</code>: Pakket type (1-6)</li>
+                                <li><code>name</code>: Naam van het pakket</li>
+                                <li><code>description</code>: Beschrijving van het pakket</li>
+                                <li><code>quantity</code>: Aantal stuks in het pakket</li>
+                                <li><code>dimensions</code>: Afmetingen in mm (lengte x breedte)</li>
+                                <li><code>thickness</code>: Gebruikte dikte in mm</li>
+                                <li><code>display</code>: Weergave tekst van het pakket</li>
+                            </ul>
+                        </li>
                         <li><code>error</code>: Eventuele foutmelding (optioneel)</li>
                     </ul>
-                    <p>Voorbeeld curl commando:</p>
-                    <pre><code>curl -X POST "http://localhost:8080/calculate-price" \
-    -H "Content-Type: application/json" \
-    -d '{
+
+                    <h6>Voorbeeld Request:</h6>
+                    <pre>{
     "url": "https://example.com/product",
-    "dikte": 2,
-    "lengte": 1000,
-    "breedte": 1000,
-    "country": "uk"
-}'</code></pre>
-                    <p>Voorbeeld response:</p>
-                    <pre><code>{
-    "price_excl_vat": 42.54,
-    "price_incl_vat": 51.05,
-    "currency": "GBP",
-    "currency_symbol": "£",
-    "vat_rate": 20.0
-}</code></pre>
+    "package_type": 2,
+    "thickness": 3,  // optioneel
+    "country": "nl"
+}</pre>
+
+                    <h6>Voorbeeld Response:</h6>
+                    <pre>{
+    "status": "success",
+    "status_code": 200,
+    "message": "Shipping costs calculated successfully",
+    "data": {
+        "price_excl_vat": 12.40,
+        "price_incl_vat": 15.00,
+        "currency": "EUR",
+        "currency_symbol": "€",
+        "vat_rate": 21,
+        "package_info": {
+            "type": 2,
+            "name": "Medium pakket, meerdere stuks",
+            "description": "Medium pakket, meerdere stuks",
+            "quantity": 5,
+            "dimensions": "500x500 mm",
+            "thickness": 3,
+            "display": "5x 50x50 cm"
+        }
+    }
+}</pre>
                 </div>
             </div>
         </div>
@@ -124,6 +239,7 @@
 
 {% block scripts %}
 <script>
+    // Existing price calculation form handler
     document.getElementById('priceForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         
@@ -133,34 +249,6 @@
         const breedte = parseFloat(document.getElementById('breedte').value);
         const country = document.getElementById('country').value;
         
-        // Helper functie voor valuta formatting
-        const formatCurrency = (amount, currency, country) => {
-            // Map van land codes naar locale codes
-            const localeMap = {
-                'nl': 'nl-NL',
-                'uk': 'en-GB',
-                'de': 'de-DE',
-                'fr': 'fr-FR',
-                'be': 'nl-BE',
-                'es': 'es-ES',
-                'it': 'it-IT',
-                'pl': 'pl-PL',
-                'se': 'sv-SE',
-                'dk': 'da-DK'
-            };
-            
-            // Rond het bedrag af op 2 decimalen
-            const roundedAmount = Math.round((amount + Number.EPSILON) * 100) / 100;
-            
-            const locale = localeMap[country] || 'nl-NL';
-            return new Intl.NumberFormat(locale, {
-                style: 'currency',
-                currency: currency,
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(roundedAmount);
-        };
-        
         const requestData = {
             url: url,
             dikte: dikte,
@@ -169,16 +257,37 @@
             country: country
         };
         
+        await calculateSquareMeterPrice(requestData, 'result', 'debug', 'debug-content');
+    });
+
+    // New shipping form handler
+    document.getElementById('shippingForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const url = document.getElementById('shipping_url').value;
+        const country = document.getElementById('shipping_country').value;
+        const packageType = parseInt(document.getElementById('shipping_package').value);
+        
+        const requestData = {
+            url: url,
+            country: country,
+            package_type: packageType
+        };
+        
+        await calculateShipping(requestData, 'shipping_result', 'shipping_debug', 'shipping_debug_content');
+    });
+
+    // Square meter price calculation function
+    async function calculateSquareMeterPrice(requestData, resultId, debugId, debugContentId) {
         try {
-            // Verander de initiële resultaat weergave
-            document.getElementById('result').innerHTML = `
+            document.getElementById(resultId).innerHTML = `
                 <div class="alert alert-info">
                     <p>Bezig met berekenen...</p>
                 </div>
             `;
-            document.getElementById('debug').style.display = 'none';
+            document.getElementById(debugId).style.display = 'none';
             
-            const response = await fetch('/api/calculate', {
+            const response = await fetch('/api/calculate-smp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -189,42 +298,133 @@
             const data = await response.json();
             
             if (data.status === 'error' || !data.data || (data.data.price_excl_vat === 0 && data.data.price_incl_vat === 0)) {
-                const errorMessage = data.message || "Kon geen prijs berekenen voor de opgegeven dimensies";
-                document.getElementById('result').innerHTML = `
+                const errorMessage = data.message || "Kon geen prijs berekenen";
+                document.getElementById(resultId).innerHTML = `
                     <div class="alert alert-danger">
                         <p class="mb-0">${errorMessage}</p>
                     </div>
                 `;
             } else {
                 const priceData = data.data;
-                const priceExclVat = priceData.price_excl_vat !== null && priceData.price_excl_vat !== undefined 
-                    ? formatCurrency(priceData.price_excl_vat, priceData.currency, country)
-                    : 'Niet beschikbaar';
-                const priceInclVat = priceData.price_incl_vat !== null && priceData.price_incl_vat !== undefined
-                    ? formatCurrency(priceData.price_incl_vat, priceData.currency, country)
-                    : 'Niet beschikbaar';
+                const priceExclVat = formatCurrency(priceData.price_excl_vat, priceData.currency, requestData.country);
+                const priceInclVat = formatCurrency(priceData.price_incl_vat, priceData.currency, requestData.country);
+                const sqmPrice = formatCurrency(priceData.price_excl_vat / ((requestData.lengte * requestData.breedte) / 1000000), priceData.currency, requestData.country);
                 
-                document.getElementById('result').innerHTML = `
+                document.getElementById(resultId).innerHTML = `
                     <div class="alert alert-success">
                         <p class="mb-0"><strong>Prijs excl. BTW:</strong> ${priceExclVat}</p>
                         <p class="mb-0"><strong>Prijs incl. ${priceData.vat_rate}% BTW:</strong> ${priceInclVat}</p>
+                        <p class="mb-0"><strong>Prijs per m²:</strong> ${sqmPrice}</p>
+                        <p class="mb-0"><small>Berekend voor ${requestData.lengte}mm x ${requestData.breedte}mm</small></p>
                     </div>
                 `;
             }
             
-            document.getElementById('debug').style.display = 'block';
-            document.getElementById('debug-content').innerText = 
+            document.getElementById(debugId).style.display = 'block';
+            document.getElementById(debugContentId).innerText = 
                 `Request:\n${JSON.stringify(requestData, null, 2)}\n\n` +
                 `Response:\n${JSON.stringify(data, null, 2)}`;
         } catch (error) {
-            document.getElementById('result').innerHTML = `
+            document.getElementById(resultId).innerHTML = `
                 <div class="alert alert-danger">
                     <p class="mb-0">Er is een fout opgetreden: ${error.message}</p>
                 </div>
             `;
-            document.getElementById('debug').style.display = 'block';
-            document.getElementById('debug-content').innerText = `Error: ${error.message}`;
+            document.getElementById(debugId).style.display = 'block';
+            document.getElementById(debugContentId).innerText = `Error: ${error.message}`;
         }
+    }
+
+    // Shipping calculation function
+    async function calculateShipping(requestData, resultId, debugId, debugContentId) {
+        try {
+            document.getElementById(resultId).innerHTML = `
+                <div class="alert alert-info">
+                    <p>Bezig met berekenen...</p>
+                </div>
+            `;
+            document.getElementById(debugId).style.display = 'none';
+            
+            const response = await fetch('/api/calculate-shipping', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'error' || !data.data || (data.data.price_excl_vat === 0 && data.data.price_incl_vat === 0)) {
+                const errorMessage = data.message || "Kon geen verzendkosten berekenen";
+                document.getElementById(resultId).innerHTML = `
+                    <div class="alert alert-danger">
+                        <p class="mb-0">${errorMessage}</p>
+                    </div>
+                `;
+            } else {
+                const priceData = data.data;
+                const priceExclVat = formatCurrency(priceData.price_excl_vat, priceData.currency, requestData.country);
+                const priceInclVat = formatCurrency(priceData.price_incl_vat, priceData.currency, requestData.country);
+                
+                document.getElementById(resultId).innerHTML = `
+                    <div class="alert alert-success">
+                        <p class="mb-0"><strong>Verzendkosten excl. BTW:</strong> ${priceExclVat}</p>
+                        <p class="mb-0"><strong>Verzendkosten incl. ${priceData.vat_rate}% BTW:</strong> ${priceInclVat}</p>
+                        <p class="mb-0"><small>Voor pakket type ${priceData.package_info.type}: ${priceData.package_info.quantity}x ${priceData.package_info.dimensions}</small></p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById(debugId).style.display = 'block';
+            document.getElementById(debugContentId).innerText = 
+                `Request:\n${JSON.stringify(requestData, null, 2)}\n\n` +
+                `Response:\n${JSON.stringify(data, null, 2)}`;
+        } catch (error) {
+            document.getElementById(resultId).innerHTML = `
+                <div class="alert alert-danger">
+                    <p class="mb-0">Er is een fout opgetreden: ${error.message}</p>
+                </div>
+            `;
+            document.getElementById(debugId).style.display = 'block';
+            document.getElementById(debugContentId).innerText = `Error: ${error.message}`;
+        }
+    }
+    
+    // Helper functie voor valuta formatting
+    function formatCurrency(amount, currency, country) {
+        const localeMap = {
+            'nl': 'nl-NL',
+            'uk': 'en-GB',
+            'de': 'de-DE',
+            'fr': 'fr-FR',
+            'be': 'nl-BE',
+            'es': 'es-ES',
+            'it': 'it-IT',
+            'pl': 'pl-PL',
+            'se': 'sv-SE',
+            'dk': 'da-DK'
+        };
+        
+        const roundedAmount = Math.round((amount + Number.EPSILON) * 100) / 100;
+        const locale = localeMap[country] || 'nl-NL';
+        
+        return new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency: currency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(roundedAmount);
+    }
+
+    // Add package description update handler
+    document.getElementById('shipping_package').addEventListener('change', function(e) {
+        const option = e.target.options[e.target.selectedIndex];
+        const description = option.getAttribute('title');
+        document.querySelector('.package-description').textContent = description;
     });
+
+    // Trigger initial description
+    document.getElementById('shipping_package').dispatchEvent(new Event('change'));
 </script>
 {% endblock %} 

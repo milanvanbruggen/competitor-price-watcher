@@ -14,16 +14,25 @@ templates = Jinja2Templates(directory="templates")
 # Initialize calculator
 calculator = PriceCalculator()
 
-# Load countries configuration
+# Load configurations
 with open('config/countries.json') as f:
     countries = json.load(f)
 
-class PriceRequest(BaseModel):
+with open('config/packages.json') as f:
+    package_config = json.load(f)
+
+class SquareMeterPriceRequest(BaseModel):
     url: str
     dikte: float
     lengte: float
     breedte: float
     country: str = 'nl'
+
+class ShippingRequest(BaseModel):
+    url: str
+    country: str = 'nl'
+    package_type: int = 1  # 1-6 for different package sizes
+    thickness: float = None  # Optional override for package thickness
 
 class ConfigRequest(BaseModel):
     domain: str
@@ -33,9 +42,17 @@ class CountryRequest(BaseModel):
     country: str
     config: dict
 
+class PackageRequest(BaseModel):
+    package_id: str
+    config: dict
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "countries": countries})
+    return templates.TemplateResponse("index.html", {
+        "request": request, 
+        "countries": countries,
+        "packages": package_config["packages"]
+    })
 
 @app.get("/config")
 async def config_page(request: Request):
@@ -48,18 +65,15 @@ async def config_page(request: Request):
                 config = json.load(f)
                 domain_configs[config['domain']] = config
     
-    # Load country configurations
-    with open(os.path.join(os.path.dirname(__file__), 'config', 'countries.json')) as f:
-        country_configs = json.load(f)
-    
     return templates.TemplateResponse("config.html", {
         "request": request,
         "domain_configs": domain_configs,
-        "country_configs": country_configs
+        "country_configs": countries,
+        "package_configs": package_config["packages"]
     })
 
-@app.post("/api/calculate")
-async def calculate_price(request: PriceRequest):
+@app.post("/api/calculate-smp")
+async def calculate_square_meter_price(request: SquareMeterPriceRequest):
     try:
         dimensions = {
             'thickness': request.dikte,
@@ -67,20 +81,93 @@ async def calculate_price(request: PriceRequest):
             'width': request.breedte
         }
         
-        price_excl_vat, price_incl_vat = await calculator.calculate_price(request.url, dimensions, country=request.country)
+        price_excl_vat, price_incl_vat = await calculator.calculate_price(
+            request.url, 
+            dimensions, 
+            country=request.country,
+            category='square_meter_price'
+        )
         
         country_info = countries.get(request.country, countries['nl'])
         
         return {
             "status": "success",
             "status_code": 200,
-            "message": "Price calculated successfully",
+            "message": "Square meter price calculated successfully",
             "data": {
                 "price_excl_vat": round(price_excl_vat, 2),
                 "price_incl_vat": round(price_incl_vat, 2),
                 "currency": country_info['currency'],
                 "currency_symbol": country_info['currency_symbol'],
                 "vat_rate": country_info['vat_rate']
+            }
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "status_code": 400,
+                "message": str(e),
+                "error_type": "ValueError"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "status": "error",
+                "status_code": 500,
+                "message": str(e),
+                "error_type": type(e).__name__
+            }
+        )
+
+@app.post("/api/calculate-shipping")
+async def calculate_shipping(request: ShippingRequest):
+    """Calculate shipping costs"""
+    try:
+        package_id = str(request.package_type)
+        if package_id not in package_config["packages"]:
+            raise ValueError(f"Invalid package type: {request.package_type}. Must be between 1 and {len(package_config['packages'])}.")
+
+        package = package_config["packages"][package_id]
+        dimensions = {
+            'package_type': package_id,  # Add package_type to dimensions
+            'thickness': request.thickness if request.thickness is not None else package['thickness'],  # Allow thickness override
+            'length': package['length'],
+            'width': package['width'],
+            'quantity': package['quantity']
+        }
+        
+        price_excl_vat, price_incl_vat = await calculator.calculate_price(
+            request.url, 
+            dimensions, 
+            country=request.country,
+            category='shipping'
+        )
+        
+        country_info = countries.get(request.country, countries['nl'])
+        
+        return {
+            "status": "success",
+            "status_code": 200,
+            "message": "Shipping costs calculated successfully",
+            "data": {
+                "price_excl_vat": round(price_excl_vat, 2),
+                "price_incl_vat": round(price_incl_vat, 2),
+                "currency": country_info['currency'],
+                "currency_symbol": country_info['currency_symbol'],
+                "vat_rate": country_info['vat_rate'],
+                "package_info": {
+                    "type": request.package_type,
+                    "name": package['name'],
+                    "description": package['description'],
+                    "quantity": package['quantity'],
+                    "dimensions": f"{package['length']}x{package['width']} mm",
+                    "thickness": dimensions['thickness'],  # Use the actual thickness being used
+                    "display": package['display']
+                }
             }
         }
     except ValueError as e:
@@ -173,6 +260,40 @@ async def delete_country_config(country: str):
     
     with open(config_path, 'w') as f:
         json.dump(countries, f, indent=4)
+    return {"success": True}
+
+@app.get("/api/packages")
+async def get_packages():
+    """Get all package configurations"""
+    return package_config
+
+@app.get("/api/packages/{package_id}")
+async def get_package(package_id: str):
+    """Get a specific package configuration"""
+    if package_id not in package_config["packages"]:
+        raise HTTPException(status_code=404, detail="Package configuration not found")
+    return package_config["packages"][package_id]
+
+@app.post("/api/packages")
+async def save_package(request: PackageRequest):
+    """Save or update a package configuration"""
+    try:
+        package_config["packages"][request.package_id] = request.config
+        with open('config/packages.json', 'w') as f:
+            json.dump(package_config, f, indent=4)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.delete("/api/packages/{package_id}")
+async def delete_package(package_id: str):
+    """Delete a package configuration"""
+    if package_id not in package_config["packages"]:
+        raise HTTPException(status_code=404, detail="Package configuration not found")
+    
+    del package_config["packages"][package_id]
+    with open('config/packages.json', 'w') as f:
+        json.dump(package_config, f, indent=4)
     return {"success": True}
 
 @app.get("/docs", response_class=HTMLResponse)

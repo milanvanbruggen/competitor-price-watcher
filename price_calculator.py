@@ -25,7 +25,7 @@ class PriceCalculator:
                     config = json.load(f)
                     self.configs[config['domain']] = config
 
-    async def calculate_price(self, url: str, dimensions: Dict[str, float], country: str = 'nl') -> Tuple[float, float]:
+    async def calculate_price(self, url: str, dimensions: Dict[str, float], country: str = 'nl', category: str = 'square_meter_price') -> Tuple[float, float]:
         domain = urlparse(url).netloc.replace('www.', '')
         if domain not in self.configs:
             raise ValueError(f"No configuration found for domain {domain}")
@@ -34,7 +34,39 @@ class PriceCalculator:
         logging.info(f"Original dimensions: {dimensions}")
         
         config = self.configs[domain]
-        logging.info(f"Using config: {config}")
+        if 'categories' not in config or category not in config['categories']:
+            raise ValueError(f"No configuration found for category {category} on domain {domain}")
+            
+        category_config = config['categories'][category]
+        logging.info(f"Using config: {category_config}")
+        
+        # Load package configuration if this is a shipping calculation
+        if category == 'shipping':
+            with open('config/packages.json') as f:
+                packages = json.load(f)
+            package_type = str(dimensions.get('package_type', '1'))
+            if package_type not in packages['packages']:
+                raise ValueError(f"Invalid package type: {package_type}")
+            
+            # Log the package configuration before merging
+            package = packages['packages'][package_type]
+            logging.info(f"Package configuration from packages.json: {package}")
+            
+            # Merge dimensions, letting package dimensions take precedence
+            original_dimensions = dimensions.copy()
+            dimensions = {
+                **original_dimensions,  # Start with original dimensions
+                'thickness': package['thickness'],  # Override with package dimensions
+                'width': package['width'],
+                'length': package['length'],
+                'quantity': package['quantity']
+            }
+            logging.info(f"Final dimensions after merging: {dimensions}")
+            
+            # Double check the thickness value
+            logging.info(f"Thickness value being used: {dimensions['thickness']}")
+            if dimensions['thickness'] != package['thickness']:
+                logging.warning(f"Thickness mismatch! Package thickness: {package['thickness']}, Final thickness: {dimensions['thickness']}")
         
         # Determine if we should run in headless mode based on environment
         is_production = os.getenv('FLY_APP_NAME') is not None
@@ -52,20 +84,19 @@ class PriceCalculator:
                 
                 # Wait for different load states to ensure complete loading
                 logging.info("Waiting for page to be completely loaded...")
-                await page.wait_for_load_state("domcontentloaded")  # Wait for initial HTML document loaded and parsed
-                await page.wait_for_load_state("load")  # Wait for page load event fired
-                await page.wait_for_load_state("networkidle")  # Wait for network to be idle
+                await page.wait_for_load_state("domcontentloaded")
+                await page.wait_for_load_state("load")
+                await page.wait_for_load_state("networkidle")
                 
-                # Additional wait to ensure JavaScript has finished executing
                 try:
                     await page.wait_for_function("document.readyState === 'complete'")
                     logging.info("Page fully loaded and JavaScript executed")
                 except Exception as e:
                     logging.warning(f"Could not verify JavaScript completion: {str(e)}")
                 
-                await asyncio.sleep(1)  # Extra safety margin
+                await asyncio.sleep(1)
 
-                for step in config['steps']:
+                for step in category_config['steps']:
                     logging.info(f"Executing step: {step['type']}")
                     
                     if step['type'] == 'select':
@@ -102,6 +133,9 @@ class PriceCalculator:
 
     def _convert_value(self, value: float, unit: str) -> float:
         """Convert a value from millimeters to the target unit"""
+        # Convert value to float if it's an integer
+        value = float(value)
+        
         if unit == 'cm':
             return value / 10
         return value  # Default is mm
@@ -133,13 +167,17 @@ class PriceCalculator:
         # Handle regular value-based selection
         for key in ['thickness', 'width', 'length']:
             if f"{{{key}}}" in value:
-                converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
-                # Convert to integer if it's a whole number
-                if converted_value.is_integer():
-                    converted_value = int(converted_value)
-                value = value.replace(f"{{{key}}}", str(converted_value))
+                if key in dimensions:
+                    converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
+                    # Convert to integer if it's a whole number
+                    if isinstance(converted_value, float) and converted_value.is_integer():
+                        converted_value = int(converted_value)
+                    value = value.replace(f"{{{key}}}", str(converted_value))
+                    logging.info(f"Converted {key} value to: {converted_value}")
+                else:
+                    logging.warning(f"Dimension {key} not found in dimensions dict")
         
-        logging.info(f"Handling select: {step['selector']} with value {value}")
+        logging.info(f"Handling select: {step['selector']} with target value {value}")
         
         element = await page.wait_for_selector(step['selector'])
         
@@ -153,10 +191,38 @@ class PriceCalculator:
             option_selector = step['option_selector'].replace('{value}', str(value))
             logging.info(f"Looking for option with selector: {option_selector}")
             
-            option = await option_container.wait_for_selector(option_selector)
-            await option.click()
-            await asyncio.sleep(1)
-            return
+            try:
+                option = await option_container.wait_for_selector(option_selector)
+                await option.click()
+                await asyncio.sleep(1)
+                return
+            except Exception as e:
+                logging.error(f"Could not find option for value {value}: {str(e)}")
+                # If exact match fails, try to find closest match
+                options = await option_container.query_selector_all('li')
+                best_match = None
+                smallest_diff = float('inf')
+                target_value = float(value)
+                
+                for opt in options:
+                    try:
+                        opt_value = await opt.get_attribute('data-value')
+                        if opt_value:
+                            opt_value = float(opt_value)
+                            diff = abs(opt_value - target_value)
+                            logging.info(f"Comparing option value {opt_value} with target {target_value} (diff: {diff})")
+                            if diff < smallest_diff:
+                                smallest_diff = diff
+                                best_match = opt
+                    except Exception:
+                        continue
+                
+                if best_match and smallest_diff < 0.01:  # Stricter matching - was 0.1
+                    await best_match.click()
+                    await asyncio.sleep(1)
+                    return
+                else:
+                    raise ValueError(f"Could not find matching option for value {value}mm (closest diff was {smallest_diff})")
         
         # Standard select element handling
         logging.info("Handling standard select element")
@@ -179,47 +245,56 @@ class PriceCalculator:
         for option in options:
             try:
                 # Try to find numeric value in option text
-                numeric_match = re.search(r'(\d+)(?:\s*mm)?', option['text'].lower())
+                numeric_match = re.search(r'(\d+(?:\.\d+)?)(?:\s*mm)?', option['text'].lower())
                 if numeric_match:
                     option_value = float(numeric_match.group(1))
                     
                     diff = abs(option_value - target_value)
-                    logging.info(f"Comparing {option_value}mm vs {target_value}mm (diff: {diff})")
+                    logging.info(f"Comparing option {option['text']} ({option_value}mm) vs target {target_value}mm (diff: {diff})")
                     
                     if diff < smallest_diff:
                         smallest_diff = diff
-                        best_match = option['value']
-                        logging.info(f"New best match: {option['text']} (value: {option['value']})")
+                        best_match = option
+                        logging.info(f"New best match: {option['text']} (value: {option['value']}, diff: {diff})")
             except Exception as e:
                 logging.error(f"Error processing option {option['text']}: {str(e)}")
                 continue
         
-        if best_match is not None and smallest_diff < 0.1:  # Match within 0.1mm
-            logging.info(f"Selecting option with value: {best_match}")
+        if best_match is not None and smallest_diff < 0.01:  # Stricter matching - was 0.1
+            logging.info(f"Selected best match: {best_match['text']} with diff {smallest_diff}")
             # Select the option without clicking first
-            await element.select_option(value=best_match)
+            await element.select_option(value=best_match['value'])
             # Trigger only the change event
             await element.evaluate('(el) => el.dispatchEvent(new Event("change", { bubbles: true }))')
             await asyncio.sleep(1)
         else:
-            raise ValueError(f"Could not find matching option for thickness {value}mm")
+            available_options = ", ".join(f"{opt['text']} ({opt['value']})" for opt in options)
+            raise ValueError(f"Could not find exact match for thickness {value}mm. Closest diff was {smallest_diff}. Available options: {available_options}")
 
     async def _handle_input(self, page, step, dimensions):
         value = step['value']
-        for key in ['thickness', 'width', 'length']:
+        for key in ['thickness', 'width', 'length', 'quantity']:
             if f"{{{key}}}" in value:
-                converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
-                # Convert to integer if it's a whole number
-                if converted_value.is_integer():
-                    converted_value = int(converted_value)
-                value = value.replace(f"{{{key}}}", str(converted_value))
+                if key in dimensions:
+                    converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
+                    # Convert to integer if it's a whole number
+                    if converted_value.is_integer():
+                        converted_value = int(converted_value)
+                    value = value.replace(f"{{{key}}}", str(converted_value))
+                else:
+                    logging.warning(f"Dimension {key} not found in dimensions dict")
 
         logging.info(f"Handling input: {step['selector']} with value {value}")
         
         element = await page.wait_for_selector(step['selector'])
         
-        # Fill the value without clicking first
-        await element.fill(str(value))
+        # First clear the input field
+        await element.evaluate('(el) => { el.value = ""; }')
+        await asyncio.sleep(0.5)
+        await element.press('Backspace')
+        
+        # Then fill the new value
+        await element.type(str(value))
         
         # Dispatch all events at once
         await element.evaluate('''(el) => {

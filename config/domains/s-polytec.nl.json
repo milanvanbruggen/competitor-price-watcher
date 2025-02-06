@@ -1,36 +1,40 @@
 {
     "domain": "s-polytec.nl",
-    "steps": [
-        {
-            "type": "select",
-            "selector": "#attribute268",
-            "value": "{thickness}",
-            "unit": "mm"
-        },
-        {
-            "type": "input",
-            "selector": "#width",
-            "value": "{width}",
-            "unit": "mm"
-        },
-        {
-            "type": "wait",
-            "duration": 1000
-        },
-        {
-            "type": "input",
-            "selector": "#length",
-            "value": "{length}",
-            "unit": "mm"
-        },
-        {
-            "type": "wait",
-            "duration": 1000
-        },
-        {
-            "type": "read_price",
-            "selector": "#price-qm",
-            "includes_vat": true
+    "categories": {
+        "square_meter_price": {
+            "steps": [
+                {
+                    "type": "select",
+                    "selector": "#attribute268",
+                    "value": "{thickness}",
+                    "unit": "mm"
+                },
+                {
+                    "type": "input",
+                    "selector": "#width",
+                    "value": "{width}",
+                    "unit": "mm"
+                },
+                {
+                    "type": "wait",
+                    "duration": 1000
+                },
+                {
+                    "type": "input",
+                    "selector": "#length",
+                    "value": "{length}",
+                    "unit": "mm"
+                },
+                {
+                    "type": "wait",
+                    "duration": 1000
+                },
+                {
+                    "type": "read_price",
+                    "selector": "#price-qm",
+                    "includes_vat": true
+                }
+            ]
         }
-    ]
+    }
 }

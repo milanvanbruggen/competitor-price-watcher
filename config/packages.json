@@ -1,0 +1,58 @@
+{
+    "packages": {
+        "1": {
+            "description": "Klein pakket",
+            "display": "20x20cm / 1 st",
+            "length": 200,
+            "name": "Pakket 1",
+            "quantity": 1,
+            "width": 200,
+            "thickness": 2
+        },
+        "2": {
+            "description": "Medium pakket, meerdere stuks",
+            "display": "50x50cm / 5 st",
+            "length": 500,
+            "name": "Pakket 2",
+            "quantity": 5,
+            "thickness": 2,
+            "width": 500
+        },
+        "3": {
+            "description": "Rechthoekig pakket",
+            "display": "100x50cm / 1 st",
+            "length": 1000,
+            "name": "Pakket 3",
+            "quantity": 1,
+            "width": 500,
+            "thickness": 2
+        },
+        "4": {
+            "description": "Groot rechthoekig pakket",
+            "display": "160x80cm / 1 st",
+            "length": 1600,
+            "name": "Pakket 4",
+            "quantity": 1,
+            "width": 800,
+            "thickness": 2
+        },
+        "5": {
+            "description": "Extra groot pakket, meerdere stuks",
+            "display": "200x100cm / 2 st",
+            "length": 2000,
+            "name": "Pakket 5",
+            "quantity": 2,
+            "width": 1000,
+            "thickness": 2
+        },
+        "6": {
+            "description": "Bulk pakket",
+            "display": "200x100cm / 50 st",
+            "length": 2000,
+            "name": "Pakket 6",
+            "quantity": 50,
+            "width": 1000,
+            "thickness": 2
+        }
+    }
+}

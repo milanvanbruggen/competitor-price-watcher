@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Competitor Pricing Scraper - Configuration{% endblock %}
+{% block title %}360 Competitor Dashboard - Configuration{% endblock %}
 
 {% block styles %}
 <style>
@@ -49,7 +49,7 @@
 {% block content %}
 <div class="container mt-4">
     <div class="header-section">
-        <h2>
+        <h2 class="mb-4">
             Domain Configurations
             <span class="domain-count">({{ domain_configs|length }} domains)</span>
         </h2>
@@ -104,6 +104,30 @@
                     <div class="editor-buttons">
                         <button class="btn btn-success" onclick="saveCountryConfig('{{ country }}')">Save</button>
                         <button class="btn btn-danger" onclick="deleteCountryConfig('{{ country }}')">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h2 class="mt-4">Package Configurations</h2>
+    <button class="btn btn-primary mb-3" onclick="newPackageConfig()">Add New Package</button>
+    
+    <div class="accordion" id="packageAccordion">
+        {% for id, config in package_configs.items() %}
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePackage{{ loop.index }}">
+                    {{ config.name }} ({{ config.display }})
+                </button>
+            </h2>
+            <div id="collapsePackage{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#packageAccordion">
+                <div class="accordion-body">
+                    <textarea class="json-editor" id="package_{{ id }}">{{ config | tojson(indent=2) }}</textarea>
+                    <div class="editor-buttons">
+                        <button class="btn btn-success" onclick="savePackageConfig('{{ id }}')">Save</button>
+                        <button class="btn btn-danger" onclick="deletePackageConfig('{{ id }}')">Delete</button>
                     </div>
                 </div>
             </div>
@@ -181,6 +205,32 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" onclick="importConfig()">Import</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Package Modal -->
+<div class="modal fade" id="newPackageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Package Configuration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="newPackageId" class="form-label">Package ID</label>
+                    <input type="text" class="form-control" id="newPackageId" placeholder="7">
+                </div>
+                <div class="mb-3">
+                    <label for="newPackageConfig" class="form-label">Configuration</label>
+                    <textarea class="json-editor" id="newPackageConfig"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createPackageConfig()">Create</button>
             </div>
         </div>
     </div>
@@ -473,6 +523,93 @@ function filterDomains() {
 // Add this function to show the import modal
 function showImportModal() {
     new bootstrap.Modal(document.getElementById('importConfigModal')).show();
+}
+
+// Package configuration functions
+async function savePackageConfig(id) {
+    try {
+        const textarea = document.getElementById(`package_${id}`);
+        const config = JSON.parse(textarea.value);
+        
+        const response = await fetch('/api/packages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                package_id: id,
+                config: config
+            })
+        });
+        
+        if (response.ok) {
+            alert('Package configuration saved successfully!');
+            location.reload();
+        } else {
+            alert('Error saving package configuration');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function deletePackageConfig(id) {
+    if (!confirm(`Are you sure you want to delete package ${id}?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/packages/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            alert('Package configuration deleted successfully!');
+            location.reload();
+        } else {
+            alert('Error deleting package configuration');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+function newPackageConfig() {
+    document.getElementById('newPackageId').value = '';
+    document.getElementById('newPackageConfig').value = JSON.stringify({
+        "name": "Nieuw Pakket",
+        "description": "Beschrijving van het pakket",
+        "quantity": 1,
+        "length": 1000,
+        "width": 1000,
+        "thickness": 2,
+        "display": "1x 100x100 cm"
+    }, null, 2);
+    
+    new bootstrap.Modal(document.getElementById('newPackageModal')).show();
+}
+
+async function createPackageConfig() {
+    try {
+        const id = document.getElementById('newPackageId').value;
+        const config = JSON.parse(document.getElementById('newPackageConfig').value);
+        
+        const response = await fetch('/api/packages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                package_id: id,
+                config: config
+            })
+        });
+        
+        if (response.ok) {
+            alert('Package configuration created successfully!');
+            location.reload();
+        } else {
+            alert('Error creating package configuration');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
 }
 </script>
 {% endblock %} 

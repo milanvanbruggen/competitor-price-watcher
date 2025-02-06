@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Competitor Pricing Scraper - Documentation{% endblock %}
+{% block title %}360 Competitor Dashboard - Documentation{% endblock %}
 
 {% block styles %}
 <style>
@@ -50,9 +50,9 @@
         <h2>API Endpoints</h2>
 
         <div class="endpoint">
-            <h4>Calculate Price</h4>
-            <p><code>POST /api/calculate</code></p>
-            <p>Calculate the price for a specific product based on dimensions.</p>
+            <h4>Calculate Square Meter Price</h4>
+            <p><code>POST /api/calculate-smp</code></p>
+            <p>Calculate the price per square meter for a specific product based on dimensions.</p>
             <h5>Request Body:</h5>
             <pre>{
     "url": "https://example.com/product",
@@ -63,12 +63,40 @@
 }</pre>
             <h5>Response:</h5>
             <pre>{
-    "success": true,
-    "price_excl_vat": 45.80,
-    "price_incl_vat": 55.42,
-    "currency": "EUR",
-    "currency_symbol": "€",
-    "vat_rate": 21
+    "status": "success",
+    "status_code": 200,
+    "message": "Square meter price calculated successfully",
+    "data": {
+        "price_excl_vat": 45.80,
+        "price_incl_vat": 55.42,
+        "currency": "EUR",
+        "currency_symbol": "€",
+        "vat_rate": 21
+    }
+}</pre>
+        </div>
+
+        <div class="endpoint">
+            <h4>Calculate Shipping Costs</h4>
+            <p><code>POST /api/calculate-shipping</code></p>
+            <p>Calculate the shipping costs for a specific product.</p>
+            <h5>Request Body:</h5>
+            <pre>{
+    "url": "https://example.com/product",
+    "country": "nl"  // optional, defaults to "nl"
+}</pre>
+            <h5>Response:</h5>
+            <pre>{
+    "status": "success",
+    "status_code": 200,
+    "message": "Shipping costs calculated successfully",
+    "data": {
+        "price_excl_vat": 12.50,
+        "price_incl_vat": 15.13,
+        "currency": "EUR",
+        "currency_symbol": "€",
+        "vat_rate": 21
+    }
 }</pre>
         </div>
     </div>

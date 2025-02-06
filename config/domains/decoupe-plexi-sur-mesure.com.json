@@ -1,13 +1,17 @@
 {
     "domain": "decoupe-plexi-sur-mesure.com",
-    "steps": [
-        {
-            "type": "read_price",
-            "selector": "//td[contains(text(), '1010 x 1010 mm')]/following-sibling::td[1]",
-            "includes_vat": false,
-            "calculation": {
-                "add": 2.72
-            }
+    "categories": {
+        "square_meter_price": {
+            "steps": [
+                {
+                    "type": "read_price",
+                    "selector": "//td[contains(text(), '1010 x 1010 mm')]/following-sibling::td[1]",
+                    "includes_vat": false,
+                    "calculation": {
+                        "add": 2.72
+                    }
+                }
+            ]
         }
-    ]
+    }
 }

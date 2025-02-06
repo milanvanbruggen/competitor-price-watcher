@@ -1,36 +1,40 @@
 {
     "domain": "deplasticwinkel.nl",
-    "steps": [
-        {
-            "type": "select",
-            "selector": "#Thickness",
-            "value": "{thickness}",
-            "unit": "mm"
-        },
-        {
-            "type": "input",
-            "selector": "#calcWidth",
-            "value": "{width}",
-            "unit": "cm"
-        },
-        {
-            "type": "wait",
-            "duration": 1000
-        },
-        {
-            "type": "input",
-            "selector": "#calcLength",
-            "value": "{length}",
-            "unit": "cm"
-        },
-        {
-            "type": "wait",
-            "duration": 1000
-        },
-        {
-            "type": "read_price",
-            "selector": "#FormulaPrice_ProductInfo_SPAN",
-            "includes_vat": false
+    "categories": {
+        "square_meter_price": {
+            "steps": [
+                {
+                    "type": "select",
+                    "selector": "#Thickness",
+                    "value": "{thickness}",
+                    "unit": "mm"
+                },
+                {
+                    "type": "input",
+                    "selector": "#calcWidth",
+                    "value": "{width}",
+                    "unit": "cm"
+                },
+                {
+                    "type": "wait",
+                    "duration": 1000
+                },
+                {
+                    "type": "input",
+                    "selector": "#calcLength",
+                    "value": "{length}",
+                    "unit": "cm"
+                },
+                {
+                    "type": "wait",
+                    "duration": 1000
+                },
+                {
+                    "type": "read_price",
+                    "selector": "#FormulaPrice_ProductInfo_SPAN",
+                    "includes_vat": false
+                }
+            ]
         }
-    ]
+    }
 } 

@@ -319,39 +319,51 @@ class PriceCalculator:
     async def _handle_read_price(self, page, step):
         logging.info(f"Reading price with selector: {step['selector']}")
         
-        if step['selector'].startswith('//'):
-            element = await page.wait_for_selector(f"xpath={step['selector']}")
-        else:
-            element = await page.wait_for_selector(step['selector'])
-            
-        text = await element.text_content()
-        logging.info(f"Found price text: {text}")
-        
-        # Clean the price text:
-        # 1. Replace comma with dot for decimal
-        # 2. Remove any trailing dots
-        # 3. Keep only digits and one decimal point
-        cleaned_text = text.replace(',', '.').rstrip('.')
-        price_str = ''.join(char for char in cleaned_text if char.isdigit() or char == '.')
-        
-        # If we have multiple dots, keep only the first one
-        if price_str.count('.') > 1:
-            parts = price_str.split('.')
-            price_str = parts[0] + '.' + ''.join(parts[1:])
-        
-        logging.info(f"Cleaned price text: {price_str}")
-        price = float(price_str)
-        logging.info(f"Extracted price: {price}")
-        
-        if 'calculation' in step:
-            if 'divide_by' in step['calculation']:
-                price = price / step['calculation']['divide_by']
-                logging.info(f"Price after division: {price}")
-            if 'add' in step['calculation']:
-                price = price + step['calculation']['add']
-                logging.info(f"Price after addition: {price}")
+        try:
+            if step['selector'].startswith('xpath='):
+                element = await page.wait_for_selector(f"{step['selector']}")
+            else:
+                element = await page.wait_for_selector(step['selector'])
                 
-        return price
+            if not element and 'default_value' in step:
+                logging.info(f"Element not found, returning default value: {step['default_value']}")
+                return step['default_value']
+                
+            text = await element.text_content()
+            logging.info(f"Found price text: {text}")
+            
+            # Clean the price text:
+            # 1. Replace comma with dot for decimal
+            # 2. Remove any trailing dots
+            # 3. Keep only digits and one decimal point
+            cleaned_text = text.replace(',', '.').rstrip('.')
+            price_str = ''.join(char for char in cleaned_text if char.isdigit() or char == '.')
+            
+            # If we have multiple dots, keep only the first one
+            if price_str.count('.') > 1:
+                parts = price_str.split('.')
+                price_str = parts[0] + '.' + ''.join(parts[1:])
+            
+            logging.info(f"Cleaned price text: {price_str}")
+            price = float(price_str)
+            logging.info(f"Extracted price: {price}")
+            
+            if 'calculation' in step:
+                if 'divide_by' in step['calculation']:
+                    price = price / step['calculation']['divide_by']
+                    logging.info(f"Price after division: {price}")
+                if 'add' in step['calculation']:
+                    price = price + step['calculation']['add']
+                    logging.info(f"Price after addition: {price}")
+                    
+            return price
+            
+        except Exception as e:
+            logging.error(f"Error reading price: {str(e)}")
+            if 'default_value' in step:
+                logging.info(f"Returning default value: {step['default_value']}")
+                return step['default_value']
+            raise ValueError(f"Could not read price: {str(e)}")
 
     def _convert_dimensions(self, dimensions: Dict[str, float], units: Dict[str, str]) -> Dict[str, float]:
         """Convert dimensions to the units required by the domain"""

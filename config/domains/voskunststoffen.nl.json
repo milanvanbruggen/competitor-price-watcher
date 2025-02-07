@@ -104,8 +104,9 @@
                 },
                 {
                     "includes_vat": false,
-                    "selector": "#shoppingCartSummaryPrice .table-row:nth-child(2) .table-row-value:nth-child(2)",
-                    "type": "read_price"
+                    "selector": "xpath=//div[@id='shoppingCartSummaryPrice']//div[contains(@class, 'table-row')]//span[contains(@class, 'table-row-label') and text()='Verzendkosten']/following-sibling::span[contains(@class, 'table-row-value')]",
+                    "type": "read_price",
+                    "default_value": 0
                 }
             ]
         }

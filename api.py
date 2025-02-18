@@ -302,6 +302,10 @@ async def delete_package(package_id: str):
 async def docs_page(request: Request):
     return templates.TemplateResponse("docs.html", {"request": request})
 
+@app.get("/config-docs", response_class=HTMLResponse)
+async def config_docs(request: Request):
+    return templates.TemplateResponse("config_docs.html", {"request": request})
+
 async def price_status_stream(request: Request):
     """SSE endpoint voor real-time status updates"""
     async def event_generator():

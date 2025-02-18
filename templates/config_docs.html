@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}Configuratie Handleiding{% endblock %}
+
+{% block styles %}
+<style>
+    .step-type {
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #eee;
+    }
+    
+    .step-type:first-child {
+        border-top: none;
+        padding-top: 0;
+    }
+    
+    .step-example {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 5px;
+        margin: 1rem 0;
+    }
+    
+    .parameter-table {
+        width: 100%;
+        margin: 1rem 0;
+    }
+    
+    .parameter-table th {
+        background: #f8f9fa;
+        padding: 0.5rem;
+    }
+    
+    .parameter-table td {
+        padding: 0.5rem;
+        border-top: 1px solid #eee;
+    }
+    
+    .parameter-required {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .parameter-optional {
+        color: #6c757d;
+    }
+    
+    .note {
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        padding: 1rem;
+        border-radius: 5px;
+        margin: 1rem 0;
+    }
+    
+    .tip {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        padding: 1rem;
+        border-radius: 5px;
+        margin: 1rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Configuratie Handleiding</h1>
+    
+    <div class="row">
+        <div class="col-md-3">
+            <div class="sticky-top" style="top: 2rem;">
+                <div class="list-group">
+                    <a href="#intro" class="list-group-item list-group-item-action">Introductie</a>
+                    <a href="#structure" class="list-group-item list-group-item-action">Structuur</a>
+                    <a href="#steps" class="list-group-item list-group-item-action">Beschikbare Stappen</a>
+                    <a href="#variables" class="list-group-item list-group-item-action">Variabelen</a>
+                    <a href="#examples" class="list-group-item list-group-item-action">Voorbeelden</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <section id="intro">
+                <h2>Introductie</h2>
+                <p>Deze handleiding beschrijft hoe je configuratiebestanden kunt maken voor nieuwe webshops. Elke webshop heeft zijn eigen JSON configuratiebestand waarin wordt gedefinieerd hoe de prijzen berekend moeten worden.</p>
+            </section>
+
+            <section id="structure">
+                <h2>Structuur</h2>
+                <p>Een configuratiebestand heeft de volgende basisstructuur:</p>
+                <pre class="step-example">
+{
+    "domain": "example.com",
+    "categories": {
+        "square_meter_price": {
+            "steps": [
+                // Hier komen de stappen
+            ]
+        },
+        "shipping": {
+            "steps": [
+                // Hier komen de stappen
+            ]
+        }
+    }
+}</pre>
+            </section>
+
+            <section id="steps">
+                <h2>Beschikbare Stappen</h2>
+                
+                <div class="step-type">
+                    <h3>select</h3>
+                    <p>Selecteert een waarde uit een dropdown of radio button lijst.</p>
+                    <div class="parameter-table">
+                        <table class="table">
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Beschrijving</th>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-required">selector</span></td>
+                                <td>string</td>
+                                <td>CSS selector voor het element</td>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-required">value</span></td>
+                                <td>string</td>
+                                <td>Te selecteren waarde (kan variabelen bevatten)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-optional">unit</span></td>
+                                <td>string</td>
+                                <td>Eenheid van de waarde (mm/cm)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-optional">option_container</span></td>
+                                <td>string</td>
+                                <td>CSS selector voor custom dropdown container</td>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-optional">option_selector</span></td>
+                                <td>string</td>
+                                <td>CSS selector voor custom dropdown opties</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="step-example">
+<pre>{
+    "type": "select",
+    "selector": "#thickness",
+    "value": "{thickness}",
+    "unit": "mm"
+}</pre>
+                    </div>
+                </div>
+
+                <div class="step-type">
+                    <h3>input</h3>
+                    <p>Vult een waarde in in een input veld.</p>
+                    <div class="parameter-table">
+                        <table class="table">
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Beschrijving</th>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-required">selector</span></td>
+                                <td>string</td>
+                                <td>CSS selector voor het input veld</td>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-required">value</span></td>
+                                <td>string</td>
+                                <td>In te vullen waarde (kan variabelen bevatten)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-optional">unit</span></td>
+                                <td>string</td>
+                                <td>Eenheid van de waarde (mm/cm)</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="step-example">
+<pre>{
+    "type": "input",
+    "selector": "#width",
+    "value": "{width}",
+    "unit": "mm"
+}</pre>
+                    </div>
+                </div>
+
+                <div class="step-type">
+                    <h3>click</h3>
+                    <p>Klikt op een element.</p>
+                    <div class="parameter-table">
+                        <table class="table">
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Beschrijving</th>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-required">selector</span></td>
+                                <td>string</td>
+                                <td>CSS selector voor het element om op te klikken</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="step-example">
+<pre>{
+    "type": "click",
+    "selector": "#calculate-button"
+}</pre>
+                    </div>
+                </div>
+
+                <div class="step-type">
+                    <h3>wait</h3>
+                    <p>Wacht een bepaalde tijd voordat de volgende stap wordt uitgevoerd.</p>
+                    <div class="parameter-table">
+                        <table class="table">
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Beschrijving</th>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-required">duration</span></td>
+                                <td>string/number</td>
+                                <td>Wachttijd in ms of voorgedefinieerde waarde</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="tip">
+                        <strong>Voorgedefinieerde wachttijden:</strong>
+                        <ul>
+                            <li><code>short</code>: 250ms</li>
+                            <li><code>default</code>: 500ms</li>
+                            <li><code>long</code>: 1000ms</li>
+                            <li><code>longer</code>: 2000ms</li>
+                        </ul>
+                    </div>
+                    <div class="step-example">
+<pre>{
+    "type": "wait",
+    "duration": "default"
+}</pre>
+                    </div>
+                </div>
+
+                <div class="step-type">
+                    <h3>blur</h3>
+                    <p>Verplaatst de focus van het huidige element (simuleert Tab toets).</p>
+                    <div class="step-example">
+<pre>{
+    "type": "blur"
+}</pre>
+                    </div>
+                </div>
+
+                <div class="step-type">
+                    <h3>read_price</h3>
+                    <p>Leest de prijs uit een element.</p>
+                    <div class="parameter-table">
+                        <table class="table">
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Beschrijving</th>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-required">selector</span></td>
+                                <td>string</td>
+                                <td>CSS selector voor het element met de prijs</td>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-required">includes_vat</span></td>
+                                <td>boolean</td>
+                                <td>Of de prijs inclusief BTW is</td>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-optional">default_value</span></td>
+                                <td>number</td>
+                                <td>Standaard waarde als geen prijs gevonden wordt</td>
+                            </tr>
+                            <tr>
+                                <td><span class="parameter-optional">calculation</span></td>
+                                <td>object</td>
+                                <td>Extra berekeningen op de prijs</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="step-example">
+<pre>{
+    "type": "read_price",
+    "selector": ".price",
+    "includes_vat": false,
+    "default_value": 0,
+    "calculation": {
+        "divide_by": 100,
+        "add": 2.50
+    }
+}</pre>
+                    </div>
+                </div>
+            </section>
+
+            <section id="variables">
+                <h2>Variabelen</h2>
+                <p>In de configuratie kun je de volgende variabelen gebruiken:</p>
+                <ul>
+                    <li><code>{thickness}</code>: Dikte in mm</li>
+                    <li><code>{width}</code>: Breedte in mm</li>
+                    <li><code>{length}</code>: Lengte in mm</li>
+                    <li><code>{quantity}</code>: Aantal stuks</li>
+                </ul>
+                <div class="note">
+                    <strong>Let op:</strong> De eenheid van de variabelen kan worden aangepast met de <code>unit</code> parameter in de stap configuratie.
+                </div>
+            </section>
+
+            <section id="examples">
+                <h2>Voorbeelden</h2>
+                <h4>Voorbeeld 1: Basis configuratie</h4>
+                <div class="step-example">
+<pre>{
+    "domain": "example.com",
+    "categories": {
+        "square_meter_price": {
+            "steps": [
+                {
+                    "type": "select",
+                    "selector": "#thickness",
+                    "value": "{thickness}",
+                    "unit": "mm"
+                },
+                {
+                    "type": "wait",
+                    "duration": "default"
+                },
+                {
+                    "type": "input",
+                    "selector": "#width",
+                    "value": "{width}",
+                    "unit": "mm"
+                },
+                {
+                    "type": "wait",
+                    "duration": "default"
+                },
+                {
+                    "type": "input",
+                    "selector": "#length",
+                    "value": "{length}",
+                    "unit": "mm"
+                },
+                {
+                    "type": "wait",
+                    "duration": "default"
+                },
+                {
+                    "type": "read_price",
+                    "selector": ".price",
+                    "includes_vat": false
+                }
+            ]
+        }
+    }
+}</pre>
+                </div>
+
+                <h4>Voorbeeld 2: Custom dropdown met extra berekeningen</h4>
+                <div class="step-example">
+<pre>{
+    "domain": "example.com",
+    "categories": {
+        "square_meter_price": {
+            "steps": [
+                {
+                    "type": "select",
+                    "selector": ".thickness-select",
+                    "option_container": ".thickness-options",
+                    "option_selector": "li[data-value='{value}']",
+                    "value": "{thickness}",
+                    "unit": "mm"
+                },
+                {
+                    "type": "wait",
+                    "duration": "long"
+                },
+                {
+                    "type": "input",
+                    "selector": "#dimensions input:first-child",
+                    "value": "{width}",
+                    "unit": "cm"
+                },
+                {
+                    "type": "wait",
+                    "duration": "short"
+                },
+                {
+                    "type": "input",
+                    "selector": "#dimensions input:last-child",
+                    "value": "{length}",
+                    "unit": "cm"
+                },
+                {
+                    "type": "click",
+                    "selector": "#calculate"
+                },
+                {
+                    "type": "wait",
+                    "duration": "default"
+                },
+                {
+                    "type": "read_price",
+                    "selector": "#total-price",
+                    "includes_vat": true,
+                    "calculation": {
+                        "divide_by": 100
+                    }
+                }
+            ]
+        }
+    }
+}</pre>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %} 

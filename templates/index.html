@@ -318,8 +318,8 @@
     }
 
     function updateStatus(status) {
-        // Determine which result div to use based on the URL
-        const isShipping = window.location.hash === '#shipping';
+        // Determine which result div to use based on the active tab
+        const isShipping = document.querySelector('#shipping.active') !== null;
         const resultDiv = document.getElementById(isShipping ? 'shipping_result' : 'result');
         const loggingDiv = document.getElementById(isShipping ? 'shipping_logging' : 'logging');
         const loggingContent = document.getElementById(isShipping ? 'shipping_logging_content' : 'logging-content');
@@ -595,6 +595,7 @@
         }
     });
 
+    // Remove tab change handler that updates URL hash
     // Add input change handlers to automatically submit the form
     ['dikte', 'lengte', 'breedte', 'country'].forEach(id => {
         document.getElementById(id).addEventListener('change', () => {
@@ -607,20 +608,6 @@
             document.getElementById('shippingForm').dispatchEvent(new Event('submit'));
         });
     });
-
-    // Add tab change handler to update isShipping state
-    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(button => {
-        button.addEventListener('click', function() {
-            window.location.hash = this.getAttribute('data-bs-target').substring(1);
-        });
-    });
-
-    // Set initial hash based on active tab
-    if (document.querySelector('#shipping.active')) {
-        window.location.hash = 'shipping';
-    } else {
-        window.location.hash = 'sqm-price';
-    }
 
     // Add package description update handler
     document.getElementById('shipping_package').addEventListener('change', function(e) {

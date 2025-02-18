@@ -7,11 +7,15 @@ import os
 import json
 import asyncio
 from urllib.parse import urlparse
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 
 class PriceCalculator:
     """Calculate prices based on dimensions for different domains"""
+    
+    # Class variable to store latest status
+    latest_status = None
     
     def __init__(self):
         self.configs = {}
@@ -25,7 +29,18 @@ class PriceCalculator:
                     config = json.load(f)
                     self.configs[config['domain']] = config
 
+    def _update_status(self, message: str, step_type: str = None, step_details: dict = None):
+        """Update the status with new information"""
+        PriceCalculator.latest_status = {
+            "message": message,
+            "step_type": step_type or "info",  # Default to "info" if no step_type
+            "step_details": step_details if step_details is not None else {},  # Empty dict instead of None
+            "timestamp": datetime.now().isoformat()
+        }
+        logging.info(f"Status update: {message}")
+
     async def calculate_price(self, url: str, dimensions: Dict[str, float], country: str = 'nl', category: str = 'square_meter_price') -> Tuple[float, float]:
+        self._update_status("Starting price calculation...")
         domain = urlparse(url).netloc.replace('www.', '')
         if domain not in self.configs:
             raise ValueError(f"No configuration found for domain {domain}")
@@ -39,6 +54,8 @@ class PriceCalculator:
             
         category_config = config['categories'][category]
         logging.info(f"Using config: {category_config}")
+        
+        self._update_status("Loading configuration...", "config", {"domain": domain, "category": category})
         
         # Load package configuration if this is a shipping calculation
         if category == 'shipping':
@@ -74,30 +91,31 @@ class PriceCalculator:
         logging.info(f"Running in {'headless' if headless else 'headed'} mode")
         
         async with async_playwright() as p:
+            self._update_status("Starting browser...")
             browser = await p.chromium.launch(headless=headless)
             context = await browser.new_context(viewport={'width': 1280, 'height': 1024})
             page = await context.new_page()
             
             try:
-                logging.info(f"Navigating to {url}")
+                self._update_status(f"Navigating to {url}...", "navigation", {"url": url})
                 await page.goto(url)
                 
                 # Wait for different load states to ensure complete loading
-                logging.info("Waiting for page to be completely loaded...")
+                self._update_status("Waiting for page to load...", "loading")
                 await page.wait_for_load_state("domcontentloaded")
                 await page.wait_for_load_state("load")
                 await page.wait_for_load_state("networkidle")
                 
                 try:
                     await page.wait_for_function("document.readyState === 'complete'")
-                    logging.info("Page fully loaded and JavaScript executed")
+                    self._update_status("Page fully loaded", "loaded")
                 except Exception as e:
                     logging.warning(f"Could not verify JavaScript completion: {str(e)}")
                 
                 await asyncio.sleep(1)
 
                 for step in category_config['steps']:
-                    logging.info(f"Executing step: {step['type']}")
+                    self._update_status(f"Executing step: {step['type']}...", step['type'], step)
                     
                     if step['type'] == 'select':
                         await self._handle_select(page, step, dimensions)
@@ -107,8 +125,12 @@ class PriceCalculator:
                         await self._handle_click(page, step)
                     elif step['type'] == 'wait':
                         await self._handle_wait(step)
+                    elif step['type'] == 'blur':
+                        await self._handle_blur(page, step)
                     elif step['type'] == 'read_price':
                         price = await self._handle_read_price(page, step)
+                        
+                        self._update_status("Calculating final price...", "calculation")
                         
                         # Load VAT rates from configuration
                         with open('config/countries.json') as f:
@@ -121,15 +143,22 @@ class PriceCalculator:
                         else:
                             price_excl_vat = price
                             price_incl_vat = price * (1 + vat_rate)
+                        
+                        self._update_status("Calculation complete!", "complete", {
+                            "price_excl_vat": price_excl_vat,
+                            "price_incl_vat": price_incl_vat
+                        })
                             
                         return price_excl_vat, price_incl_vat
 
             except Exception as e:
+                self._update_status(f"Error: {str(e)}", "error", {"error": str(e)})
                 logging.error(f"Error calculating price: {str(e)}")
                 raise
             finally:
                 await asyncio.sleep(2)
                 await browser.close()
+                self._update_status("Browser closed", "cleanup")
 
     def _convert_value(self, value: float, unit: str) -> float:
         """Convert a value from millimeters to the target unit"""
@@ -142,27 +171,6 @@ class PriceCalculator:
 
     async def _handle_select(self, page, step, dimensions):
         value = step['value']
-        
-        # Handle index-based selection
-        if step.get('select_by') == 'index':
-            try:
-                index = int(value)
-                element = await page.wait_for_selector(step['selector'])
-                options = await element.evaluate('''(select) => {
-                    return Array.from(select.options).map(option => ({
-                        value: option.value
-                    }));
-                }''')
-                
-                if 0 <= index < len(options):
-                    await element.select_option(index=index)
-                    await element.evaluate('(el) => el.dispatchEvent(new Event("change", { bubbles: true }))')
-                    await asyncio.sleep(1)
-                    return
-                else:
-                    raise ValueError(f"Index {index} out of range for select options")
-            except Exception as e:
-                raise ValueError(f"Error in index-based selection: {str(e)}")
         
         # Handle regular value-based selection
         for key in ['thickness', 'width', 'length']:
@@ -177,99 +185,132 @@ class PriceCalculator:
                 else:
                     logging.warning(f"Dimension {key} not found in dimensions dict")
         
-        logging.info(f"Handling select: {step['selector']} with target value {value}")
-        
-        element = await page.wait_for_selector(step['selector'])
-        
-        # Check if this is a custom dropdown with option_container
-        if 'option_container' in step:
-            logging.info("Handling custom dropdown")
-            await element.click()
-            await asyncio.sleep(1)
-            
-            option_container = await page.wait_for_selector(step['option_container'])
-            option_selector = step['option_selector'].replace('{value}', str(value))
-            logging.info(f"Looking for option with selector: {option_selector}")
-            
-            try:
-                option = await option_container.wait_for_selector(option_selector)
-                await option.click()
-                await asyncio.sleep(1)
-                return
-            except Exception as e:
-                logging.error(f"Could not find option for value {value}: {str(e)}")
-                # If exact match fails, try to find closest match
-                options = await option_container.query_selector_all('li')
-                best_match = None
-                smallest_diff = float('inf')
-                target_value = float(value)
-                
-                for opt in options:
-                    try:
-                        opt_value = await opt.get_attribute('data-value')
-                        if opt_value:
-                            opt_value = float(opt_value)
-                            diff = abs(opt_value - target_value)
-                            logging.info(f"Comparing option value {opt_value} with target {target_value} (diff: {diff})")
-                            if diff < smallest_diff:
-                                smallest_diff = diff
-                                best_match = opt
-                    except Exception:
-                        continue
-                
-                if best_match and smallest_diff < 0.01:  # Stricter matching - was 0.1
-                    await best_match.click()
-                    await asyncio.sleep(1)
-                    return
-                else:
-                    raise ValueError(f"Could not find matching option for value {value}mm (closest diff was {smallest_diff})")
-        
-        # Standard select element handling
-        logging.info("Handling standard select element")
-        
-        # Get all available options without clicking first
-        options = await element.evaluate('''(select) => {
-            return Array.from(select.options).map(option => ({
-                value: option.value,
-                text: option.text.trim()
-            }));
-        }''')
-        
-        logging.info(f"Available options: {options}")
-        
-        # Find best matching option
+        logging.info(f"Handling select/input: {step['selector']} with target value {value}")
         target_value = float(value)
+
+        # First check if we need to open a dropdown/container
+        if 'container_trigger' in step:
+            trigger = await page.wait_for_selector(step['container_trigger'])
+            if trigger:
+                await trigger.click()
+                await asyncio.sleep(0.5)
+
+        # Find all matching elements
+        elements = await page.query_selector_all(step['selector'])
+        if not elements:
+            raise ValueError(f"No elements found matching selector: {step['selector']}")
+
         best_match = None
         smallest_diff = float('inf')
-        
-        for option in options:
+
+        # Try each element
+        for element in elements:
             try:
-                # Try to find numeric value in option text
-                numeric_match = re.search(r'(\d+(?:\.\d+)?)(?:\s*mm)?', option['text'].lower())
-                if numeric_match:
-                    option_value = float(numeric_match.group(1))
+                # Get element type
+                tag_name = await element.evaluate('el => el.tagName.toLowerCase()')
+                element_type = await element.get_attribute('type') if tag_name == 'input' else None
+
+                # Get the value and any associated text
+                value_attr = await element.get_attribute('value')
+                element_text = ''
+
+                if tag_name == 'select':
+                    # For select elements, get all options
+                    options = await element.evaluate('''(select) => {
+                        return Array.from(select.options).map(option => ({
+                            value: option.value,
+                            text: option.text.trim()
+                        }));
+                    }''')
                     
-                    diff = abs(option_value - target_value)
-                    logging.info(f"Comparing option {option['text']} ({option_value}mm) vs target {target_value}mm (diff: {diff})")
-                    
-                    if diff < smallest_diff:
-                        smallest_diff = diff
-                        best_match = option
-                        logging.info(f"New best match: {option['text']} (value: {option['value']}, diff: {diff})")
+                    for option in options:
+                        try:
+                            numeric_match = re.search(r'(\d+(?:\.\d+)?)', option['text'])
+                            if numeric_match:
+                                option_value = float(numeric_match.group(1))
+                                diff = abs(option_value - target_value)
+                                if diff < smallest_diff:
+                                    smallest_diff = diff
+                                    best_match = {
+                                        'element': element,
+                                        'type': 'select',
+                                        'value': option['value'],
+                                        'option_value': option_value
+                                    }
+                        except Exception as e:
+                            logging.error(f"Error processing select option: {str(e)}")
+
+                elif element_type in ['radio', 'checkbox']:
+                    try:
+                        # Get numeric value from the value attribute
+                        numeric_match = re.search(r'(\d+(?:\.\d+)?)', value_attr)
+                        if numeric_match:
+                            option_value = float(numeric_match.group(1))
+                            diff = abs(option_value - target_value)
+                            logging.info(f"Found radio/checkbox with value {option_value} (target: {target_value}, diff: {diff})")
+                            if diff < smallest_diff:
+                                smallest_diff = diff
+                                best_match = {
+                                    'element': element,
+                                    'type': 'input',
+                                    'option_value': option_value
+                                }
+                    except Exception as e:
+                        logging.error(f"Error processing radio/checkbox: {str(e)}")
+
+                else:
+                    # For other elements, try to find numeric value in text content
+                    element_text = await element.text_content()
+                    numeric_match = re.search(r'(\d+(?:\.\d+)?)', element_text)
+                    if numeric_match:
+                        option_value = float(numeric_match.group(1))
+                        diff = abs(option_value - target_value)
+                        if diff < smallest_diff:
+                            smallest_diff = diff
+                            best_match = {
+                                'element': element,
+                                'type': 'other',
+                                'option_value': option_value
+                            }
+
             except Exception as e:
-                logging.error(f"Error processing option {option['text']}: {str(e)}")
+                logging.error(f"Error processing element: {str(e)}")
                 continue
-        
-        if best_match is not None and smallest_diff < 0.01:  # Stricter matching - was 0.1
-            logging.info(f"Selected best match: {best_match['text']} with diff {smallest_diff}")
-            # Select the option without clicking first
-            await element.select_option(value=best_match['value'])
-            # Trigger only the change event
-            await element.evaluate('(el) => el.dispatchEvent(new Event("change", { bubbles: true }))')
+
+        # Select the best matching option
+        if best_match and smallest_diff < 0.01:  # Strict matching threshold
+            logging.info(f"Found best match with value {best_match.get('option_value')} (diff: {smallest_diff})")
+            
+            # Ensure element is in view and clickable
+            await best_match['element'].scroll_into_view_if_needed()
+            await asyncio.sleep(0.5)  # Wait for scroll to complete
+            
+            if best_match['type'] == 'select':
+                # For select elements, first click to open dropdown
+                await best_match['element'].click()
+                await asyncio.sleep(0.2)
+                # Then select the option
+                await best_match['element'].select_option(value=best_match['value'])
+                # Finally click again to close dropdown
+                await best_match['element'].click()
+            else:
+                # For radio/checkbox/other, simulate a real click
+                # First ensure we're clicking the center of the element
+                box = await best_match['element'].bounding_box()
+                if box:
+                    x = box['x'] + box['width'] / 2
+                    y = box['y'] + box['height'] / 2
+                    await page.mouse.click(x, y)
+                else:
+                    # Fallback to element click if we can't get bounding box
+                    await best_match['element'].click()
+            
+            # Dispatch change event
+            await best_match['element'].evaluate('(el) => el.dispatchEvent(new Event("change", { bubbles: true }))')
             await asyncio.sleep(1)
+            return
         else:
-            available_options = ", ".join(f"{opt['text']} ({opt['value']})" for opt in options)
-            raise ValueError(f"Could not find exact match for thickness {value}mm. Closest diff was {smallest_diff}. Available options: {available_options}")
+            raise ValueError(f"Could not find matching option for value {value}mm (closest diff was {smallest_diff})")
 
     async def _handle_input(self, page, step, dimensions):
         value = step['value']
@@ -744,4 +785,10 @@ class PriceCalculator:
                 
         except Exception as e:
             print(f"Error tijdens form analyse: {str(e)}")
-            return {} 
+            return {}
+
+    async def _handle_blur(self, page, step):
+        """Handle blur by pressing Tab key"""
+        logging.info("Pressing Tab key")
+        await page.keyboard.press('Tab')
+        await asyncio.sleep(0.1) 

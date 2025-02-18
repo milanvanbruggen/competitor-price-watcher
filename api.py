@@ -1,11 +1,13 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import json
 import os
+import asyncio
 from price_calculator import PriceCalculator
+from sse_starlette.sse import EventSourceResponse
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -298,4 +300,24 @@ async def delete_package(package_id: str):
 
 @app.get("/docs", response_class=HTMLResponse)
 async def docs_page(request: Request):
-    return templates.TemplateResponse("docs.html", {"request": request}) 
+    return templates.TemplateResponse("docs.html", {"request": request})
+
+async def price_status_stream(request: Request):
+    """SSE endpoint voor real-time status updates"""
+    async def event_generator():
+        while True:
+            if await request.is_disconnected():
+                break
+            
+            if PriceCalculator.latest_status:
+                yield {
+                    "event": "status",
+                    "data": json.dumps(PriceCalculator.latest_status)
+                }
+                PriceCalculator.latest_status = None
+            
+            await asyncio.sleep(0.1)
+
+    return EventSourceResponse(event_generator())
+
+app.add_route("/api/status-stream", price_status_stream) 

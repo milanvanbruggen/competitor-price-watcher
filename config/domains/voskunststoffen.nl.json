@@ -4,40 +4,34 @@
         "square_meter_price": {
             "steps": [
                 {
-                    "option_container": "#popperpartControlDropDownThickness ul",
-                    "option_selector": "li[data-value='{value}']",
-                    "selector": "#partControlDropDownThickness",
-                    "type": "select",
-                    "unit": "mm",
-                    "value": "{thickness}"
-                },
-                {
-                    "duration": 1000,
-                    "type": "wait"
-                },
-                {
-                    "type": "input",
-                    "selector": "#sizeA",
-                    "value": "2000",
-                    "unit": "mm"
-                },
-                {
-                    "duration": 1000,
-                    "type": "wait"
-                },
-                {
-                    "type": "input",
-                    "selector": "#sizeB",
-                    "value": "2000",
-                    "unit": "mm"
+                    "type": "click",
+                    "selector": "#CybotCookiebotDialogBodyButtonDecline"
                 },
                 {
                     "type": "wait",
-                    "duration": 1000
+                    "duration": 500
+                },
+                {
+                    "type": "click",    
+                    "selector": "#calculatorThickness"
+                },
+                {
+                    "type": "wait",
+                    "duration": 500
+                },
+                {
+                    "type": "select",
+                    "selector": "#partControlRadioThickness .checkBoxRadioItem input[type='radio']",
+                    "value": "{thickness}",
+                    "unit": "mm"
+                },
+                {
+                    "duration": 500,
+                    "type": "wait"
                 },
                 {
                     "includes_vat": false,
-                    "selector": "#calculatorPrice > .value",
+                    "selector": "#calculatorPrice .price-default",
                     "type": "read_price"
                 }
             ]
@@ -45,16 +39,46 @@
         "shipping": {
             "steps": [
                 {
-                    "option_container": "#popperpartControlDropDownThickness ul",
-                    "option_selector": "li[data-value='{value}']",
-                    "selector": "#partControlDropDownThickness",
-                    "type": "select",
-                    "unit": "mm",
-                    "value": "{thickness}"
+                    "type": "click",
+                    "selector": "#CybotCookiebotDialogBodyButtonDecline"
                 },
                 {
-                    "duration": 1000,
+                    "type": "wait",
+                    "duration": 500
+                },
+                {
+                    "type": "click",    
+                    "selector": "#calculatorThickness"
+                },
+                {
+                    "type": "wait",
+                    "duration": 500
+                },
+                {
+                    "type": "select",
+                    "selector": "#partControlRadioThickness .checkBoxRadioItem input[type='radio']",
+                    "value": "{thickness}",
+                    "unit": "mm"
+                },
+                {
+                    "duration": 500,
                     "type": "wait"
+                },
+                {
+                    "type": "click",    
+                    "selector": "#calculatorFigureAndSizes"
+                },
+                {
+                    "type": "wait",
+                    "duration": 500
+                },
+                {
+                    "type": "click",
+                    "selector": "#calculatorFigure .checkBoxRadioItem:first-child label"
+                },
+                {
+                    "type": "wait",
+                    "duration": 500
                 },
                 {
                     "type": "input",
@@ -63,7 +87,7 @@
                     "unit": "mm"
                 },
                 {
-                    "duration": 1000,
+                    "duration": 500,
                     "type": "wait"
                 },
                 {
@@ -73,16 +97,19 @@
                     "unit": "mm"
                 },
                 {
+                    "type": "blur"
+                },
+                {
                     "type": "wait",
-                    "duration": 1000
+                    "duration": 500
                 },
                 {
                     "type": "click",
-                    "selector": ".shoppingCartButton"
+                    "selector": ".trackingIdInwinkelwagen"
                 },
                 {
                     "type": "wait",
-                    "duration": 1000
+                    "duration": 500
                 },
                 {
                     "type": "click",
@@ -104,7 +131,7 @@
                 },
                 {
                     "includes_vat": false,
-                    "selector": "xpath=//div[@id='shoppingCartSummaryPrice']//div[contains(@class, 'table-row')]//span[contains(@class, 'table-row-label') and text()='Verzendkosten']/following-sibling::span[contains(@class, 'table-row-value')]",
+                    "selector": "xpath=//div[@id='shoppingCartSummary']//div[contains(@class, 'table-row')]//span[contains(@class, 'table-row-label') and text()='Verzendkosten']/following-sibling::span[contains(@class, 'table-row-value')]",
                     "type": "read_price",
                     "default_value": 0
                 }

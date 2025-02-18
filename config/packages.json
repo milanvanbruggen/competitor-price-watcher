@@ -51,8 +51,8 @@
             "length": 2000,
             "name": "Pakket 6",
             "quantity": 50,
-            "width": 1000,
-            "thickness": 2
+            "thickness": 2,
+            "width": 1000
         }
     }
 }

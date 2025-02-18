@@ -87,6 +87,10 @@
                             <div id="result" class="result">
                                 <p>Voer een URL in en klik op Bereken om de prijs te zien.</p>
                             </div>
+                            <div id="logging" class="logging-info" style="display: none;">
+                                <h6>Live Logging:</h6>
+                                <div id="logging-content"></div>
+                            </div>
                             <div id="debug" class="debug-info" style="display: none;">
                                 <h6>Debug Informatie:</h6>
                                 <div id="debug-content"></div>
@@ -142,6 +146,10 @@
                             <h5 class="card-title">Resultaat</h5>
                             <div id="shipping_result" class="result">
                                 <p>Voer een URL in en klik op Bereken om de verzendkosten te zien.</p>
+                            </div>
+                            <div id="shipping_logging" class="logging-info" style="display: none;">
+                                <h6>Live Logging:</h6>
+                                <div id="shipping_logging_content"></div>
                             </div>
                             <div id="shipping_debug" class="debug-info" style="display: none;">
                                 <h6>Debug Informatie:</h6>
@@ -239,182 +247,379 @@
 
 {% block scripts %}
 <script>
+    let eventSource = null;
+
+    function startStatusStream() {
+        // Always close existing connection first
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+
+        eventSource = new EventSource('/api/status-stream');
+        
+        eventSource.addEventListener('status', (event) => {
+            const status = JSON.parse(event.data);
+            updateStatus(status);
+        });
+
+        eventSource.onerror = (error) => {
+            console.error('SSE Error:', error);
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        };
+    }
+
+    function getStepEmoji(step_type) {
+        const emojis = {
+            'navigation': '🌐',
+            'loading': '⌛',
+            'loaded': '✅',
+            'select': '🔽',
+            'input': '⌨️',
+            'click': '🖱️',
+            'wait': '⏳',
+            'read_price': '💰',
+            'calculation': '🧮',
+            'complete': '✨',
+            'error': '❌',
+            'cleanup': '🧹',
+            'config': '⚙️'
+        };
+        return emojis[step_type] || '📝';
+    }
+
+    function formatStepDetails(status) {
+        if (!status.step_details) return '';
+        if (status.step_details === null) return '';
+
+        switch (status.step_type) {
+            case 'select':
+                const selector = status.step_details.selector || '';
+                const value = status.step_details.value?.replace('{thickness}', '')
+                    .replace('{width}', '')
+                    .replace('{length}', '') || '';
+                return `${selector} ${value}`;
+            case 'input':
+                return `${status.step_details.selector} = ${status.step_details.value}`;
+            case 'navigation':
+                return status.step_details.url;
+            case 'complete':
+                const excl = status.step_details.price_excl_vat.toFixed(2);
+                const incl = status.step_details.price_incl_vat.toFixed(2);
+                return `€${excl} (excl) / €${incl} (incl)`;
+            case 'config':
+                return `${status.step_details.domain}`;
+            default:
+                return '';
+        }
+    }
+
+    function updateStatus(status) {
+        // Determine which result div to use based on the URL
+        const isShipping = window.location.hash === '#shipping';
+        const resultDiv = document.getElementById(isShipping ? 'shipping_result' : 'result');
+        const loggingDiv = document.getElementById(isShipping ? 'shipping_logging' : 'logging');
+        const loggingContent = document.getElementById(isShipping ? 'shipping_logging_content' : 'logging-content');
+        const debugDiv = document.getElementById(isShipping ? 'shipping_debug' : 'debug');
+        const debugContent = document.getElementById(isShipping ? 'shipping_debug_content' : 'debug-content');
+
+        // Format timestamp
+        const timestamp = new Date(status.timestamp).toLocaleTimeString('nl-NL', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+
+        // Update logging information with compact format
+        const stepEmoji = getStepEmoji(status.step_type);
+        const stepDetails = formatStepDetails(status);
+        const logLine = `<div class="status-update">
+            <span class="timestamp">${timestamp}</span>
+            <span class="step-emoji">${stepEmoji}</span>
+            <span class="step-type">${status.step_type}</span>
+            ${stepDetails ? `<span class="step-details">${stepDetails}</span>` : ''}
+        </div>`;
+        
+        loggingContent.innerHTML += logLine;
+        loggingDiv.style.display = 'block';
+
+        // Ensure we always scroll to the latest activity
+        requestAnimationFrame(() => {
+            loggingContent.scrollTop = loggingContent.scrollHeight;
+        });
+
+        // If it's a complete status, update both result and debug
+        if (status.step_type === 'complete' && status.step_details) {
+            const priceExclVat = status.step_details.price_excl_vat.toFixed(2);
+            const priceInclVat = status.step_details.price_incl_vat.toFixed(2);
+            
+            if (isShipping) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h4>Berekening voltooid!</h4>
+                        <p>Verzendkosten excl. BTW: €${priceExclVat}</p>
+                        <p>Verzendkosten incl. BTW: €${priceInclVat}</p>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h4>Berekening voltooid!</h4>
+                        <p>Prijs excl. BTW: €${priceExclVat}</p>
+                        <p>Prijs incl. BTW: €${priceInclVat}</p>
+                    </div>
+                `;
+            }
+
+            // Update debug information with final request/response
+            debugDiv.style.display = 'block';
+            debugContent.innerHTML = `Request:\n${JSON.stringify({
+                url: document.getElementById(isShipping ? 'shipping_url' : 'url').value,
+                ...(isShipping ? {
+                    country: document.getElementById('shipping_country').value,
+                    package_type: parseInt(document.getElementById('shipping_package').value)
+                } : {
+                    dikte: parseFloat(document.getElementById('dikte').value),
+                    lengte: parseFloat(document.getElementById('lengte').value),
+                    breedte: parseFloat(document.getElementById('breedte').value),
+                    country: document.getElementById('country').value
+                })
+            }, null, 2)}\n\nResponse:\n${JSON.stringify({
+                status: "success",
+                data: {
+                    price_excl_vat: parseFloat(priceExclVat),
+                    price_incl_vat: parseFloat(priceInclVat)
+                }
+            }, null, 2)}`;
+
+            // Close the EventSource connection after completion
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        } else if (status.step_type === 'error') {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h4>Error</h4>
+                    <p>${status.message}</p>
+                </div>
+            `;
+            // Update debug with error information
+            debugDiv.style.display = 'block';
+            debugContent.innerHTML = `Error: ${status.message}`;
+
+            // Close the EventSource connection on error
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        }
+    }
+
     // Existing price calculation form handler
     document.getElementById('priceForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        
+        const resultDiv = document.getElementById('result');
+        const loggingDiv = document.getElementById('logging');
+        const loggingContent = document.getElementById('logging-content');
+        const debugDiv = document.getElementById('debug');
+        const debugContent = document.getElementById('debug-content');
+        
+        // Reset display
+        resultDiv.innerHTML = '<div class="alert alert-info">Bezig met berekenen...</div>';
+        loggingContent.innerHTML = '';
+        debugContent.innerHTML = '';
+        loggingDiv.style.display = 'block';
+        debugDiv.style.display = 'none';
+        
+        // Start SSE connection
+        startStatusStream();
         
         const url = document.getElementById('url').value;
         const dikte = parseFloat(document.getElementById('dikte').value);
         const lengte = parseFloat(document.getElementById('lengte').value);
         const breedte = parseFloat(document.getElementById('breedte').value);
         const country = document.getElementById('country').value;
-        
-        const requestData = {
-            url: url,
-            dikte: dikte,
-            lengte: lengte,
-            breedte: breedte,
-            country: country
-        };
-        
-        await calculateSquareMeterPrice(requestData, 'result', 'debug', 'debug-content');
+
+        try {
+            const response = await fetch('/api/calculate-smp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    url,
+                    dikte,
+                    lengte,
+                    breedte,
+                    country
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail?.message || error.detail || 'Er is een fout opgetreden');
+            }
+
+        } catch (error) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h4>Error</h4>
+                    <p>${error.message}</p>
+                </div>
+            `;
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        }
     });
 
-    // New shipping form handler
+    // Update the styling to ensure smooth scrolling
+    const style = document.createElement('style');
+    style.textContent = `
+        .status-update {
+            margin-bottom: 4px;
+            padding: 2px 0;
+            font-family: monospace;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .step-emoji {
+            font-size: 1.1em;
+        }
+        .step-type {
+            color: #0066cc;
+            font-weight: bold;
+            text-transform: capitalize;
+            min-width: 80px;
+        }
+        .step-details {
+            color: #444;
+        }
+        .debug-info, .logging-info {
+            margin-top: 12px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        .logging-info {
+            font-size: 0.9em;
+            line-height: 1.2;
+        }
+        .debug-info h6, .logging-info h6 {
+            margin: 0 0 8px 0;
+            padding: 0;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #666;
+        }
+        #logging-content, #shipping_logging_content,
+        #debug-content, #shipping_debug_content {
+            margin-top: 8px;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Shipping form handler
     document.getElementById('shippingForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        
+        const resultDiv = document.getElementById('shipping_result');
+        const loggingDiv = document.getElementById('shipping_logging');
+        const loggingContent = document.getElementById('shipping_logging_content');
+        const debugDiv = document.getElementById('shipping_debug');
+        const debugContent = document.getElementById('shipping_debug_content');
+        
+        // Reset display
+        resultDiv.innerHTML = '<div class="alert alert-info">Bezig met berekenen...</div>';
+        loggingContent.innerHTML = '';
+        debugContent.innerHTML = '';
+        loggingDiv.style.display = 'block';
+        debugDiv.style.display = 'none';
+        
+        // Start SSE connection
+        startStatusStream();
         
         const url = document.getElementById('shipping_url').value;
         const country = document.getElementById('shipping_country').value;
         const packageType = parseInt(document.getElementById('shipping_package').value);
-        
+
         const requestData = {
-            url: url,
-            country: country,
+            url,
+            country,
             package_type: packageType
         };
         
-        await calculateShipping(requestData, 'shipping_result', 'shipping_debug', 'shipping_debug_content');
-    });
-
-    // Square meter price calculation function
-    async function calculateSquareMeterPrice(requestData, resultId, debugId, debugContentId) {
         try {
-            document.getElementById(resultId).innerHTML = `
-                <div class="alert alert-info">
-                    <p>Bezig met berekenen...</p>
-                </div>
-            `;
-            document.getElementById(debugId).style.display = 'none';
-            
-            const response = await fetch('/api/calculate-smp', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            });
-            
-            const data = await response.json();
-            
-            if (data.status === 'error' || !data.data || (data.data.price_excl_vat === 0 && data.data.price_incl_vat === 0)) {
-                const errorMessage = data.message || "Kon geen prijs berekenen";
-                document.getElementById(resultId).innerHTML = `
-                    <div class="alert alert-danger">
-                        <p class="mb-0">${errorMessage}</p>
-                    </div>
-                `;
-            } else {
-                const priceData = data.data;
-                const priceExclVat = formatCurrency(priceData.price_excl_vat, priceData.currency, requestData.country);
-                const priceInclVat = formatCurrency(priceData.price_incl_vat, priceData.currency, requestData.country);
-                const sqmPrice = formatCurrency(priceData.price_excl_vat / ((requestData.lengte * requestData.breedte) / 1000000), priceData.currency, requestData.country);
-                
-                document.getElementById(resultId).innerHTML = `
-                    <div class="alert alert-success">
-                        <p class="mb-0"><strong>Prijs excl. BTW:</strong> ${priceExclVat}</p>
-                        <p class="mb-0"><strong>Prijs incl. ${priceData.vat_rate}% BTW:</strong> ${priceInclVat}</p>
-                        <p class="mb-0"><strong>Prijs per m²:</strong> ${sqmPrice}</p>
-                        <p class="mb-0"><small>Berekend voor ${requestData.lengte}mm x ${requestData.breedte}mm</small></p>
-                    </div>
-                `;
-            }
-            
-            document.getElementById(debugId).style.display = 'block';
-            document.getElementById(debugContentId).innerText = 
-                `Request:\n${JSON.stringify(requestData, null, 2)}\n\n` +
-                `Response:\n${JSON.stringify(data, null, 2)}`;
-        } catch (error) {
-            document.getElementById(resultId).innerHTML = `
-                <div class="alert alert-danger">
-                    <p class="mb-0">Er is een fout opgetreden: ${error.message}</p>
-                </div>
-            `;
-            document.getElementById(debugId).style.display = 'block';
-            document.getElementById(debugContentId).innerText = `Error: ${error.message}`;
-        }
-    }
-
-    // Shipping calculation function
-    async function calculateShipping(requestData, resultId, debugId, debugContentId) {
-        try {
-            document.getElementById(resultId).innerHTML = `
-                <div class="alert alert-info">
-                    <p>Bezig met berekenen...</p>
-                </div>
-            `;
-            document.getElementById(debugId).style.display = 'none';
-            
             const response = await fetch('/api/calculate-shipping', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(requestData)
             });
-            
-            const data = await response.json();
-            
-            if (data.status === 'error' || !data.data || (data.data.price_excl_vat === 0 && data.data.price_incl_vat === 0)) {
-                const errorMessage = data.message || "Kon geen verzendkosten berekenen";
-                document.getElementById(resultId).innerHTML = `
-                    <div class="alert alert-danger">
-                        <p class="mb-0">${errorMessage}</p>
-                    </div>
-                `;
-            } else {
-                const priceData = data.data;
-                const priceExclVat = formatCurrency(priceData.price_excl_vat, priceData.currency, requestData.country);
-                const priceInclVat = formatCurrency(priceData.price_incl_vat, priceData.currency, requestData.country);
-                
-                document.getElementById(resultId).innerHTML = `
-                    <div class="alert alert-success">
-                        <p class="mb-0"><strong>Verzendkosten excl. BTW:</strong> ${priceExclVat}</p>
-                        <p class="mb-0"><strong>Verzendkosten incl. ${priceData.vat_rate}% BTW:</strong> ${priceInclVat}</p>
-                        <p class="mb-0"><small>Voor pakket type ${priceData.package_info.type}: ${priceData.package_info.quantity}x ${priceData.package_info.dimensions}</small></p>
-                    </div>
-                `;
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                debugDiv.style.display = 'block';
+                debugContent.innerHTML = `Request:\n${JSON.stringify(requestData, null, 2)}\n\nError Response:\n${JSON.stringify(errorData, null, 2)}`;
+                throw new Error(errorData.detail?.message || errorData.detail || 'Er is een fout opgetreden');
             }
-            
-            document.getElementById(debugId).style.display = 'block';
-            document.getElementById(debugContentId).innerText = 
-                `Request:\n${JSON.stringify(requestData, null, 2)}\n\n` +
-                `Response:\n${JSON.stringify(data, null, 2)}`;
+
         } catch (error) {
-            document.getElementById(resultId).innerHTML = `
+            resultDiv.innerHTML = `
                 <div class="alert alert-danger">
-                    <p class="mb-0">Er is een fout opgetreden: ${error.message}</p>
+                    <h4>Error</h4>
+                    <p>${error.message}</p>
                 </div>
             `;
-            document.getElementById(debugId).style.display = 'block';
-            document.getElementById(debugContentId).innerText = `Error: ${error.message}`;
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
         }
-    }
-    
-    // Helper functie voor valuta formatting
-    function formatCurrency(amount, currency, country) {
-        const localeMap = {
-            'nl': 'nl-NL',
-            'uk': 'en-GB',
-            'de': 'de-DE',
-            'fr': 'fr-FR',
-            'be': 'nl-BE',
-            'es': 'es-ES',
-            'it': 'it-IT',
-            'pl': 'pl-PL',
-            'se': 'sv-SE',
-            'dk': 'da-DK'
-        };
-        
-        const roundedAmount = Math.round((amount + Number.EPSILON) * 100) / 100;
-        const locale = localeMap[country] || 'nl-NL';
-        
-        return new Intl.NumberFormat(locale, {
-            style: 'currency',
-            currency: currency,
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(roundedAmount);
+    });
+
+    // Add input change handlers to automatically submit the form
+    ['dikte', 'lengte', 'breedte', 'country'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => {
+            document.getElementById('priceForm').dispatchEvent(new Event('submit'));
+        });
+    });
+
+    ['shipping_country', 'shipping_package'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => {
+            document.getElementById('shippingForm').dispatchEvent(new Event('submit'));
+        });
+    });
+
+    // Add tab change handler to update isShipping state
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(button => {
+        button.addEventListener('click', function() {
+            window.location.hash = this.getAttribute('data-bs-target').substring(1);
+        });
+    });
+
+    // Set initial hash based on active tab
+    if (document.querySelector('#shipping.active')) {
+        window.location.hash = 'shipping';
+    } else {
+        window.location.hash = 'sqm-price';
     }
 
     // Add package description update handler

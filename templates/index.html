@@ -296,6 +296,8 @@
                 return `€${excl} (excl) / €${incl} (incl)`;
             case 'config':
                 return `${status.step_details.domain}`;
+            case 'click':
+                return status.step_details.selector || '';
             default:
                 return '';
         }

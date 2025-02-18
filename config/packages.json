@@ -6,8 +6,8 @@
             "length": 200,
             "name": "Pakket 1",
             "quantity": 1,
-            "width": 200,
-            "thickness": 2
+            "thickness": 2,
+            "width": 200
         },
         "2": {
             "description": "Medium pakket, meerdere stuks",

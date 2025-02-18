@@ -1,0 +1,19 @@
+{
+  "name": "competitor-price-watcher",
+  "version": "1.0.0",
+  "description": "A web application for scraping and comparing prices from various plastic/plexi suppliers across Europe. The application supports custom configurations for different domains and handles various types of input methods and price calculations.",
+  "main": "index.js",
+  "scripts": {
+    "build": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css",
+    "watch": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5"
+  }
+}

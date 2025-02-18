@@ -2,84 +2,43 @@
 
 {% block title %}360 Competitor Dashboard - Configuration{% endblock %}
 
-{% block styles %}
-<style>
-    .config-form {
-        max-width: 800px;
-        margin: 20px auto;
-    }
-    .json-editor {
-        font-family: monospace;
-        height: 300px;
-        width: 100%;
-        margin-top: 10px;
-    }
-    .editor-buttons {
-        margin-top: 10px;
-    }
-    .editor-buttons button {
-        margin-right: 10px;
-    }
-    .domain-count {
-        color: #6c757d;
-        font-size: 1rem;
-        font-weight: normal;
-        margin-left: 10px;
-    }
-    .search-container {
-        max-width: 300px;
-    }
-    .header-section {
-        margin-bottom: 1rem;
-    }
-    .controls-section {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        margin: 1rem 0;
-    }
-    .controls-left {
-        display: flex;
-        gap: 10px;
-        flex-grow: 1;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container mt-4">
-    <div class="header-section">
-        <h2 class="mb-4">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900 flex items-center">
             Domain Configurations
-            <span class="domain-count">({{ domain_configs|length }} domains)</span>
+            <span class="text-base font-normal text-gray-500 ml-2">({{ domain_configs|length }} domains)</span>
         </h2>
     </div>
     
-    <div class="controls-section">
-        <div class="controls-left">
-            <button class="btn btn-primary" onclick="newDomainConfig()">Add New Domain</button>
-            <button class="btn btn-secondary" onclick="showImportModal()">Import Configuration</button>
+    <div class="flex items-center gap-4 mb-6">
+        <div class="flex gap-4 flex-grow">
+            <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="newDomainConfig()">Add New Domain</button>
+            <button class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="showImportModal()">Import Configuration</button>
         </div>
-        <div class="search-container">
-            <input type="text" class="form-control" id="domainSearch" placeholder="Search domains..." onkeyup="filterDomains()">
+        <div class="w-72">
+            <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="domainSearch" placeholder="Search domains..." onkeyup="filterDomains()">
         </div>
     </div>
     
-    <div class="accordion" id="domainAccordion">
+    <div class="space-y-2" id="domainAccordion">
         {% for domain, config in domain_configs.items() %}
-        <div class="accordion-item domain-item" data-domain="{{ domain }}">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}">
-                    {{ domain }}
+        <div class="bg-white shadow rounded-lg overflow-hidden domain-item" data-domain="{{ domain }}">
+            <div class="border-b border-gray-200">
+                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}">
+                    <span class="font-medium text-gray-900">{{ domain }}</span>
+                    <svg class="h-5 w-5 text-gray-500 transform transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
                 </button>
-            </h2>
-            <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#domainAccordion">
-                <div class="accordion-body">
-                    <textarea class="json-editor" id="domain_{{ domain }}">{{ config | tojson(indent=2) }}</textarea>
-                    <div class="editor-buttons">
-                        <button class="btn btn-success" onclick="saveDomainConfig('{{ domain }}')">Save</button>
-                        <button class="btn btn-danger" onclick="deleteDomainConfig('{{ domain }}')">Delete</button>
-                        <button class="btn btn-info" onclick="exportDomainConfig('{{ domain }}')">Export</button>
+            </div>
+            <div id="collapse{{ loop.index }}" class="hidden">
+                <div class="p-4">
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="domain_{{ domain }}">{{ config | tojson(indent=2) }}</textarea>
+                    <div class="mt-4 flex gap-2">
+                        <button class="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" onclick="saveDomainConfig('{{ domain }}')">Save</button>
+                        <button class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2" onclick="deleteDomainConfig('{{ domain }}')">Delete</button>
+                        <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="exportDomainConfig('{{ domain }}')">Export</button>
                     </div>
                 </div>
             </div>
@@ -87,23 +46,26 @@
         {% endfor %}
     </div>
 
-    <h2 class="mt-4">Country Configurations</h2>
-    <button class="btn btn-primary mb-3" onclick="newCountryConfig()">Add New Country</button>
+    <h2 class="text-2xl font-bold text-gray-900 mt-8 mb-6">Country Configurations</h2>
+    <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mb-6" onclick="newCountryConfig()">Add New Country</button>
     
-    <div class="accordion" id="countryAccordion">
+    <div class="space-y-2" id="countryAccordion">
         {% for country, config in country_configs.items() %}
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCountry{{ loop.index }}">
-                    {{ country }} ({{ config.name }})
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="border-b border-gray-200">
+                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCountry{{ loop.index }}">
+                    <span class="font-medium text-gray-900">{{ country }} ({{ config.name }})</span>
+                    <svg class="h-5 w-5 text-gray-500 transform transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
                 </button>
-            </h2>
-            <div id="collapseCountry{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#countryAccordion">
-                <div class="accordion-body">
-                    <textarea class="json-editor" id="country_{{ country }}">{{ config | tojson(indent=2) }}</textarea>
-                    <div class="editor-buttons">
-                        <button class="btn btn-success" onclick="saveCountryConfig('{{ country }}')">Save</button>
-                        <button class="btn btn-danger" onclick="deleteCountryConfig('{{ country }}')">Delete</button>
+            </div>
+            <div id="collapseCountry{{ loop.index }}" class="hidden">
+                <div class="p-4">
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="country_{{ country }}">{{ config | tojson(indent=2) }}</textarea>
+                    <div class="mt-4 flex gap-2">
+                        <button class="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" onclick="saveCountryConfig('{{ country }}')">Save</button>
+                        <button class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2" onclick="deleteCountryConfig('{{ country }}')">Delete</button>
                     </div>
                 </div>
             </div>
@@ -111,23 +73,26 @@
         {% endfor %}
     </div>
 
-    <h2 class="mt-4">Package Configurations</h2>
-    <button class="btn btn-primary mb-3" onclick="newPackageConfig()">Add New Package</button>
+    <h2 class="text-2xl font-bold text-gray-900 mt-8 mb-6">Package Configurations</h2>
+    <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mb-6" onclick="newPackageConfig()">Add New Package</button>
     
-    <div class="accordion" id="packageAccordion">
+    <div class="space-y-2" id="packageAccordion">
         {% for id, config in package_configs.items() %}
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePackage{{ loop.index }}">
-                    {{ config.name }} ({{ config.display }})
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="border-b border-gray-200">
+                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePackage{{ loop.index }}">
+                    <span class="font-medium text-gray-900">{{ config.name }} ({{ config.display }})</span>
+                    <svg class="h-5 w-5 text-gray-500 transform transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
                 </button>
-            </h2>
-            <div id="collapsePackage{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#packageAccordion">
-                <div class="accordion-body">
-                    <textarea class="json-editor" id="package_{{ id }}">{{ config | tojson(indent=2) }}</textarea>
-                    <div class="editor-buttons">
-                        <button class="btn btn-success" onclick="savePackageConfig('{{ id }}')">Save</button>
-                        <button class="btn btn-danger" onclick="deletePackageConfig('{{ id }}')">Delete</button>
+            </div>
+            <div id="collapsePackage{{ loop.index }}" class="hidden">
+                <div class="p-4">
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="package_{{ id }}">{{ config | tojson(indent=2) }}</textarea>
+                    <div class="mt-4 flex gap-2">
+                        <button class="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" onclick="savePackageConfig('{{ id }}')">Save</button>
+                        <button class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2" onclick="deletePackageConfig('{{ id }}')">Delete</button>
                     </div>
                 </div>
             </div>
@@ -137,100 +102,96 @@
 </div>
 
 <!-- New Domain Modal -->
-<div class="modal fade" id="newDomainModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">New Domain Configuration</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="newDomainModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">New Domain Configuration</h3>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="newDomainName" class="form-label">Domain Name</label>
-                    <input type="text" class="form-control" id="newDomainName" placeholder="example.com">
+            <div class="p-6">
+                <div class="mb-4">
+                    <label for="newDomainName" class="block text-sm font-medium text-gray-700 mb-1">Domain Name</label>
+                    <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="newDomainName" placeholder="example.com">
                 </div>
-                <div class="mb-3">
-                    <label for="newDomainConfig" class="form-label">Configuration</label>
-                    <textarea class="json-editor" id="newDomainConfig"></textarea>
+                <div class="mb-4">
+                    <label for="newDomainConfig" class="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="newDomainConfig"></textarea>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="createDomainConfig()">Create</button>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="hideModal('newDomainModal')">Cancel</button>
+                <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="createDomainConfig()">Create</button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- New Country Modal -->
-<div class="modal fade" id="newCountryModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">New Country Configuration</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="newCountryModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">New Country Configuration</h3>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="newCountryCode" class="form-label">Country Code</label>
-                    <input type="text" class="form-control" id="newCountryCode" placeholder="fr">
+            <div class="p-6">
+                <div class="mb-4">
+                    <label for="newCountryCode" class="block text-sm font-medium text-gray-700 mb-1">Country Code</label>
+                    <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="newCountryCode" placeholder="fr">
                 </div>
-                <div class="mb-3">
-                    <label for="newCountryConfig" class="form-label">Configuration</label>
-                    <textarea class="json-editor" id="newCountryConfig"></textarea>
+                <div class="mb-4">
+                    <label for="newCountryConfig" class="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="newCountryConfig"></textarea>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="createCountryConfig()">Create</button>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="hideModal('newCountryModal')">Cancel</button>
+                <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="createCountryConfig()">Create</button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Import Config Modal -->
-<div class="modal fade" id="importConfigModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Import Configuration</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="importConfigModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Import Configuration</h3>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="importFile" class="form-label">Configuration File</label>
-                    <input type="file" class="form-control" id="importFile" accept=".json">
+            <div class="p-6">
+                <div class="mb-4">
+                    <label for="importFile" class="block text-sm font-medium text-gray-700 mb-1">Configuration File</label>
+                    <input type="file" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" id="importFile" accept=".json">
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="importConfig()">Import</button>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="hideModal('importConfigModal')">Cancel</button>
+                <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="importConfig()">Import</button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- New Package Modal -->
-<div class="modal fade" id="newPackageModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">New Package Configuration</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="newPackageModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">New Package Configuration</h3>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="newPackageId" class="form-label">Package ID</label>
-                    <input type="text" class="form-control" id="newPackageId" placeholder="7">
+            <div class="p-6">
+                <div class="mb-4">
+                    <label for="newPackageId" class="block text-sm font-medium text-gray-700 mb-1">Package ID</label>
+                    <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="newPackageId" placeholder="7">
                 </div>
-                <div class="mb-3">
-                    <label for="newPackageConfig" class="form-label">Configuration</label>
-                    <textarea class="json-editor" id="newPackageConfig"></textarea>
+                <div class="mb-4">
+                    <label for="newPackageConfig" class="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
+                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="newPackageConfig"></textarea>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="createPackageConfig()">Create</button>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="hideModal('newPackageModal')">Cancel</button>
+                <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="createPackageConfig()">Create</button>
             </div>
         </div>
     </div>
@@ -239,29 +200,169 @@
 
 {% block scripts %}
 <script>
+// Modal functions
+function showModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('hidden');
+        // Reset form fields when showing modal
+        if (modalId === 'newDomainModal') {
+            newDomainConfig();
+        } else if (modalId === 'newCountryModal') {
+            newCountryConfig();
+        } else if (modalId === 'newPackageModal') {
+            newPackageConfig();
+        }
+    }
+}
+
+function hideModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
 // Domain configuration functions
-async function saveDomainConfig(domain) {
+function newDomainConfig() {
+    const defaultConfig = {
+        "domain": "",
+        "categories": {
+            "square_meter_price": {
+                "steps": [
+                    {
+                        "type": "select",
+                        "selector": "",
+                        "value": "{thickness}",
+                        "unit": "mm"
+                    },
+                    {
+                        "type": "input",
+                        "selector": "",
+                        "value": "{width}",
+                        "unit": "mm"
+                    },
+                    {
+                        "type": "wait",
+                        "duration": "default"
+                    },
+                    {
+                        "type": "input",
+                        "selector": "",
+                        "value": "{length}",
+                        "unit": "mm"
+                    },
+                    {
+                        "type": "wait",
+                        "duration": "default"
+                    },
+                    {
+                        "type": "read_price",
+                        "selector": "",
+                        "includes_vat": false
+                    }
+                ]
+            }
+        }
+    };
+
+    document.getElementById('newDomainName').value = '';
+    document.getElementById('newDomainConfig').value = JSON.stringify(defaultConfig, null, 2);
+    showModal('newDomainModal');
+}
+
+function newCountryConfig() {
+    const defaultConfig = {
+        "name": "",
+        "currency": "EUR",
+        "vat": 21,
+        "shipping": {
+            "base_cost": 0,
+            "cost_per_m2": 0
+        }
+    };
+
+    document.getElementById('newCountryCode').value = '';
+    document.getElementById('newCountryConfig').value = JSON.stringify(defaultConfig, null, 2);
+    showModal('newCountryModal');
+}
+
+function newPackageConfig() {
+    const defaultConfig = {
+        "name": "",
+        "display": "",
+        "description": "",
+        "width": 0,
+        "length": 0,
+        "thickness": 0,
+        "quantity": 1
+    };
+
+    document.getElementById('newPackageId').value = '';
+    document.getElementById('newPackageConfig').value = JSON.stringify(defaultConfig, null, 2);
+    showModal('newPackageModal');
+}
+
+function showImportModal() {
+    document.getElementById('importFile').value = '';
+    showModal('importConfigModal');
+}
+
+async function createDomainConfig() {
+    const domain = document.getElementById('newDomainName').value;
+    if (!domain) {
+        alert('Please enter a domain name');
+        return;
+    }
+
     try {
-        const textarea = document.getElementById(`domain_${domain}`);
-        const config = JSON.parse(textarea.value);
-        
+        const config = JSON.parse(document.getElementById('newDomainConfig').value);
+        config.domain = domain;
+
         const response = await fetch('/api/config', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
                 domain: domain,
                 config: config
             })
         });
-        
+
         if (response.ok) {
-            alert('Configuration saved successfully!');
             location.reload();
         } else {
-            alert('Error saving configuration');
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Unknown error occurred'}`);
         }
-    } catch (error) {
-        alert('Error: ' + error.message);
+    } catch (e) {
+        alert(`Error: ${e.message}`);
+    }
+}
+
+async function saveDomainConfig(domain) {
+    try {
+        const config = JSON.parse(document.getElementById(`domain_${domain}`).value);
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                domain: domain,
+                config: config
+            })
+        });
+
+        if (response.ok) {
+            alert('Configuration saved successfully');
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
     }
 }
 
@@ -269,113 +370,94 @@ async function deleteDomainConfig(domain) {
     if (!confirm(`Are you sure you want to delete the configuration for ${domain}?`)) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/config/${domain}`, {
             method: 'DELETE'
         });
-        
+
         if (response.ok) {
-            alert('Configuration deleted successfully!');
             location.reload();
         } else {
-            alert('Error deleting configuration');
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Unknown error occurred'}`);
         }
-    } catch (error) {
-        alert('Error: ' + error.message);
+    } catch (e) {
+        alert(`Error: ${e.message}`);
     }
 }
 
-function newDomainConfig() {
-    document.getElementById('newDomainName').value = '';
-    document.getElementById('newDomainConfig').value = JSON.stringify({
-        "domain": "",
-        "steps": [
-            {
-                "type": "select",
-                "selector": "",
-                "value": "{thickness}",
-                "unit": "mm"
-            },
-            {
-                "type": "input",
-                "selector": "",
-                "value": "{width}",
-                "unit": "mm"
-            },
-            {
-                "type": "wait",
-                "duration": 1000
-            },
-            {
-                "type": "input",
-                "selector": "",
-                "value": "{length}",
-                "unit": "mm"
-            },
-            {
-                "type": "wait",
-                "duration": 1000
-            },
-            {
-                "type": "read_price",
-                "selector": "",
-                "includes_vat": false
-            }
-        ]
-    }, null, 2);
-    
-    new bootstrap.Modal(document.getElementById('newDomainModal')).show();
-}
-
-async function createDomainConfig() {
+function exportDomainConfig(domain) {
     try {
-        const domain = document.getElementById('newDomainName').value;
-        const config = JSON.parse(document.getElementById('newDomainConfig').value);
-        
-        const response = await fetch('/api/config', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                domain: domain,
-                config: config
-            })
-        });
-        
-        if (response.ok) {
-            alert('Configuration created successfully!');
-            location.reload();
-        } else {
-            alert('Error creating configuration');
-        }
-    } catch (error) {
-        alert('Error: ' + error.message);
+        const config = document.getElementById(`domain_${domain}`).value;
+        const blob = new Blob([config], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${domain}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        alert(`Error: ${e.message}`);
     }
 }
 
 // Country configuration functions
-async function saveCountryConfig(country) {
+async function createCountryConfig() {
+    const countryCode = document.getElementById('newCountryCode').value;
+    if (!countryCode) {
+        alert('Please enter a country code');
+        return;
+    }
+
     try {
-        const textarea = document.getElementById(`country_${country}`);
-        const config = JSON.parse(textarea.value);
-        
+        const config = JSON.parse(document.getElementById('newCountryConfig').value);
         const response = await fetch('/api/country', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                country: countryCode,
+                config: config
+            })
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
+    }
+}
+
+async function saveCountryConfig(country) {
+    try {
+        const config = JSON.parse(document.getElementById(`country_${country}`).value);
+        const response = await fetch('/api/country', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
                 country: country,
                 config: config
             })
         });
-        
+
         if (response.ok) {
-            alert('Configuration saved successfully!');
-            location.reload();
+            alert('Configuration saved successfully');
         } else {
-            alert('Error saving configuration');
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Unknown error occurred'}`);
         }
-    } catch (error) {
-        alert('Error: ' + error.message);
+    } catch (e) {
+        alert(`Error: ${e.message}`);
     }
 }
 
@@ -383,134 +465,144 @@ async function deleteCountryConfig(country) {
     if (!confirm(`Are you sure you want to delete the configuration for ${country}?`)) {
         return;
     }
-    
+
     try {
         const response = await fetch(`/api/country/${country}`, {
             method: 'DELETE'
         });
-        
+
         if (response.ok) {
-            alert('Configuration deleted successfully!');
             location.reload();
         } else {
-            alert('Error deleting configuration');
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Unknown error occurred'}`);
         }
-    } catch (error) {
-        alert('Error: ' + error.message);
+    } catch (e) {
+        alert(`Error: ${e.message}`);
     }
 }
 
-function newCountryConfig() {
-    document.getElementById('newCountryCode').value = '';
-    document.getElementById('newCountryConfig').value = JSON.stringify({
-        "name": "",
-        "currency": "EUR",
-        "currency_symbol": "€",
-        "vat_rate": 21
-    }, null, 2);
-    
-    new bootstrap.Modal(document.getElementById('newCountryModal')).show();
-}
+// Package configuration functions
+async function createPackageConfig() {
+    const packageId = document.getElementById('newPackageId').value;
+    if (!packageId) {
+        alert('Please enter a package ID');
+        return;
+    }
 
-async function createCountryConfig() {
     try {
-        const country = document.getElementById('newCountryCode').value;
-        const config = JSON.parse(document.getElementById('newCountryConfig').value);
-        
-        const response = await fetch('/api/country', {
+        const config = JSON.parse(document.getElementById('newPackageConfig').value);
+        const response = await fetch('/api/packages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
-                country: country,
+                package_id: packageId,
                 config: config
             })
         });
-        
+
         if (response.ok) {
-            alert('Configuration created successfully!');
             location.reload();
         } else {
-            alert('Error creating configuration');
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Unknown error occurred'}`);
         }
-    } catch (error) {
-        alert('Error: ' + error.message);
+    } catch (e) {
+        alert(`Error: ${e.message}`);
     }
 }
 
-function exportDomainConfig(domain) {
+async function savePackageConfig(id) {
     try {
-        const textarea = document.getElementById(`domain_${domain}`);
-        const config = JSON.parse(textarea.value);
-        const exportData = {
-            domain: domain,
-            config: config
-        };
-        
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${domain}_config.json`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-    } catch (error) {
-        alert('Error exporting configuration: ' + error.message);
+        const config = JSON.parse(document.getElementById(`package_${id}`).value);
+        const response = await fetch('/api/packages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                package_id: id,
+                config: config
+            })
+        });
+
+        if (response.ok) {
+            alert('Configuration saved successfully');
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
     }
 }
 
-// Add import button to the top of the page
-document.addEventListener('DOMContentLoaded', function() {
-    // This section can be removed as we now have the import button in the HTML
-});
+async function deletePackageConfig(id) {
+    if (!confirm(`Are you sure you want to delete package configuration ${id}?`)) {
+        return;
+    }
 
+    try {
+        const response = await fetch(`/api/packages/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
+    }
+}
+
+// Import configuration function
 async function importConfig() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    if (!file) {
+        alert('Please select a file to import');
+        return;
+    }
+
     try {
-        const fileInput = document.getElementById('importFile');
-        const file = fileInput.files[0];
+        const content = await file.text();
+        const config = JSON.parse(content);
         
-        if (!file) {
-            alert('Please select a file to import');
-            return;
+        if (!config.domain) {
+            throw new Error('Invalid configuration file: missing domain property');
         }
 
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            try {
-                const importData = JSON.parse(e.target.result);
-                
-                const response = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        domain: importData.domain,
-                        config: importData.config
-                    })
-                });
-                
-                if (response.ok) {
-                    alert('Configuration imported successfully!');
-                    location.reload();
-                } else {
-                    alert('Error importing configuration');
-                }
-            } catch (error) {
-                alert('Error parsing import file: ' + error.message);
-            }
-        };
-        reader.readAsText(file);
-    } catch (error) {
-        alert('Error importing configuration: ' + error.message);
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                domain: config.domain,
+                config: config
+            })
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
     }
 }
 
-// Add this new function for domain filtering
+// Search function
 function filterDomains() {
     const searchTerm = document.getElementById('domainSearch').value.toLowerCase();
-    const domainItems = document.getElementsByClassName('domain-item');
-    
-    Array.from(domainItems).forEach(item => {
+    document.querySelectorAll('.domain-item').forEach(item => {
         const domain = item.getAttribute('data-domain').toLowerCase();
         if (domain.includes(searchTerm)) {
             item.style.display = '';
@@ -520,96 +612,23 @@ function filterDomains() {
     });
 }
 
-// Add this function to show the import modal
-function showImportModal() {
-    new bootstrap.Modal(document.getElementById('importConfigModal')).show();
-}
-
-// Package configuration functions
-async function savePackageConfig(id) {
-    try {
-        const textarea = document.getElementById(`package_${id}`);
-        const config = JSON.parse(textarea.value);
-        
-        const response = await fetch('/api/packages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                package_id: id,
-                config: config
-            })
+// Initialize accordion functionality
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-bs-target');
+            const targetPanel = document.querySelector(targetId);
+            const icon = this.querySelector('svg');
+            
+            if (targetPanel.classList.contains('hidden')) {
+                targetPanel.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+            } else {
+                targetPanel.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
         });
-        
-        if (response.ok) {
-            alert('Package configuration saved successfully!');
-            location.reload();
-        } else {
-            alert('Error saving package configuration');
-        }
-    } catch (error) {
-        alert('Error: ' + error.message);
-    }
-}
-
-async function deletePackageConfig(id) {
-    if (!confirm(`Are you sure you want to delete package ${id}?`)) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/packages/${id}`, {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            alert('Package configuration deleted successfully!');
-            location.reload();
-        } else {
-            alert('Error deleting package configuration');
-        }
-    } catch (error) {
-        alert('Error: ' + error.message);
-    }
-}
-
-function newPackageConfig() {
-    document.getElementById('newPackageId').value = '';
-    document.getElementById('newPackageConfig').value = JSON.stringify({
-        "name": "Nieuw Pakket",
-        "description": "Beschrijving van het pakket",
-        "quantity": 1,
-        "length": 1000,
-        "width": 1000,
-        "thickness": 2,
-        "display": "1x 100x100 cm"
-    }, null, 2);
-    
-    new bootstrap.Modal(document.getElementById('newPackageModal')).show();
-}
-
-async function createPackageConfig() {
-    try {
-        const id = document.getElementById('newPackageId').value;
-        const config = JSON.parse(document.getElementById('newPackageConfig').value);
-        
-        const response = await fetch('/api/packages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                package_id: id,
-                config: config
-            })
-        });
-        
-        if (response.ok) {
-            alert('Package configuration created successfully!');
-            location.reload();
-        } else {
-            alert('Error creating package configuration');
-        }
-    } catch (error) {
-        alert('Error: ' + error.message);
-    }
-}
+    });
+});
 </script>
 {% endblock %} 

@@ -1,5 +1,4 @@
 {
-    "domain": "perlaplast-kunststofshop.nl",
     "categories": {
         "square_meter_price": {
             "steps": [
@@ -30,5 +29,6 @@
                 }
             ]
         }
-    }
+    },
+    "domain": "perlaplast-kunststofshop.nl"
 }

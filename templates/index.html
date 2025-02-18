@@ -2,98 +2,82 @@
 
 {% block title %}360 Competitor Dashboard{% endblock %}
 
-{% block styles %}
-<style>
-    .result { margin-top: 20px; }
-    .debug-info { 
-        margin-top: 20px;
-        font-family: monospace;
-        white-space: pre-wrap;
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 5px;
-    }
-    .nav-tabs {
-        margin-bottom: 20px;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container">
-
-    <h2 class="mb-4">Rekenmodules</h2>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <h2 class="text-2xl font-bold text-gray-900 mb-6">Rekenmodules</h2>
     
     <!-- Main navigation tabs -->
-    <ul class="nav nav-tabs" id="mainTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="sqm-price-tab" data-bs-toggle="tab" data-bs-target="#sqm-price" type="button" role="tab">
+    <ul class="flex space-x-4 border-b border-gray-200 mb-6" id="mainTabs" role="tablist">
+        <li class="mr-2" role="presentation">
+            <button class="inline-flex items-center px-4 py-2 border-b-2 border-blue-500 text-blue-600 font-medium text-sm" id="sqm-price-tab" data-bs-toggle="tab" data-bs-target="#sqm-price" type="button" role="tab">
                 Prijs per m²
             </button>
         </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="shipping-tab" data-bs-toggle="tab" data-bs-target="#shipping" type="button" role="tab">
+        <li class="mr-2" role="presentation">
+            <button class="inline-flex items-center px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm" id="shipping-tab" data-bs-toggle="tab" data-bs-target="#shipping" type="button" role="tab">
                 Verzendkosten
             </button>
         </li>
     </ul>
     
     <!-- Tab content -->
-    <div class="tab-content" id="mainTabsContent">
+    <div class="mt-6" id="mainTabsContent">
         <!-- Square meter price tab -->
-        <div class="tab-pane fade show active" id="sqm-price" role="tabpanel">
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Bereken Prijs</h5>
+        <div class="block" id="sqm-price" role="tabpanel">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="p-6">
+                            <h5 class="text-lg font-medium text-gray-900 mb-6">Bereken Prijs</h5>
                             <form id="priceForm">
-                                <div class="mb-3">
-                                    <label for="url" class="form-label">Product URL</label>
-                                    <input type="url" class="form-control" id="url" required>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="url" class="block text-sm font-medium text-gray-700 mb-1">Product URL</label>
+                                        <input type="url" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="url" required>
+                                    </div>
+                                    <div>
+                                        <label for="dikte" class="block text-sm font-medium text-gray-700 mb-1">Dikte (mm)</label>
+                                        <input type="number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="dikte" value="2">
+                                    </div>
+                                    <div>
+                                        <label for="lengte" class="block text-sm font-medium text-gray-700 mb-1">Lengte (mm)</label>
+                                        <input type="number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="lengte" value="1000">
+                                    </div>
+                                    <div>
+                                        <label for="breedte" class="block text-sm font-medium text-gray-700 mb-1">Breedte (mm)</label>
+                                        <input type="number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="breedte" value="1000">
+                                    </div>
+                                    <div>
+                                        <label for="country" class="block text-sm font-medium text-gray-700 mb-1">Land</label>
+                                        <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="country">
+                                            {% for code, country in countries.items() %}
+                                            <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
+                                                {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% BTW)
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Bereken</button>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="dikte" class="form-label">Dikte (mm)</label>
-                                    <input type="number" class="form-control" id="dikte" value="2">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="lengte" class="form-label">Lengte (mm)</label>
-                                    <input type="number" class="form-control" id="lengte" value="1000">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="breedte" class="form-label">Breedte (mm)</label>
-                                    <input type="number" class="form-control" id="breedte" value="1000">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="country" class="form-label">Land</label>
-                                    <select class="form-control" id="country">
-                                        {% for code, country in countries.items() %}
-                                        <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
-                                            {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% BTW)
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <button type="submit" class="btn btn-primary">Bereken</button>
                             </form>
                         </div>
                     </div>
                 </div>
                 
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Resultaat</h5>
-                            <div id="result" class="result">
-                                <p>Voer een URL in en klik op Bereken om de prijs te zien.</p>
+                <div>
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="p-6">
+                            <h5 class="text-lg font-medium text-gray-900 mb-6">Resultaat</h5>
+                            <div id="result" class="mb-4">
+                                <p class="text-gray-600">Voer een URL in en klik op Bereken om de prijs te zien.</p>
                             </div>
-                            <div id="logging" class="logging-info" style="display: none;">
+                            <div id="logging" class="mb-4 logging-info" style="display: none;">
                                 <h6>Live Logging:</h6>
-                                <div id="logging-content"></div>
+                                <div id="logging-content" class="mt-2"></div>
                             </div>
-                            <div id="debug" class="debug-info" style="display: none;">
-                                <h6>Debug Informatie:</h6>
-                                <div id="debug-content"></div>
+                            <div id="debug" class="bg-gray-50 rounded-md p-3 debug-info" style="display: none;">
+                                <h6 class="text-sm font-bold text-gray-600 mb-2">Debug Informatie:</h6>
+                                <div id="debug-content" class="mt-2"></div>
                             </div>
                         </div>
                     </div>
@@ -102,58 +86,60 @@
         </div>
 
         <!-- Shipping costs tab -->
-        <div class="tab-pane fade" id="shipping" role="tabpanel">
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Bereken Verzendkosten</h5>
+        <div class="hidden" id="shipping" role="tabpanel">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="p-6">
+                            <h5 class="text-lg font-medium text-gray-900 mb-6">Bereken Verzendkosten</h5>
                             <form id="shippingForm">
-                                <div class="mb-3">
-                                    <label for="shipping_url" class="form-label">Product URL</label>
-                                    <input type="url" class="form-control" id="shipping_url" required>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="shipping_url" class="block text-sm font-medium text-gray-700 mb-1">Product URL</label>
+                                        <input type="url" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="shipping_url" required>
+                                    </div>
+                                    <div>
+                                        <label for="shipping_package" class="block text-sm font-medium text-gray-700 mb-1">Pakkettype</label>
+                                        <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="shipping_package">
+                                            {% for id, package in packages.items() %}
+                                            <option value="{{ id }}" title="{{ package.description }}">
+                                                {{ package.name }}: {{ package.display }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <small class="package-description mt-1 text-sm text-gray-500 block"></small>
+                                    </div>
+                                    <div>
+                                        <label for="shipping_country" class="block text-sm font-medium text-gray-700 mb-1">Land</label>
+                                        <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="shipping_country">
+                                            {% for code, country in countries.items() %}
+                                            <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
+                                                {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% BTW)
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Bereken Verzendkosten</button>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="shipping_package" class="form-label">Pakkettype</label>
-                                    <select class="form-control" id="shipping_package">
-                                        {% for id, package in packages.items() %}
-                                        <option value="{{ id }}" title="{{ package.description }}">
-                                            {{ package.name }}: {{ package.display }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                    <small class="form-text text-muted package-description"></small>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="shipping_country" class="form-label">Land</label>
-                                    <select class="form-control" id="shipping_country">
-                                        {% for code, country in countries.items() %}
-                                        <option value="{{ code }}"{% if code == 'nl' %} selected{% endif %}>
-                                            {{ country.name }} ({{ country.currency_symbol }}, {{ country.vat_rate }}% BTW)
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <button type="submit" class="btn btn-primary">Bereken Verzendkosten</button>
                             </form>
                         </div>
                     </div>
                 </div>
                 
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">Resultaat</h5>
-                            <div id="shipping_result" class="result">
-                                <p>Voer een URL in en klik op Bereken om de verzendkosten te zien.</p>
+                <div>
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="p-6">
+                            <h5 class="text-lg font-medium text-gray-900 mb-6">Resultaat</h5>
+                            <div id="shipping_result" class="mb-4">
+                                <p class="text-gray-600">Voer een URL in en klik op Bereken om de verzendkosten te zien.</p>
                             </div>
-                            <div id="shipping_logging" class="logging-info" style="display: none;">
+                            <div id="shipping_logging" class="mb-4 logging-info" style="display: none;">
                                 <h6>Live Logging:</h6>
-                                <div id="shipping_logging_content"></div>
+                                <div id="shipping_logging_content" class="mt-2"></div>
                             </div>
-                            <div id="shipping_debug" class="debug-info" style="display: none;">
-                                <h6>Debug Informatie:</h6>
-                                <div id="shipping_debug_content"></div>
+                            <div id="shipping_debug" class="bg-gray-50 rounded-md p-3 debug-info" style="display: none;">
+                                <h6 class="text-sm font-bold text-gray-600 mb-2">Debug Informatie:</h6>
+                                <div id="shipping_debug_content" class="mt-2"></div>
                             </div>
                         </div>
                     </div>
@@ -162,62 +148,61 @@
         </div>
     </div>
 
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">API Documentatie</h5>
-                    <p>Deze applicatie biedt twee REST API endpoints:</p>
-                    <h6>1. Prijs per m² (<code>/api/calculate-smp</code>)</h6>
-                    <p>Request Parameters:</p>
-                    <ul>
-                        <li><code>url</code>: De URL van de productpagina</li>
-                        <li><code>dikte</code>: Dikte in mm (default: 2)</li>
-                        <li><code>lengte</code>: Lengte in mm (default: 1000)</li>
-                        <li><code>breedte</code>: Breedte in mm (default: 1000)</li>
-                        <li><code>country</code>: Landcode (default: nl)</li>
-                    </ul>
+    <div class="mt-8">
+        <div class="bg-white shadow rounded-lg">
+            <div class="p-6">
+                <h5 class="text-lg font-medium text-gray-900 mb-6">API Documentatie</h5>
+                <p class="mb-4">Deze applicatie biedt twee REST API endpoints:</p>
+                <h6 class="font-medium text-gray-900 mb-2">1. Prijs per m² (<code class="text-sm bg-gray-100 px-1 py-0.5 rounded">/api/calculate-smp</code>)</h6>
+                <p class="mb-2">Request Parameters:</p>
+                <ul class="list-disc pl-5 mb-4 space-y-1">
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">url</code>: De URL van de productpagina</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">dikte</code>: Dikte in mm (default: 2)</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">lengte</code>: Lengte in mm (default: 1000)</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">breedte</code>: Breedte in mm (default: 1000)</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">country</code>: Landcode (default: nl)</li>
+                </ul>
 
-                    <h6>2. Verzendkosten (<code>/api/calculate-shipping</code>)</h6>
-                    <p>Request Parameters:</p>
-                    <ul>
-                        <li><code>url</code>: De URL van de productpagina</li>
-                        <li><code>package_type</code>: Type pakket (1-6, default: 1)</li>
-                        <li><code>thickness</code>: Optionele dikte in mm (overschrijft pakket dikte)</li>
-                        <li><code>country</code>: Landcode (default: nl)</li>
-                    </ul>
+                <h6 class="font-medium text-gray-900 mb-2">2. Verzendkosten (<code class="text-sm bg-gray-100 px-1 py-0.5 rounded">/api/calculate-shipping</code>)</h6>
+                <p class="mb-2">Request Parameters:</p>
+                <ul class="list-disc pl-5 mb-4 space-y-1">
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">url</code>: De URL van de productpagina</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">package_type</code>: Type pakket (1-6, default: 1)</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">thickness</code>: Optionele dikte in mm (overschrijft pakket dikte)</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">country</code>: Landcode (default: nl)</li>
+                </ul>
 
-                    <h6>Response (beide endpoints):</h6>
-                    <ul>
-                        <li><code>price_excl_vat</code>: Prijs exclusief BTW</li>
-                        <li><code>price_incl_vat</code>: Prijs inclusief BTW</li>
-                        <li><code>currency</code>: Valuta code (EUR, GBP, etc.)</li>
-                        <li><code>currency_symbol</code>: Valuta symbool (€, £, etc.)</li>
-                        <li><code>vat_rate</code>: BTW percentage voor het gekozen land</li>
-                        <li><code>package_info</code>: (Alleen voor shipping) Informatie over het gekozen pakket:
-                            <ul>
-                                <li><code>type</code>: Pakket type (1-6)</li>
-                                <li><code>name</code>: Naam van het pakket</li>
-                                <li><code>description</code>: Beschrijving van het pakket</li>
-                                <li><code>quantity</code>: Aantal stuks in het pakket</li>
-                                <li><code>dimensions</code>: Afmetingen in mm (lengte x breedte)</li>
-                                <li><code>thickness</code>: Gebruikte dikte in mm</li>
-                                <li><code>display</code>: Weergave tekst van het pakket</li>
-                            </ul>
-                        </li>
-                        <li><code>error</code>: Eventuele foutmelding (optioneel)</li>
-                    </ul>
+                <h6 class="font-medium text-gray-900 mb-2">Response (beide endpoints):</h6>
+                <ul class="list-disc pl-5 mb-4 space-y-1">
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">price_excl_vat</code>: Prijs exclusief BTW</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">price_incl_vat</code>: Prijs inclusief BTW</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">currency</code>: Valuta code (EUR, GBP, etc.)</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">currency_symbol</code>: Valuta symbool (€, £, etc.)</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">vat_rate</code>: BTW percentage voor het gekozen land</li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">package_info</code>: (Alleen voor shipping) Informatie over het gekozen pakket:
+                        <ul class="list-disc pl-5 mt-2 space-y-1">
+                            <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">type</code>: Pakket type (1-6)</li>
+                            <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">name</code>: Naam van het pakket</li>
+                            <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">description</code>: Beschrijving van het pakket</li>
+                            <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">quantity</code>: Aantal stuks in het pakket</li>
+                            <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">dimensions</code>: Afmetingen in mm (lengte x breedte)</li>
+                            <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">thickness</code>: Gebruikte dikte in mm</li>
+                            <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">display</code>: Weergave tekst van het pakket</li>
+                        </ul>
+                    </li>
+                    <li><code class="text-sm bg-gray-100 px-1 py-0.5 rounded">error</code>: Eventuele foutmelding (optioneel)</li>
+                </ul>
 
-                    <h6>Voorbeeld Request:</h6>
-                    <pre>{
+                <h6 class="font-medium text-gray-900 mb-2">Voorbeeld Request:</h6>
+                <pre class="bg-gray-50 p-4 rounded-md mb-4 text-sm">{
     "url": "https://example.com/product",
     "package_type": 2,
     "thickness": 3,  // optioneel
     "country": "nl"
 }</pre>
 
-                    <h6>Voorbeeld Response:</h6>
-                    <pre>{
+                <h6 class="font-medium text-gray-900 mb-2">Voorbeeld Response:</h6>
+                <pre class="bg-gray-50 p-4 rounded-md text-sm">{
     "status": "success",
     "status_code": 200,
     "message": "Shipping costs calculated successfully",
@@ -238,7 +223,6 @@
         }
     }
 }</pre>
-                </div>
             </div>
         </div>
     </div>
@@ -274,21 +258,21 @@
 
     function getStepEmoji(step_type) {
         const emojis = {
-            'navigation': '🌐',
-            'loading': '⌛',
-            'loaded': '✅',
-            'select': '🔽',
-            'input': '⌨️',
-            'click': '🖱️',
-            'wait': '⏳',
-            'read_price': '💰',
-            'calculation': '🧮',
-            'complete': '✨',
-            'error': '❌',
-            'cleanup': '🧹',
-            'config': '⚙️'
+            'navigation': '→',
+            'loading': '⋯',
+            'loaded': '✓',
+            'select': '▼',
+            'input': '⌥',
+            'click': '⊙',
+            'wait': '◌',
+            'read_price': '€',
+            'calculation': '∑',
+            'complete': '★',
+            'error': '×',
+            'cleanup': '⌫',
+            'config': '⚙'
         };
-        return emojis[step_type] || '📝';
+        return emojis[step_type] || '•';
     }
 
     function formatStepDetails(status) {
@@ -319,7 +303,7 @@
 
     function updateStatus(status) {
         // Determine which result div to use based on the active tab
-        const isShipping = document.querySelector('#shipping.active') !== null;
+        const isShipping = document.querySelector('#shipping.block') !== null;
         const resultDiv = document.getElementById(isShipping ? 'shipping_result' : 'result');
         const loggingDiv = document.getElementById(isShipping ? 'shipping_logging' : 'logging');
         const loggingContent = document.getElementById(isShipping ? 'shipping_logging_content' : 'logging-content');
@@ -338,7 +322,7 @@
         const stepDetails = formatStepDetails(status);
         const logLine = `<div class="status-update">
             <span class="timestamp">${timestamp}</span>
-            <span class="step-emoji">${stepEmoji}</span>
+            <span class="step-emoji" data-type="${status.step_type}">${stepEmoji}</span>
             <span class="step-type">${status.step_type}</span>
             ${stepDetails ? `<span class="step-details">${stepDetails}</span>` : ''}
         </div>`;
@@ -347,8 +331,12 @@
         loggingDiv.style.display = 'block';
 
         // Ensure we always scroll to the latest activity
+        // Using both requestAnimationFrame and setTimeout to ensure it works across different browsers
         requestAnimationFrame(() => {
-            loggingContent.scrollTop = loggingContent.scrollHeight;
+            setTimeout(() => {
+                loggingContent.scrollTop = loggingContent.scrollHeight;
+                loggingDiv.scrollTop = loggingDiv.scrollHeight;
+            }, 0);
         });
 
         // If it's a complete status, update both result and debug
@@ -358,18 +346,18 @@
             
             if (isShipping) {
                 resultDiv.innerHTML = `
-                    <div class="alert alert-success">
-                        <h4>Berekening voltooid!</h4>
-                        <p>Verzendkosten excl. BTW: €${priceExclVat}</p>
-                        <p>Verzendkosten incl. BTW: €${priceInclVat}</p>
+                    <div class="rounded-md bg-green-50 p-4 text-green-800">
+                        <h6 class="font-medium mb-2">Berekening voltooid!</h6>
+                        <span>Verzendkosten excl. BTW: €${priceExclVat}</span><br>
+                        <span>Verzendkosten incl. BTW: €${priceInclVat}</span>
                     </div>
                 `;
             } else {
                 resultDiv.innerHTML = `
-                    <div class="alert alert-success">
-                        <h4>Berekening voltooid!</h4>
-                        <p>Prijs excl. BTW: €${priceExclVat}</p>
-                        <p>Prijs incl. BTW: €${priceInclVat}</p>
+                    <div class="rounded-md bg-green-50 p-4 text-green-800">
+                        <h6 class="font-medium mb-2">Berekening voltooid!</h6>
+                        <span>Prijs excl. BTW: €${priceExclVat}</span><br>
+                        <span>Prijs incl. BTW: €${priceInclVat}</span>
                     </div>
                 `;
             }
@@ -402,8 +390,8 @@
             }
         } else if (status.step_type === 'error') {
             resultDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <h4>Error</h4>
+                <div class="rounded-md bg-red-50 p-4 text-red-800">
+                    <h4 class="font-medium mb-2">Error</h4>
                     <p>${status.message}</p>
                 </div>
             `;
@@ -430,7 +418,7 @@
         const debugContent = document.getElementById('debug-content');
         
         // Reset display
-        resultDiv.innerHTML = '<div class="alert alert-info">Bezig met berekenen...</div>';
+        resultDiv.innerHTML = '<div class="rounded-md bg-blue-50 p-4 text-blue-800">Bezig met berekenen...</div>';
         loggingContent.innerHTML = '';
         debugContent.innerHTML = '';
         loggingDiv.style.display = 'block';
@@ -467,8 +455,8 @@
 
         } catch (error) {
             resultDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <h4>Error</h4>
+                <div class="rounded-md bg-red-50 p-4 text-red-800">
+                    <h4 class="font-medium mb-2">Error</h4>
                     <p>${error.message}</p>
                 </div>
             `;
@@ -478,62 +466,6 @@
             }
         }
     });
-
-    // Update the styling to ensure smooth scrolling
-    const style = document.createElement('style');
-    style.textContent = `
-        .status-update {
-            margin-bottom: 4px;
-            padding: 2px 0;
-            font-family: monospace;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .timestamp {
-            color: #666;
-            font-size: 0.9em;
-        }
-        .step-emoji {
-            font-size: 1.1em;
-        }
-        .step-type {
-            color: #0066cc;
-            font-weight: bold;
-            text-transform: capitalize;
-            min-width: 80px;
-        }
-        .step-details {
-            color: #444;
-        }
-        .debug-info, .logging-info {
-            margin-top: 12px;
-            font-family: monospace;
-            white-space: pre-wrap;
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 5px;
-            max-height: 300px;
-            overflow-y: auto;
-            scroll-behavior: smooth;
-        }
-        .logging-info {
-            font-size: 0.9em;
-            line-height: 1.2;
-        }
-        .debug-info h6, .logging-info h6 {
-            margin: 0 0 8px 0;
-            padding: 0;
-            font-size: 0.9em;
-            font-weight: bold;
-            color: #666;
-        }
-        #logging-content, #shipping_logging_content,
-        #debug-content, #shipping_debug_content {
-            margin-top: 8px;
-        }
-    `;
-    document.head.appendChild(style);
 
     // Shipping form handler
     document.getElementById('shippingForm').addEventListener('submit', async (e) => {
@@ -546,7 +478,7 @@
         const debugContent = document.getElementById('shipping_debug_content');
         
         // Reset display
-        resultDiv.innerHTML = '<div class="alert alert-info">Bezig met berekenen...</div>';
+        resultDiv.innerHTML = '<div class="rounded-md bg-blue-50 p-4 text-blue-800">Bezig met berekenen...</div>';
         loggingContent.innerHTML = '';
         debugContent.innerHTML = '';
         loggingDiv.style.display = 'block';
@@ -583,8 +515,8 @@
 
         } catch (error) {
             resultDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <h4>Error</h4>
+                <div class="rounded-md bg-red-50 p-4 text-red-800">
+                    <h4 class="font-medium mb-2">Error</h4>
                     <p>${error.message}</p>
                 </div>
             `;
@@ -595,10 +527,32 @@
         }
     });
 
-    // Add tab change handler to reset logging and debug
-    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(button => {
+    // Tab switching functionality
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(button => {
         button.addEventListener('click', function() {
+            // Remove active class from all tabs
+            document.querySelectorAll('[data-bs-toggle="tab"]').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            });
+            
+            // Remove active class from all panels
+            document.querySelectorAll('[role="tabpanel"]').forEach(panel => {
+                panel.classList.remove('block');
+                panel.classList.add('hidden');
+            });
+
+            // Add active class to clicked tab
+            this.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            this.classList.add('border-blue-500', 'text-blue-600');
+            
+            // Show active panel
             const targetId = this.getAttribute('data-bs-target');
+            const targetPanel = document.querySelector(targetId);
+            targetPanel.classList.remove('hidden');
+            targetPanel.classList.add('block');
+
+            // Reset content
             const isShipping = targetId === '#shipping';
             
             // Reset logging
@@ -615,7 +569,7 @@
             
             // Reset result
             const resultDiv = document.getElementById(isShipping ? 'shipping_result' : 'result');
-            resultDiv.innerHTML = `<p>Voer een URL in en klik op Bereken om de ${isShipping ? 'verzendkosten' : 'prijs'} te zien.</p>`;
+            resultDiv.innerHTML = `<p class="text-gray-600">Voer een URL in en klik op Bereken om de ${isShipping ? 'verzendkosten' : 'prijs'} te zien.</p>`;
         });
     });
 

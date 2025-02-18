@@ -33,4 +33,6 @@ ENV/
 
 # OS
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+node_modules/ 

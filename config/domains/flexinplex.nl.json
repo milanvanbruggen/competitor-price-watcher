@@ -18,7 +18,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 1000
+                    "duration": "default"
                 },
                 {
                     "type": "input",
@@ -28,7 +28,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 1000
+                    "duration": "default"
                 },
                 {
                     "type": "read_price",

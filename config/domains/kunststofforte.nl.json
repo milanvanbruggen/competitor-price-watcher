@@ -10,7 +10,7 @@
                     "value": "{thickness}"
                 },
                 {
-                    "duration": 1000,
+                    "duration": "default",
                     "type": "wait"
                 },
                 {
@@ -20,7 +20,7 @@
                     "value": "1"
                 },
                 {
-                    "duration": 1000,
+                    "duration": "default",
                     "type": "wait"
                 },
                 {
@@ -30,7 +30,7 @@
                     "value": "{length}"
                 },
                 {
-                    "duration": 1000,
+                    "duration": "default",
                     "type": "wait"
                 },
                 {
@@ -40,7 +40,7 @@
                     "value": "{width}"
                 },
                 {
-                    "duration": 1000,
+                    "duration": "default",
                     "type": "wait"
                 },
                 {
@@ -58,7 +58,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 1000
+                    "duration": "default"
                 },
                 {
                     "type": "read_price",

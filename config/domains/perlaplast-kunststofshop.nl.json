@@ -10,7 +10,7 @@
                     "value": "{width}"
                 },
                 {
-                    "duration": 1000,
+                    "duration": "default",
                     "type": "wait"
                 },
                 {
@@ -20,7 +20,7 @@
                     "value": "{length}"
                 },
                 {
-                    "duration": 1000,
+                    "duration": "default",
                     "type": "wait"
                 },
                 {

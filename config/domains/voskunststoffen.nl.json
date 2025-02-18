@@ -9,7 +9,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 500
+                    "duration": "short"
                 },
                 {
                     "type": "click",    
@@ -17,7 +17,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 500
+                    "duration": "default"
                 },
                 {
                     "type": "select",
@@ -26,8 +26,8 @@
                     "unit": "mm"
                 },
                 {
-                    "duration": 500,
-                    "type": "wait"
+                    "type": "wait",
+                    "duration": "default"
                 },
                 {
                     "includes_vat": false,
@@ -44,7 +44,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 500
+                    "duration": "short"
                 },
                 {
                     "type": "click",    
@@ -52,7 +52,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 500
+                    "duration": "default"
                 },
                 {
                     "type": "select",
@@ -61,8 +61,8 @@
                     "unit": "mm"
                 },
                 {
-                    "duration": 500,
-                    "type": "wait"
+                    "type": "wait",
+                    "duration": "default"
                 },
                 {
                     "type": "click",    
@@ -70,7 +70,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 500
+                    "duration": "default"
                 },
                 {
                     "type": "click",
@@ -78,7 +78,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 500
+                    "duration": "default"
                 },
                 {
                     "type": "input",
@@ -87,8 +87,8 @@
                     "unit": "mm"
                 },
                 {
-                    "duration": 500,
-                    "type": "wait"
+                    "type": "wait",
+                    "duration": "default"
                 },
                 {
                     "type": "input",
@@ -101,7 +101,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 500
+                    "duration": "default"
                 },
                 {
                     "type": "click",
@@ -109,7 +109,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 500
+                    "duration": "default"
                 },
                 {
                     "type": "click",
@@ -117,7 +117,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 1000
+                    "duration": "long"
                 },
                 {
                     "type": "input",
@@ -127,7 +127,7 @@
                 },
                 {
                     "type": "wait",
-                    "duration": 1000
+                    "duration": "long"
                 },
                 {
                     "includes_vat": false,

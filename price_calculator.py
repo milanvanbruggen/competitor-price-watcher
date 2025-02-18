@@ -353,9 +353,25 @@ class PriceCalculator:
         await asyncio.sleep(0.5)
 
     async def _handle_wait(self, step):
-        duration = step['duration'] / 1000
-        logging.info(f"Waiting for {duration} seconds")
-        await asyncio.sleep(duration)
+        # Predefined wait durations
+        WAIT_DURATIONS = {
+            'short': 250,    # 0.25 seconds
+            'default': 500,  # 0.5 seconds
+            'long': 1000,    # 1 second
+            'longer': 2000   # 2 seconds
+        }
+        
+        # Get duration from step config
+        if isinstance(step.get('duration'), str):
+            # Use predefined duration if string is provided
+            duration = WAIT_DURATIONS.get(step['duration'].lower(), WAIT_DURATIONS['default'])
+        else:
+            # Use custom duration if number is provided, fallback to default
+            duration = step.get('duration', WAIT_DURATIONS['default'])
+            
+        duration_seconds = duration / 1000
+        logging.info(f"Waiting for {duration_seconds} seconds")
+        await asyncio.sleep(duration_seconds)
 
     async def _handle_read_price(self, page, step):
         logging.info(f"Reading price with selector: {step['selector']}")

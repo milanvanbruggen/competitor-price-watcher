@@ -575,27 +575,6 @@
         });
     });
 
-    // Add input change handlers to automatically submit the form
-    ['dikte', 'lengte', 'breedte', 'country'].forEach(id => {
-        document.getElementById(id).addEventListener('change', () => {
-            // Only submit if there is already a URL entered
-            const url = document.getElementById('url').value;
-            if (url) {
-                document.getElementById('priceForm').dispatchEvent(new Event('submit'));
-            }
-        });
-    });
-
-    ['shipping_country', 'shipping_package'].forEach(id => {
-        document.getElementById(id).addEventListener('change', () => {
-            // Only submit if there is already a URL entered
-            const url = document.getElementById('shipping_url').value;
-            if (url) {
-                document.getElementById('shippingForm').dispatchEvent(new Event('submit'));
-            }
-        });
-    });
-
     // Add package description update handler
     document.getElementById('shipping_package').addEventListener('change', function(e) {
         const option = e.target.options[e.target.selectedIndex];

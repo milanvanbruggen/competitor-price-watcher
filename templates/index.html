@@ -595,17 +595,48 @@
         }
     });
 
-    // Remove tab change handler that updates URL hash
+    // Add tab change handler to reset logging and debug
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-bs-target');
+            const isShipping = targetId === '#shipping';
+            
+            // Reset logging
+            const loggingDiv = document.getElementById(isShipping ? 'shipping_logging' : 'logging');
+            const loggingContent = document.getElementById(isShipping ? 'shipping_logging_content' : 'logging-content');
+            loggingDiv.style.display = 'none';
+            loggingContent.innerHTML = '';
+            
+            // Reset debug
+            const debugDiv = document.getElementById(isShipping ? 'shipping_debug' : 'debug');
+            const debugContent = document.getElementById(isShipping ? 'shipping_debug_content' : 'debug-content');
+            debugDiv.style.display = 'none';
+            debugContent.innerHTML = '';
+            
+            // Reset result
+            const resultDiv = document.getElementById(isShipping ? 'shipping_result' : 'result');
+            resultDiv.innerHTML = `<p>Voer een URL in en klik op Bereken om de ${isShipping ? 'verzendkosten' : 'prijs'} te zien.</p>`;
+        });
+    });
+
     // Add input change handlers to automatically submit the form
     ['dikte', 'lengte', 'breedte', 'country'].forEach(id => {
         document.getElementById(id).addEventListener('change', () => {
-            document.getElementById('priceForm').dispatchEvent(new Event('submit'));
+            // Only submit if there is already a URL entered
+            const url = document.getElementById('url').value;
+            if (url) {
+                document.getElementById('priceForm').dispatchEvent(new Event('submit'));
+            }
         });
     });
 
     ['shipping_country', 'shipping_package'].forEach(id => {
         document.getElementById(id).addEventListener('change', () => {
-            document.getElementById('shippingForm').dispatchEvent(new Event('submit'));
+            // Only submit if there is already a URL entered
+            const url = document.getElementById('shipping_url').value;
+            if (url) {
+                document.getElementById('shippingForm').dispatchEvent(new Event('submit'));
+            }
         });
     });
 
@@ -616,7 +647,8 @@
         document.querySelector('.package-description').textContent = description;
     });
 
-    // Trigger initial description
-    document.getElementById('shipping_package').dispatchEvent(new Event('change'));
+    // Trigger initial package description update without submitting form
+    const initialOption = document.getElementById('shipping_package').options[document.getElementById('shipping_package').selectedIndex];
+    document.querySelector('.package-description').textContent = initialOption.getAttribute('title');
 </script>
 {% endblock %} 

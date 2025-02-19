@@ -13,8 +13,9 @@
                     <a class="text-white font-bold text-xl" href="/">360 Competitor Dashboard</a>
                     <div class="ml-10 flex items-baseline space-x-4">
                         <a class="{% if request.url.path == '/' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} px-3 py-2 rounded-md text-sm font-medium" href="/">Home</a>
-                        <a class="{% if request.url.path == '/config' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} px-3 py-2 rounded-md text-sm font-medium" href="/config">Configuratie</a>
-                        <a class="{% if request.url.path == '/config-docs' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} px-3 py-2 rounded-md text-sm font-medium" href="/config-docs">Handleiding</a>
+                        <a href="/config" class="{% if request.url.path == '/config' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} rounded-md px-3 py-2 text-sm font-medium">Configuration</a>
+                        <a href="/config-docs" class="{% if request.url.path == '/config-docs' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} rounded-md px-3 py-2 text-sm font-medium">Manual</a>
+                        <a href="/step-editor" class="{% if request.url.path == '/step-editor' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} rounded-md px-3 py-2 text-sm font-medium">Step Editor</a>
                         <a class="{% if request.url.path == '/docs' %}bg-gray-900 text-white{% else %}text-gray-300 hover:bg-gray-700 hover:text-white{% endif %} px-3 py-2 rounded-md text-sm font-medium" href="/docs">Documentation</a>
                     </div>
                 </div>

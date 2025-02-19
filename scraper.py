@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 import logging
 from database import SessionLocal
 import crud
+from config import HEADLESS
 
 class MaterialScraper:
     def __init__(self):
@@ -20,7 +21,7 @@ class MaterialScraper:
     async def analyze_form_fields(self, url: str) -> Dict[str, Any]:
         """Analyze form fields on the page using domain configuration from database"""
         async with async_playwright() as p:
-            browser = await p.chromium.launch()
+            browser = await p.chromium.launch(headless=HEADLESS)
             page = await browser.new_page()
             await page.goto(url)
             

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException, Depends, Form, Response
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -55,6 +55,10 @@ async def read_root(request: Request, db: Session = Depends(get_db)):
         "countries": countries,
         "packages": packages
     })
+
+@app.get("/step-editor")
+async def step_editor(request: Request):
+    return templates.TemplateResponse("step_editor.html", {"request": request})
 
 @app.get("/config")
 async def config_page(request: Request, db: Session = Depends(get_db)):
@@ -206,11 +210,21 @@ async def get_config(domain: str, db: Session = Depends(get_db)):
 @app.post("/api/config")
 async def save_config(request: ConfigRequest, db: Session = Depends(get_db)):
     try:
+        # Save configuration to database
         config = schemas.DomainConfigCreate(domain=request.domain, config=request.config)
         crud.create_domain_config(db, config)
-        return {"success": True}
+        
+        # Also save configuration to file for backward compatibility
+        config_dir = os.path.join(os.path.dirname(__file__), 'configs')
+        os.makedirs(config_dir, exist_ok=True)
+        
+        config_path = os.path.join(config_dir, f"{request.domain}.json")
+        with open(config_path, 'w') as f:
+            json.dump(request.config, f, indent=2)
+            
+        return JSONResponse({"success": True})
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 @app.delete("/api/config/{domain}")
 async def delete_config(domain: str, db: Session = Depends(get_db)):

@@ -1,0 +1,15 @@
+{
+  "domain": "test.com",
+  "categories": {
+    "square_meter_price": {
+      "steps": [
+        {
+          "type": "input",
+          "selector": "#test",
+          "value": "1000",
+          "unit": "mm"
+        }
+      ]
+    }
+  }
+}

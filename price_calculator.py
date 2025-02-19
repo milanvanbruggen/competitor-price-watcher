@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from datetime import datetime
 from database import SessionLocal
 import crud
+from config import HEADLESS
 
 logging.basicConfig(level=logging.INFO)
 
@@ -78,8 +79,8 @@ class PriceCalculator:
         self._update_status(f"Starting price calculation for {domain}", "config", {"domain": domain})
 
         async with async_playwright() as p:
-            # Launch browser in non-headless mode
-            browser = await p.chromium.launch(headless=False)
+            # Launch browser with headless mode based on environment
+            browser = await p.chromium.launch(headless=HEADLESS)
             # Create page with full HD viewport
             page = await browser.new_page(viewport={'width': 1920, 'height': 1080})
 

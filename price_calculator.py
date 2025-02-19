@@ -1,6 +1,5 @@
 from playwright.async_api import async_playwright, Page, expect
 from typing import Dict, Any, Optional, Tuple, List
-from domain_config import DomainConfig
 import logging
 import re
 import os
@@ -8,6 +7,8 @@ import json
 import asyncio
 from urllib.parse import urlparse
 from datetime import datetime
+from database import SessionLocal
+import crud
 
 logging.basicConfig(level=logging.INFO)
 
@@ -18,147 +19,121 @@ class PriceCalculator:
     latest_status = None
     
     def __init__(self):
-        self.configs = {}
-        self._load_configs()
+        """Initialize the calculator"""
+        self._update_status("Initializing calculator")
+
+    def _normalize_domain(self, url: str) -> str:
+        """Normalize domain name by removing www. and getting base domain"""
+        parsed = urlparse(url if url.startswith('http') else f'http://{url}')
+        domain = parsed.netloc or parsed.path
+        return domain.replace('www.', '')
 
     def _load_configs(self):
-        config_dir = os.path.join(os.path.dirname(__file__), 'config', 'domains')
-        for filename in os.listdir(config_dir):
-            if filename.endswith('.json'):
-                with open(os.path.join(config_dir, filename)) as f:
-                    config = json.load(f)
-                    self.configs[config['domain']] = config
+        """Load configurations from database"""
+        db = SessionLocal()
+        try:
+            # Load domain configs
+            domain_configs = crud.get_domain_configs(db)
+            for config in domain_configs:
+                self.configs[config.domain] = config.config
+        finally:
+            db.close()
 
     def _update_status(self, message: str, step_type: str = None, step_details: dict = None):
-        """Update the status with new information"""
+        """Update the status of the current operation"""
         PriceCalculator.latest_status = {
             "message": message,
-            "step_type": step_type or "info",  # Default to "info" if no step_type
-            "step_details": step_details if step_details is not None else {},  # Empty dict instead of None
+            "step_type": step_type,
+            "step_details": step_details,
             "timestamp": datetime.now().isoformat()
         }
         logging.info(f"Status update: {message}")
 
     async def calculate_price(self, url: str, dimensions: Dict[str, float], country: str = 'nl', category: str = 'square_meter_price') -> Tuple[float, float]:
-        self._update_status("Starting price calculation...")
-        domain = urlparse(url).netloc.replace('www.', '')
-        if domain not in self.configs:
-            raise ValueError(f"No configuration found for domain {domain}")
+        """Calculate price based on dimensions for a specific domain"""
+        try:
+            # Get domain from URL
+            domain = self._normalize_domain(url)
+            
+            # Get configuration from database
+            db = SessionLocal()
+            config = crud.get_domain_config(db, domain)
+            if not config:
+                raise ValueError(f"No configuration found for domain: {domain}")
+            
+            domain_config = config.config
 
-        logging.info(f"Calculating price for {url}")
-        logging.info(f"Original dimensions: {dimensions}")
-        
-        config = self.configs[domain]
-        if 'categories' not in config or category not in config['categories']:
-            raise ValueError(f"No configuration found for category {category} on domain {domain}")
-            
-        category_config = config['categories'][category]
-        logging.info(f"Using config: {category_config}")
-        
-        self._update_status("Loading configuration...", "config", {"domain": domain, "category": category})
-        
-        # Load package configuration if this is a shipping calculation
-        if category == 'shipping':
-            with open('config/packages.json') as f:
-                packages = json.load(f)
-            package_type = str(dimensions.get('package_type', '1'))
-            if package_type not in packages['packages']:
-                raise ValueError(f"Invalid package type: {package_type}")
-            
-            # Log the package configuration before merging
-            package = packages['packages'][package_type]
-            logging.info(f"Package configuration from packages.json: {package}")
-            
-            # Merge dimensions, letting package dimensions take precedence
-            original_dimensions = dimensions.copy()
-            dimensions = {
-                **original_dimensions,  # Start with original dimensions
-                'thickness': package['thickness'],  # Override with package dimensions
-                'width': package['width'],
-                'length': package['length'],
-                'quantity': package['quantity']
-            }
-            logging.info(f"Final dimensions after merging: {dimensions}")
-            
-            # Double check the thickness value
-            logging.info(f"Thickness value being used: {dimensions['thickness']}")
-            if dimensions['thickness'] != package['thickness']:
-                logging.warning(f"Thickness mismatch! Package thickness: {package['thickness']}, Final thickness: {dimensions['thickness']}")
-        
-        # Determine if we should run in headless mode based on environment
-        is_production = os.getenv('FLY_APP_NAME') is not None
-        headless = is_production
-        logging.info(f"Running in {'headless' if headless else 'headed'} mode")
-        
+            # Get country config
+            country_config = crud.get_country_config(db, country)
+            if not country_config:
+                country_config = crud.get_country_config(db, 'nl')  # Fallback to NL
+            country_info = country_config.config
+
+        finally:
+            db.close()
+
+        if category not in domain_config['categories']:
+            raise ValueError(f"Category '{category}' not supported for domain: {domain}")
+
+        self._update_status(f"Starting price calculation for {domain}", "config", {"domain": domain})
+
         async with async_playwright() as p:
-            self._update_status("Starting browser...")
-            browser = await p.chromium.launch(headless=headless)
-            context = await browser.new_context(viewport={'width': 1280, 'height': 1024})
-            page = await context.new_page()
-            
-            try:
-                self._update_status(f"Navigating to {url}...", "navigation", {"url": url})
-                await page.goto(url)
-                
-                # Wait for different load states to ensure complete loading
-                self._update_status("Waiting for page to load...", "loading")
-                await page.wait_for_load_state("domcontentloaded")
-                await page.wait_for_load_state("load")
-                await page.wait_for_load_state("networkidle")
-                
-                try:
-                    await page.wait_for_function("document.readyState === 'complete'")
-                    self._update_status("Page fully loaded", "loaded")
-                except Exception as e:
-                    logging.warning(f"Could not verify JavaScript completion: {str(e)}")
-                
-                await asyncio.sleep(1)
+            # Launch browser in non-headless mode
+            browser = await p.chromium.launch(headless=False)
+            # Create page with full HD viewport
+            page = await browser.new_page(viewport={'width': 1920, 'height': 1080})
 
-                for step in category_config['steps']:
-                    self._update_status(f"Executing step: {step['type']}...", step['type'], step)
+            try:
+                # Navigate to URL
+                self._update_status(f"Navigating to {url}", "navigation", {"url": url})
+                await page.goto(url)
+                self._update_status("Page loaded", "loaded")
+
+                # Execute steps
+                steps = domain_config['categories'][category]['steps']
+                for step in steps:
+                    step_type = step['type']
                     
-                    if step['type'] == 'select':
+                    if step_type == 'select':
                         await self._handle_select(page, step, dimensions)
-                    elif step['type'] == 'input':
+                    elif step_type == 'input':
                         await self._handle_input(page, step, dimensions)
-                    elif step['type'] == 'click':
+                    elif step_type == 'click':
                         await self._handle_click(page, step)
-                    elif step['type'] == 'wait':
+                    elif step_type == 'wait':
                         await self._handle_wait(step)
-                    elif step['type'] == 'blur':
+                    elif step_type == 'blur':
                         await self._handle_blur(page, step)
-                    elif step['type'] == 'read_price':
+                    elif step_type == 'read_price':
                         price = await self._handle_read_price(page, step)
                         
-                        self._update_status("Calculating final price...", "calculation")
-                        
-                        # Load VAT rates from configuration
-                        with open('config/countries.json') as f:
-                            countries = json.load(f)
-                        vat_rate = countries.get(country, countries['nl'])['vat_rate'] / 100
-                        
+                        # Convert price based on VAT
+                        vat_rate = country_info['vat_rate']
                         if step.get('includes_vat', False):
-                            price_incl_vat = price
-                            price_excl_vat = price / (1 + vat_rate)
+                            price_excl = price / (1 + vat_rate/100)
+                            price_incl = price
                         else:
-                            price_excl_vat = price
-                            price_incl_vat = price * (1 + vat_rate)
+                            price_excl = price
+                            price_incl = price * (1 + vat_rate/100)
+
+                        self._update_status(
+                            "Price calculation completed",
+                            "complete",
+                            {
+                                "price_excl_vat": price_excl,
+                                "price_incl_vat": price_incl
+                            }
+                        )
                         
-                        self._update_status("Calculation complete!", "complete", {
-                            "price_excl_vat": price_excl_vat,
-                            "price_incl_vat": price_incl_vat
-                        })
-                            
-                        return price_excl_vat, price_incl_vat
+                        return price_excl, price_incl
 
             except Exception as e:
-                self._update_status(f"Error: {str(e)}", "error", {"error": str(e)})
-                logging.error(f"Error calculating price: {str(e)}")
+                self._update_status(f"Error: {str(e)}", "error")
                 raise
             finally:
-                await asyncio.sleep(2)
                 await browser.close()
-                self._update_status("Browser closed", "cleanup")
+
+        raise ValueError("No price found in configuration steps")
 
     def _convert_value(self, value: float, unit: str) -> float:
         """Convert a value from millimeters to the target unit"""
@@ -170,22 +145,33 @@ class PriceCalculator:
         return value  # Default is mm
 
     async def _handle_select(self, page, step, dimensions):
+        """Handle a select/input step"""
         value = step['value']
+        selector = step['selector']
         
         # Handle regular value-based selection
         for key in ['thickness', 'width', 'length']:
             if f"{{{key}}}" in value:
                 if key in dimensions:
                     converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
-                    # Convert to integer if it's a whole number
                     if isinstance(converted_value, float) and converted_value.is_integer():
                         converted_value = int(converted_value)
                     value = value.replace(f"{{{key}}}", str(converted_value))
-                    logging.info(f"Converted {key} value to: {converted_value}")
+                    self._update_status(
+                        f"Setting {key} to {converted_value}",
+                        "select",
+                        {
+                            "selector": selector,
+                            "value": str(converted_value),
+                            "unit": step.get('unit', 'mm')
+                        }
+                    )
                 else:
-                    logging.warning(f"Dimension {key} not found in dimensions dict")
+                    self._update_status(f"Dimension {key} not found", "error")
+                    raise ValueError(f"Dimension {key} not found in dimensions dict")
         
-        logging.info(f"Handling select/input: {step['selector']} with target value {value}")
+        logging.info(f"Handling select/input: {selector} with target value {value}")
+        self._update_status(f"Handling select/input with value {value}", "select", {"selector": selector, "value": value})
         target_value = float(value)
 
         # First check if we need to open a dropdown/container
@@ -196,9 +182,9 @@ class PriceCalculator:
                 await asyncio.sleep(0.5)
 
         # Find all matching elements
-        elements = await page.query_selector_all(step['selector'])
+        elements = await page.query_selector_all(selector)
         if not elements:
-            raise ValueError(f"No elements found matching selector: {step['selector']}")
+            raise ValueError(f"No elements found matching selector: {selector}")
 
         best_match = None
         smallest_diff = float('inf')
@@ -322,10 +308,21 @@ class PriceCalculator:
                     if converted_value.is_integer():
                         converted_value = int(converted_value)
                     value = value.replace(f"{{{key}}}", str(converted_value))
+                    self._update_status(
+                        f"Setting {key} to {converted_value}",
+                        "input",
+                        {
+                            "selector": step['selector'],
+                            "value": str(converted_value),
+                            "unit": step.get('unit', 'mm')
+                        }
+                    )
                 else:
-                    logging.warning(f"Dimension {key} not found in dimensions dict")
+                    self._update_status(f"Dimension {key} not found", "error")
+                    raise ValueError(f"Dimension {key} not found in dimensions dict")
 
         logging.info(f"Handling input: {step['selector']} with value {value}")
+        self._update_status(f"Setting input value {value}", "input", {"selector": step['selector'], "value": value})
         
         element = await page.wait_for_selector(step['selector'])
         
@@ -347,80 +344,72 @@ class PriceCalculator:
         await asyncio.sleep(0.5)  # Single wait after all events
 
     async def _handle_click(self, page, step):
-        logging.info(f"Handling click: {step['selector']}")
-        element = await page.wait_for_selector(step['selector'])
-        await element.click()
-        await asyncio.sleep(0.5)
-
-    async def _handle_wait(self, step):
-        # Predefined wait durations
-        WAIT_DURATIONS = {
-            'short': 250,    # 0.25 seconds
-            'default': 500,  # 0.5 seconds
-            'long': 1000,    # 1 second
-            'longer': 2000   # 2 seconds
-        }
+        """Handle a click step"""
+        selector = step['selector']
+        description = step.get('description', '')
         
-        # Get duration from step config
-        if isinstance(step.get('duration'), str):
-            # Use predefined duration if string is provided
-            duration = WAIT_DURATIONS.get(step['duration'].lower(), WAIT_DURATIONS['default'])
+        # Add more descriptive messages for specific actions
+        if 'figure' in selector.lower():
+            self._update_status(f"Selecting figure shape", "click", {"selector": selector})
+        elif 'calculator' in selector.lower():
+            self._update_status(f"Opening calculator section", "click", {"selector": selector})
+        elif 'winkelwagen' in selector.lower():
+            self._update_status(f"Adding to shopping cart", "click", {"selector": selector})
         else:
-            # Use custom duration if number is provided, fallback to default
-            duration = step.get('duration', WAIT_DURATIONS['default'])
-            
-        duration_seconds = duration / 1000
-        logging.info(f"Waiting for {duration_seconds} seconds")
-        await asyncio.sleep(duration_seconds)
-
-    async def _handle_read_price(self, page, step):
-        logging.info(f"Reading price with selector: {step['selector']}")
+            self._update_status(f"Clicking {selector}", "click", {"selector": selector})
         
         try:
-            if step['selector'].startswith('xpath='):
-                element = await page.wait_for_selector(f"{step['selector']}")
-            else:
-                element = await page.wait_for_selector(step['selector'])
-                
-            if not element and 'default_value' in step:
-                logging.info(f"Element not found, returning default value: {step['default_value']}")
-                return step['default_value']
-                
-            text = await element.text_content()
-            logging.info(f"Found price text: {text}")
-            
-            # Clean the price text:
-            # 1. Replace comma with dot for decimal
-            # 2. Remove any trailing dots
-            # 3. Keep only digits and one decimal point
-            cleaned_text = text.replace(',', '.').rstrip('.')
-            price_str = ''.join(char for char in cleaned_text if char.isdigit() or char == '.')
-            
-            # If we have multiple dots, keep only the first one
-            if price_str.count('.') > 1:
-                parts = price_str.split('.')
-                price_str = parts[0] + '.' + ''.join(parts[1:])
-            
-            logging.info(f"Cleaned price text: {price_str}")
-            price = float(price_str)
-            logging.info(f"Extracted price: {price}")
-            
-            if 'calculation' in step:
-                if 'divide_by' in step['calculation']:
-                    price = price / step['calculation']['divide_by']
-                    logging.info(f"Price after division: {price}")
-                if 'add' in step['calculation']:
-                    price = price + step['calculation']['add']
-                    logging.info(f"Price after addition: {price}")
-                    
-            return price
-            
+            element = await page.wait_for_selector(selector)
+            if element:
+                await element.click()
+                self._update_status(f"Successfully clicked {selector}", "click", {"selector": selector, "status": "success"})
         except Exception as e:
-            logging.error(f"Error reading price: {str(e)}")
-            if 'default_value' in step:
-                logging.info(f"Returning default value: {step['default_value']}")
-                return step['default_value']
-            raise ValueError(f"Could not read price: {str(e)}")
+            self._update_status(f"Click failed: {str(e)}", "error")
+            raise
+
+    async def _handle_wait(self, step):
+        """Handle a wait step"""
+        # Predefined wait durations in seconds
+        WAIT_DURATIONS = {
+            'short': 0.5,
+            'default': 1.0,
+            'long': 1.5,
+            'longer': 3.0
+        }
+        
+        duration = step.get('duration', 'default')
+        if isinstance(duration, str):
+            wait_time = WAIT_DURATIONS.get(duration.lower(), WAIT_DURATIONS['default'])
+        else:
+            wait_time = float(duration)
+            
+        self._update_status(f"Waiting for {wait_time} seconds", "wait", {"duration": wait_time})
+        await asyncio.sleep(wait_time)
+        self._update_status(f"Wait completed", "wait", {"duration": wait_time})
+
+    async def _handle_read_price(self, page, step):
+        """Handle reading a price"""
+        selector = step['selector']
+        self._update_status("Reading price", "read_price", {"selector": selector})
+        
+        try:
+            element = await page.wait_for_selector(selector)
+            if not element:
+                self._update_status("Price element not found", "error")
+                raise ValueError(f"Price element not found with selector: {selector}")
+
+            price_text = await element.text_content()
+            self._update_status("Found price text", "read_price", {"text": price_text})
+            
+            # Clean and parse price
+            cleaned_price = re.sub(r'[^\d,.]', '', price_text).replace(',', '.')
+            price = float(cleaned_price)
+            
+            self._update_status(f"Price found: €{price:.2f}", "read_price", {"price": price})
+            return price
+        except Exception as e:
+            self._update_status(f"Error reading price: {str(e)}", "error")
+            raise
 
     def _convert_dimensions(self, dimensions: Dict[str, float], units: Dict[str, str]) -> Dict[str, float]:
         """Convert dimensions to the units required by the domain"""
@@ -758,8 +747,10 @@ class PriceCalculator:
         """Analyseert de form fields op de pagina"""
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch()
-                page = await browser.new_page()
+                # Launch browser in non-headless mode
+                browser = await p.chromium.launch(headless=False)
+                # Create page with full HD viewport
+                page = await browser.new_page(viewport={'width': 1920, 'height': 1080})
                 await page.goto(url)
                 
                 dimension_fields = {}
@@ -804,7 +795,22 @@ class PriceCalculator:
             return {}
 
     async def _handle_blur(self, page, step):
-        """Handle blur by pressing Tab key"""
-        logging.info("Pressing Tab key")
-        await page.keyboard.press('Tab')
-        await asyncio.sleep(0.1) 
+        """Handle a blur step by either using the selector from the step or the last interacted element"""
+        selector = step.get('selector')
+        
+        try:
+            if selector:
+                # If a selector is provided, use it
+                self._update_status(f"Triggering blur on {selector}", "blur", {"selector": selector})
+                element = await page.wait_for_selector(selector)
+                if element:
+                    await element.evaluate('(el) => { el.blur(); }')
+                    self._update_status(f"Blur completed on {selector}", "blur", {"selector": selector, "status": "success"})
+            else:
+                # If no selector is provided, try to blur the active element
+                self._update_status("Triggering blur on active element", "blur")
+                await page.evaluate('() => { document.activeElement?.blur(); }')
+                self._update_status("Blur completed on active element", "blur", {"status": "success"})
+        except Exception as e:
+            self._update_status(f"Blur failed: {str(e)}", "error")
+            raise 

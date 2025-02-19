@@ -205,14 +205,6 @@ function showModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('hidden');
-        // Reset form fields when showing modal
-        if (modalId === 'newDomainModal') {
-            newDomainConfig();
-        } else if (modalId === 'newCountryModal') {
-            newCountryConfig();
-        } else if (modalId === 'newPackageModal') {
-            newPackageConfig();
-        }
     }
 }
 
@@ -225,6 +217,7 @@ function hideModal(modalId) {
 
 // Domain configuration functions
 function newDomainConfig() {
+    showModal('newDomainModal');
     const defaultConfig = {
         "domain": "",
         "categories": {
@@ -251,103 +244,31 @@ function newDomainConfig() {
                         "selector": "",
                         "value": "{length}",
                         "unit": "mm"
-                    },
-                    {
-                        "type": "wait",
-                        "duration": "default"
-                    },
-                    {
-                        "type": "read_price",
-                        "selector": "",
-                        "includes_vat": false
                     }
                 ]
             }
         }
     };
-
-    document.getElementById('newDomainName').value = '';
     document.getElementById('newDomainConfig').value = JSON.stringify(defaultConfig, null, 2);
-    showModal('newDomainModal');
-}
-
-function newCountryConfig() {
-    const defaultConfig = {
-        "name": "",
-        "currency": "EUR",
-        "vat": 21,
-        "shipping": {
-            "base_cost": 0,
-            "cost_per_m2": 0
-        }
-    };
-
-    document.getElementById('newCountryCode').value = '';
-    document.getElementById('newCountryConfig').value = JSON.stringify(defaultConfig, null, 2);
-    showModal('newCountryModal');
-}
-
-function newPackageConfig() {
-    const defaultConfig = {
-        "name": "",
-        "display": "",
-        "description": "",
-        "width": 0,
-        "length": 0,
-        "thickness": 0,
-        "quantity": 1
-    };
-
-    document.getElementById('newPackageId').value = '';
-    document.getElementById('newPackageConfig').value = JSON.stringify(defaultConfig, null, 2);
-    showModal('newPackageModal');
 }
 
 function showImportModal() {
-    document.getElementById('importFile').value = '';
     showModal('importConfigModal');
-}
-
-async function createDomainConfig() {
-    const domain = document.getElementById('newDomainName').value;
-    if (!domain) {
-        alert('Please enter a domain name');
-        return;
-    }
-
-    try {
-        const config = JSON.parse(document.getElementById('newDomainConfig').value);
-        config.domain = domain;
-
-        const response = await fetch('/api/config', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                domain: domain,
-                config: config
-            })
-        });
-
-        if (response.ok) {
-            location.reload();
-        } else {
-            const error = await response.json();
-            alert(`Error: ${error.error || 'Unknown error occurred'}`);
-        }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
-    }
+    document.getElementById('importFile').value = '';
 }
 
 async function saveDomainConfig(domain) {
     try {
-        const config = JSON.parse(document.getElementById(`domain_${domain}`).value);
+        const configElement = document.getElementById(`domain_${domain}`);
+        if (!configElement) {
+            throw new Error(`Could not find configuration for domain ${domain}`);
+        }
+
+        const config = JSON.parse(configElement.value);
         const response = await fetch('/api/config', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 domain: domain,
@@ -355,14 +276,50 @@ async function saveDomainConfig(domain) {
             })
         });
 
-        if (response.ok) {
-            alert('Configuration saved successfully');
-        } else {
-            const error = await response.json();
-            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to save configuration');
         }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
+
+        alert('Configuration saved successfully');
+        location.reload();
+    } catch (error) {
+        alert(`Error saving configuration: ${error.message}`);
+    }
+}
+
+async function createDomainConfig() {
+    try {
+        const domain = document.getElementById('newDomainName').value.trim();
+        if (!domain) {
+            throw new Error('Domain name is required');
+        }
+
+        const configText = document.getElementById('newDomainConfig').value;
+        const config = JSON.parse(configText);
+        config.domain = domain;  // Ensure domain is set in config
+
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                domain: domain,
+                config: config
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to create configuration');
+        }
+
+        hideModal('newDomainModal');
+        alert('Configuration created successfully');
+        location.reload();
+    } catch (error) {
+        alert(`Error creating configuration: ${error.message}`);
     }
 }
 
@@ -376,73 +333,41 @@ async function deleteDomainConfig(domain) {
             method: 'DELETE'
         });
 
-        if (response.ok) {
-            location.reload();
-        } else {
-            const error = await response.json();
-            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to delete configuration');
         }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
-    }
-}
 
-function exportDomainConfig(domain) {
-    try {
-        const config = document.getElementById(`domain_${domain}`).value;
-        const blob = new Blob([config], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${domain}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    } catch (e) {
-        alert(`Error: ${e.message}`);
+        alert('Configuration deleted successfully');
+        location.reload();
+    } catch (error) {
+        alert(`Error deleting configuration: ${error.message}`);
     }
 }
 
 // Country configuration functions
-async function createCountryConfig() {
-    const countryCode = document.getElementById('newCountryCode').value;
-    if (!countryCode) {
-        alert('Please enter a country code');
-        return;
-    }
-
-    try {
-        const config = JSON.parse(document.getElementById('newCountryConfig').value);
-        const response = await fetch('/api/country', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                country: countryCode,
-                config: config
-            })
-        });
-
-        if (response.ok) {
-            location.reload();
-        } else {
-            const error = await response.json();
-            alert(`Error: ${error.error || 'Unknown error occurred'}`);
-        }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
-    }
+function newCountryConfig() {
+    const defaultConfig = {
+        "name": "",
+        "currency": "EUR",
+        "currency_symbol": "€",
+        "vat_rate": 21
+    };
+    document.getElementById('newCountryConfig').value = JSON.stringify(defaultConfig, null, 2);
 }
 
 async function saveCountryConfig(country) {
     try {
-        const config = JSON.parse(document.getElementById(`country_${country}`).value);
+        const configElement = document.getElementById(`country_${country}`);
+        if (!configElement) {
+            throw new Error(`Could not find configuration for country ${country}`);
+        }
+
+        const config = JSON.parse(configElement.value);
         const response = await fetch('/api/country', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 country: country,
@@ -450,14 +375,49 @@ async function saveCountryConfig(country) {
             })
         });
 
-        if (response.ok) {
-            alert('Configuration saved successfully');
-        } else {
-            const error = await response.json();
-            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to save configuration');
         }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
+
+        alert('Configuration saved successfully');
+        location.reload();
+    } catch (error) {
+        alert(`Error saving configuration: ${error.message}`);
+    }
+}
+
+async function createCountryConfig() {
+    try {
+        const country = document.getElementById('newCountryCode').value.trim();
+        if (!country) {
+            throw new Error('Country code is required');
+        }
+
+        const configText = document.getElementById('newCountryConfig').value;
+        const config = JSON.parse(configText);
+
+        const response = await fetch('/api/country', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                country: country,
+                config: config
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to create configuration');
+        }
+
+        hideModal('newCountryModal');
+        alert('Configuration created successfully');
+        location.reload();
+    } catch (error) {
+        alert(`Error creating configuration: ${error.message}`);
     }
 }
 
@@ -471,56 +431,44 @@ async function deleteCountryConfig(country) {
             method: 'DELETE'
         });
 
-        if (response.ok) {
-            location.reload();
-        } else {
-            const error = await response.json();
-            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to delete configuration');
         }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
+
+        alert('Configuration deleted successfully');
+        location.reload();
+    } catch (error) {
+        alert(`Error deleting configuration: ${error.message}`);
     }
 }
 
 // Package configuration functions
-async function createPackageConfig() {
-    const packageId = document.getElementById('newPackageId').value;
-    if (!packageId) {
-        alert('Please enter a package ID');
-        return;
-    }
-
-    try {
-        const config = JSON.parse(document.getElementById('newPackageConfig').value);
-        const response = await fetch('/api/packages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                package_id: packageId,
-                config: config
-            })
-        });
-
-        if (response.ok) {
-            location.reload();
-        } else {
-            const error = await response.json();
-            alert(`Error: ${error.error || 'Unknown error occurred'}`);
-        }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
-    }
+function newPackageConfig() {
+    const defaultConfig = {
+        "name": "",
+        "description": "",
+        "display": "",
+        "length": 0,
+        "width": 0,
+        "thickness": 0,
+        "quantity": 1
+    };
+    document.getElementById('newPackageConfig').value = JSON.stringify(defaultConfig, null, 2);
 }
 
 async function savePackageConfig(id) {
     try {
-        const config = JSON.parse(document.getElementById(`package_${id}`).value);
+        const configElement = document.getElementById(`package_${id}`);
+        if (!configElement) {
+            throw new Error(`Could not find configuration for package ${id}`);
+        }
+
+        const config = JSON.parse(configElement.value);
         const response = await fetch('/api/packages', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 package_id: id,
@@ -528,19 +476,54 @@ async function savePackageConfig(id) {
             })
         });
 
-        if (response.ok) {
-            alert('Configuration saved successfully');
-        } else {
-            const error = await response.json();
-            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to save configuration');
         }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
+
+        alert('Configuration saved successfully');
+        location.reload();
+    } catch (error) {
+        alert(`Error saving configuration: ${error.message}`);
+    }
+}
+
+async function createPackageConfig() {
+    try {
+        const id = document.getElementById('newPackageId').value.trim();
+        if (!id) {
+            throw new Error('Package ID is required');
+        }
+
+        const configText = document.getElementById('newPackageConfig').value;
+        const config = JSON.parse(configText);
+
+        const response = await fetch('/api/packages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                package_id: id,
+                config: config
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to create configuration');
+        }
+
+        hideModal('newPackageModal');
+        alert('Configuration created successfully');
+        location.reload();
+    } catch (error) {
+        alert(`Error creating configuration: ${error.message}`);
     }
 }
 
 async function deletePackageConfig(id) {
-    if (!confirm(`Are you sure you want to delete package configuration ${id}?`)) {
+    if (!confirm(`Are you sure you want to delete the configuration for package ${id}?`)) {
         return;
     }
 
@@ -549,60 +532,111 @@ async function deletePackageConfig(id) {
             method: 'DELETE'
         });
 
-        if (response.ok) {
-            location.reload();
-        } else {
-            const error = await response.json();
-            alert(`Error: ${error.error || 'Unknown error occurred'}`);
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to delete configuration');
         }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
+
+        alert('Configuration deleted successfully');
+        location.reload();
+    } catch (error) {
+        alert(`Error deleting configuration: ${error.message}`);
     }
 }
 
-// Import configuration function
-async function importConfig() {
-    const fileInput = document.getElementById('importFile');
-    const file = fileInput.files[0];
-    if (!file) {
-        alert('Please select a file to import');
-        return;
-    }
-
+// Import/Export functions
+function exportDomainConfig(domain) {
     try {
-        const content = await file.text();
-        const config = JSON.parse(content);
-        
-        if (!config.domain) {
-            throw new Error('Invalid configuration file: missing domain property');
+        const configElement = document.getElementById(`domain_${domain}`);
+        if (!configElement) {
+            throw new Error(`Could not find configuration for domain ${domain}`);
         }
 
-        const response = await fetch('/api/config', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                domain: config.domain,
-                config: config
-            })
-        });
-
-        if (response.ok) {
-            location.reload();
-        } else {
-            const error = await response.json();
-            alert(`Error: ${error.error || 'Unknown error occurred'}`);
-        }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
+        const config = JSON.parse(configElement.value);
+        const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${domain}_config.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        alert(`Error exporting configuration: ${error.message}`);
     }
 }
 
-// Search function
+async function importConfig() {
+    try {
+        const fileInput = document.getElementById('importFile');
+        const file = fileInput.files[0];
+        if (!file) {
+            throw new Error('Please select a file to import');
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const config = JSON.parse(e.target.result);
+                if (!config.domain) {
+                    throw new Error('Configuration file must contain a domain field');
+                }
+
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        domain: config.domain,
+                        config: config
+                    })
+                });
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to import configuration');
+                }
+
+                hideModal('importConfigModal');
+                alert('Configuration imported successfully');
+                location.reload();
+            } catch (error) {
+                alert(`Error importing configuration: ${error.message}`);
+            }
+        };
+        reader.readAsText(file);
+    } catch (error) {
+        alert(`Error importing configuration: ${error.message}`);
+    }
+}
+
+// Toggle accordion items
+document.addEventListener('DOMContentLoaded', function() {
+    const accordionButtons = document.querySelectorAll('[data-bs-toggle="collapse"]');
+    accordionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-bs-target');
+            const targetElement = document.querySelector(targetId);
+            if (targetElement) {
+                targetElement.classList.toggle('hidden');
+                const icon = this.querySelector('svg');
+                if (icon) {
+                    icon.style.transform = targetElement.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+                }
+            }
+        });
+    });
+});
+
+// Domain search functionality
 function filterDomains() {
-    const searchTerm = document.getElementById('domainSearch').value.toLowerCase();
-    document.querySelectorAll('.domain-item').forEach(item => {
+    const searchInput = document.getElementById('domainSearch');
+    const searchTerm = searchInput.value.toLowerCase();
+    const domainItems = document.querySelectorAll('.domain-item');
+
+    domainItems.forEach(item => {
         const domain = item.getAttribute('data-domain').toLowerCase();
         if (domain.includes(searchTerm)) {
             item.style.display = '';
@@ -612,23 +646,122 @@ function filterDomains() {
     });
 }
 
-// Initialize accordion functionality
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(button => {
-        button.addEventListener('click', function() {
-            const targetId = this.getAttribute('data-bs-target');
-            const targetPanel = document.querySelector(targetId);
-            const icon = this.querySelector('svg');
-            
-            if (targetPanel.classList.contains('hidden')) {
-                targetPanel.classList.remove('hidden');
-                icon.classList.add('rotate-180');
-            } else {
-                targetPanel.classList.add('hidden');
-                icon.classList.remove('rotate-180');
-            }
-        });
+// Status stream handling
+let eventSource = null;
+
+function startStatusStream() {
+    // Always close existing connection first
+    if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+    }
+
+    eventSource = new EventSource('/api/status-stream');
+    
+    eventSource.addEventListener('status', (event) => {
+        const status = JSON.parse(event.data);
+        updateStatus(status);
     });
-});
+
+    eventSource.onerror = (error) => {
+        console.error('SSE Error:', error);
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+        }
+    };
+}
+
+function getStepEmoji(step_type) {
+    const emojis = {
+        'navigation': '→',
+        'loading': '⋯',
+        'loaded': '✓',
+        'select': '▼',
+        'input': '⌥',
+        'click': '⊙',
+        'wait': '◌',
+        'read_price': '€',
+        'calculation': '∑',
+        'complete': '★',
+        'error': '×',
+        'cleanup': '⌫',
+        'config': '⚙'
+    };
+    return emojis[step_type] || '•';
+}
+
+function formatStepDetails(status) {
+    if (!status.step_details) return '';
+    if (status.step_details === null) return '';
+
+    switch (status.step_type) {
+        case 'select':
+            const selector = status.step_details.selector || '';
+            const value = status.step_details.value?.replace('{thickness}', '')
+                .replace('{width}', '')
+                .replace('{length}', '') || '';
+            return `${selector} ${value}`;
+        case 'input':
+            return `${status.step_details.selector} = ${status.step_details.value}`;
+        case 'navigation':
+            return status.step_details.url;
+        case 'complete':
+            const excl = status.step_details.price_excl_vat.toFixed(2);
+            const incl = status.step_details.price_incl_vat.toFixed(2);
+            return `€${excl} (excl) / €${incl} (incl)`;
+        case 'config':
+            return `${status.step_details.domain}`;
+        case 'click':
+            return status.step_details.selector || '';
+        default:
+            return '';
+    }
+}
+
+function updateStatus(status) {
+    // Format timestamp
+    const timestamp = new Date(status.timestamp).toLocaleTimeString('nl-NL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+
+    // Update logging information with compact format
+    const stepEmoji = getStepEmoji(status.step_type);
+    const stepDetails = formatStepDetails(status);
+    const logLine = `<div class="status-update">
+        <span class="timestamp">${timestamp}</span>
+        <span class="step-emoji" data-type="${status.step_type}">${stepEmoji}</span>
+        <span class="step-type">${status.step_type}</span>
+        ${stepDetails ? `<span class="step-details">${stepDetails}</span>` : ''}
+    </div>`;
+    
+    // Add log line to all logging divs
+    const loggingDivs = document.querySelectorAll('.logging-info');
+    loggingDivs.forEach(div => {
+        const content = div.querySelector('[id$="_content"]');
+        if (content) {
+            content.innerHTML += logLine;
+            // Ensure we always scroll to the latest activity
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    content.scrollTop = content.scrollHeight;
+                }, 0);
+            });
+        }
+    });
+
+    // If it's a complete or error status, close the EventSource connection
+    if (status.step_type === 'complete' || status.step_type === 'error') {
+        if (eventSource) {
+            const es = eventSource;
+            eventSource = null;
+            setTimeout(() => {
+                es.close();
+            }, 100);
+        }
+    }
+}
 </script>
 {% endblock %} 

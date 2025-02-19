@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -8,6 +8,9 @@ import os
 import asyncio
 from price_calculator import PriceCalculator
 from sse_starlette.sse import EventSourceResponse
+from sqlalchemy.orm import Session
+from database import get_db
+import crud, schemas
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -15,13 +18,6 @@ templates = Jinja2Templates(directory="templates")
 
 # Initialize calculator
 calculator = PriceCalculator()
-
-# Load configurations
-with open('config/countries.json') as f:
-    countries = json.load(f)
-
-with open('config/packages.json') as f:
-    package_config = json.load(f)
 
 class SquareMeterPriceRequest(BaseModel):
     url: str
@@ -49,33 +45,33 @@ class PackageRequest(BaseModel):
     config: dict
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+async def read_root(request: Request, db: Session = Depends(get_db)):
+    # Get configurations from database
+    countries = {config.country_code: config.config for config in crud.get_country_configs(db)}
+    packages = {config.package_id: config.config for config in crud.get_package_configs(db)}
+    
     return templates.TemplateResponse("index.html", {
         "request": request, 
         "countries": countries,
-        "packages": package_config["packages"]
+        "packages": packages
     })
 
 @app.get("/config")
-async def config_page(request: Request):
-    # Load domain configurations
-    domain_configs = {}
-    domain_config_dir = os.path.join(os.path.dirname(__file__), 'config', 'domains')
-    for filename in os.listdir(domain_config_dir):
-        if filename.endswith('.json'):
-            with open(os.path.join(domain_config_dir, filename)) as f:
-                config = json.load(f)
-                domain_configs[config['domain']] = config
+async def config_page(request: Request, db: Session = Depends(get_db)):
+    # Get configurations from database
+    domain_configs = {config.domain: config.config for config in crud.get_domain_configs(db)}
+    country_configs = {config.country_code: config.config for config in crud.get_country_configs(db)}
+    package_configs = {config.package_id: config.config for config in crud.get_package_configs(db)}
     
     return templates.TemplateResponse("config.html", {
         "request": request,
         "domain_configs": domain_configs,
-        "country_configs": countries,
-        "package_configs": package_config["packages"]
+        "country_configs": country_configs,
+        "package_configs": package_configs
     })
 
 @app.post("/api/calculate-smp")
-async def calculate_square_meter_price(request: SquareMeterPriceRequest):
+async def calculate_square_meter_price(request: SquareMeterPriceRequest, db: Session = Depends(get_db)):
     try:
         dimensions = {
             'thickness': request.dikte,
@@ -90,7 +86,10 @@ async def calculate_square_meter_price(request: SquareMeterPriceRequest):
             category='square_meter_price'
         )
         
-        country_info = countries.get(request.country, countries['nl'])
+        country_config = crud.get_country_config(db, request.country)
+        if not country_config:
+            country_config = crud.get_country_config(db, 'nl')  # Fallback to NL
+        country_info = country_config.config
         
         return {
             "status": "success",
@@ -126,14 +125,15 @@ async def calculate_square_meter_price(request: SquareMeterPriceRequest):
         )
 
 @app.post("/api/calculate-shipping")
-async def calculate_shipping(request: ShippingRequest):
+async def calculate_shipping(request: ShippingRequest, db: Session = Depends(get_db)):
     """Calculate shipping costs"""
     try:
         package_id = str(request.package_type)
-        if package_id not in package_config["packages"]:
-            raise ValueError(f"Invalid package type: {request.package_type}. Must be between 1 and {len(package_config['packages'])}.")
+        package_config = crud.get_package_config(db, package_id)
+        if not package_config:
+            raise ValueError(f"Invalid package type: {request.package_type}. Must be between 1 and 6.")
 
-        package = package_config["packages"][package_id]
+        package = package_config.config
         dimensions = {
             'package_type': package_id,  # Add package_type to dimensions
             'thickness': request.thickness if request.thickness is not None else package['thickness'],  # Allow thickness override
@@ -149,7 +149,10 @@ async def calculate_shipping(request: ShippingRequest):
             category='shipping'
         )
         
-        country_info = countries.get(request.country, countries['nl'])
+        country_config = crud.get_country_config(db, request.country)
+        if not country_config:
+            country_config = crud.get_country_config(db, 'nl')  # Fallback to NL
+        country_info = country_config.config
         
         return {
             "status": "success",
@@ -194,108 +197,78 @@ async def calculate_shipping(request: ShippingRequest):
         )
 
 @app.get("/api/config/{domain}")
-async def get_config(domain: str):
-    config_path = os.path.join('config', 'domains', f'{domain}.json')
-    if not os.path.exists(config_path):
+async def get_config(domain: str, db: Session = Depends(get_db)):
+    config = crud.get_domain_config(db, domain)
+    if not config:
         raise HTTPException(status_code=404, detail="Configuration not found")
-    
-    with open(config_path) as f:
-        return json.load(f)
+    return config.config
 
 @app.post("/api/config")
-async def save_config(request: ConfigRequest):
+async def save_config(request: ConfigRequest, db: Session = Depends(get_db)):
     try:
-        config_path = os.path.join('config', 'domains', f'{request.domain}.json')
-        with open(config_path, 'w') as f:
-            json.dump(request.config, f, indent=4)
+        config = schemas.DomainConfigCreate(domain=request.domain, config=request.config)
+        crud.create_domain_config(db, config)
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 @app.delete("/api/config/{domain}")
-async def delete_config(domain: str):
-    config_path = os.path.join('config', 'domains', f'{domain}.json')
-    if not os.path.exists(config_path):
+async def delete_config(domain: str, db: Session = Depends(get_db)):
+    if not crud.delete_domain_config(db, domain):
         raise HTTPException(status_code=404, detail="Configuration not found")
-    
-    os.remove(config_path)
     return {"success": True}
 
 @app.get("/api/country/{country}")
-async def get_country_config(country: str):
-    config_path = os.path.join('config', 'countries.json')
-    if not os.path.exists(config_path):
-        raise HTTPException(status_code=404, detail="Country configurations not found")
-    
-    with open(config_path) as f:
-        countries = json.load(f)
-        if country not in countries:
-            raise HTTPException(status_code=404, detail="Country not found")
-        return countries[country]
+async def get_country_config(country: str, db: Session = Depends(get_db)):
+    config = crud.get_country_config(db, country)
+    if not config:
+        raise HTTPException(status_code=404, detail="Country configuration not found")
+    return config.config
 
 @app.post("/api/country")
-async def save_country_config(request: CountryRequest):
+async def save_country_config(request: CountryRequest, db: Session = Depends(get_db)):
     try:
-        config_path = os.path.join('config', 'countries.json')
-        with open(config_path) as f:
-            countries = json.load(f)
-        
-        countries[request.country] = request.config
-        
-        with open(config_path, 'w') as f:
-            json.dump(countries, f, indent=4)
+        config = schemas.CountryConfigCreate(country_code=request.country, config=request.config)
+        crud.create_country_config(db, config)
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 @app.delete("/api/country/{country}")
-async def delete_country_config(country: str):
-    config_path = os.path.join('config', 'countries.json')
-    if not os.path.exists(config_path):
-        raise HTTPException(status_code=404, detail="Country configurations not found")
-    
-    with open(config_path) as f:
-        countries = json.load(f)
-        if country not in countries:
-            raise HTTPException(status_code=404, detail="Country not found")
-        del countries[country]
-    
-    with open(config_path, 'w') as f:
-        json.dump(countries, f, indent=4)
+async def delete_country_config(country: str, db: Session = Depends(get_db)):
+    if not crud.delete_country_config(db, country):
+        raise HTTPException(status_code=404, detail="Country configuration not found")
     return {"success": True}
 
 @app.get("/api/packages")
-async def get_packages():
+async def get_packages(db: Session = Depends(get_db)):
     """Get all package configurations"""
-    return package_config
+    packages = {config.package_id: config.config for config in crud.get_package_configs(db)}
+    return {"packages": packages}
 
 @app.get("/api/packages/{package_id}")
-async def get_package(package_id: str):
+async def get_package(package_id: str, db: Session = Depends(get_db)):
     """Get a specific package configuration"""
-    if package_id not in package_config["packages"]:
+    config = crud.get_package_config(db, package_id)
+    if not config:
         raise HTTPException(status_code=404, detail="Package configuration not found")
-    return package_config["packages"][package_id]
+    return config.config
 
 @app.post("/api/packages")
-async def save_package(request: PackageRequest):
+async def save_package(request: PackageRequest, db: Session = Depends(get_db)):
     """Save or update a package configuration"""
     try:
-        package_config["packages"][request.package_id] = request.config
-        with open('config/packages.json', 'w') as f:
-            json.dump(package_config, f, indent=4)
+        config = schemas.PackageConfigCreate(package_id=request.package_id, config=request.config)
+        crud.create_package_config(db, config)
         return {"success": True}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
 @app.delete("/api/packages/{package_id}")
-async def delete_package(package_id: str):
+async def delete_package(package_id: str, db: Session = Depends(get_db)):
     """Delete a package configuration"""
-    if package_id not in package_config["packages"]:
+    if not crud.delete_package_config(db, package_id):
         raise HTTPException(status_code=404, detail="Package configuration not found")
-    
-    del package_config["packages"][package_id]
-    with open('config/packages.json', 'w') as f:
-        json.dump(package_config, f, indent=4)
     return {"success": True}
 
 @app.get("/docs", response_class=HTMLResponse)

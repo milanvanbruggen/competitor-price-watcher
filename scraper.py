@@ -1,32 +1,47 @@
 from playwright.async_api import async_playwright
 from typing import Dict, Any, Optional
-from domain_config import DomainConfig
+from urllib.parse import urlparse
 import logging
+from database import SessionLocal
+import crud
 
 class MaterialScraper:
     def __init__(self):
-        self.domain_config = DomainConfig()
+        self.db = SessionLocal()
+        
+    def __del__(self):
+        if hasattr(self, 'db'):
+            self.db.close()
+            
+    def _normalize_domain(self, url: str) -> str:
+        """Extract and normalize the domain from a URL"""
+        return urlparse(url).netloc.replace('www.', '')
         
     async def analyze_form_fields(self, url: str) -> Dict[str, Any]:
-        """Analyze form fields on the page using domain configuration"""
+        """Analyze form fields on the page using domain configuration from database"""
         async with async_playwright() as p:
             browser = await p.chromium.launch()
             page = await browser.new_page()
             await page.goto(url)
             
-            config = self.domain_config.get_config(url)
+            domain = self._normalize_domain(url)
+            config = crud.get_domain_config(self.db, domain)
             if not config:
-                raise ValueError(f"No configuration found for URL: {url}")
-            
+                raise ValueError(f"No configuration found for domain: {domain}")
+                
+            config = config.config  # Get the actual config from the SQLAlchemy model
             dimension_fields = {}
             
             # Check each dimension field based on configuration
             for field_type in ['thickness', 'width', 'length']:
+                if 'selectors' not in config:
+                    continue
+                    
                 field_config = config['selectors'].get(field_type)
                 if not field_config:
                     continue
                     
-                if not field_config['exists']:
+                if not field_config.get('exists', True):
                     logging.info(f"{field_type} field is configured as non-existent for this domain")
                     continue
                 
@@ -71,7 +86,7 @@ class MaterialScraper:
 
     async def _fill_dimension_field(self, page, field_config: Dict[str, Any], value: float) -> bool:
         """Fill a dimension field based on configuration"""
-        if not field_config['exists']:
+        if not field_config.get('exists', True):
             return False
             
         try:

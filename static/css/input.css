@@ -22,6 +22,7 @@
   .step-emoji[data-type="input"] { @apply text-cyan-300; }
   .step-emoji[data-type="click"] { @apply text-orange-300; }
   .step-emoji[data-type="wait"] { @apply text-gray-500; }
+  .step-emoji[data-type="blur"] { @apply text-purple-400; }
   .step-emoji[data-type="read_price"] { @apply text-emerald-300; }
   .step-emoji[data-type="calculation"] { @apply text-blue-300; }
   .step-emoji[data-type="complete"] { @apply text-emerald-300; }
@@ -35,6 +36,10 @@
 
   .step-details {
     @apply text-emerald-200 text-[10px] truncate hover:text-clip hover:whitespace-normal;
+  }
+
+  .step-details[data-type="wait"] {
+    @apply text-gray-400;
   }
 
   .logging-info {

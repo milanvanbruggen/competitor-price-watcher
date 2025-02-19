@@ -265,6 +265,7 @@
             'input': '⌥',
             'click': '⊙',
             'wait': '◌',
+            'blur': '⊖',
             'read_price': '€',
             'calculation': '∑',
             'complete': '★',
@@ -297,6 +298,10 @@
             case 'config':
                 return `${status.step_details.domain}`;
             case 'click':
+                return status.step_details.selector || '';
+            case 'wait':
+                return `${status.step_details.duration}s`;
+            case 'blur':
                 return status.step_details.selector || '';
             default:
                 return '';

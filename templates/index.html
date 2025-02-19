@@ -387,8 +387,11 @@
 
             // Close the EventSource connection after completion
             if (eventSource) {
-                eventSource.close();
+                const es = eventSource;
                 eventSource = null;
+                setTimeout(() => {
+                    es.close();
+                }, 100);
             }
         } else if (status.step_type === 'error') {
             resultDiv.innerHTML = `
@@ -403,8 +406,11 @@
 
             // Close the EventSource connection on error
             if (eventSource) {
-                eventSource.close();
+                const es = eventSource;
                 eventSource = null;
+                setTimeout(() => {
+                    es.close();
+                }, 100);
             }
         }
     }

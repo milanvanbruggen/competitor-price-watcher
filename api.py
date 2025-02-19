@@ -57,8 +57,13 @@ async def read_root(request: Request, db: Session = Depends(get_db)):
     })
 
 @app.get("/step-editor")
-async def step_editor(request: Request):
-    return templates.TemplateResponse("step_editor.html", {"request": request})
+async def step_editor(request: Request, db: Session = Depends(get_db)):
+    # Get configurations from database
+    domain_configs = {config.domain: config.config for config in crud.get_domain_configs(db)}
+    return templates.TemplateResponse("step_editor.html", {
+        "request": request,
+        "domain_configs": domain_configs
+    })
 
 @app.get("/config")
 async def config_page(request: Request, db: Session = Depends(get_db)):

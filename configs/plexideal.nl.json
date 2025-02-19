@@ -1,0 +1,34 @@
+{
+  "domain": "plexideal.nl",
+  "categories": {
+    "square_meter_price": {
+      "steps": [
+        {
+          "selector": "#input_length",
+          "type": "input",
+          "unit": "cm",
+          "value": "{length}"
+        },
+        {
+          "duration": "default",
+          "type": "wait"
+        },
+        {
+          "selector": "#input_width",
+          "type": "input",
+          "unit": "cm",
+          "value": "{width}"
+        },
+        {
+          "duration": "default",
+          "type": "wait"
+        },
+        {
+          "includes_vat": false,
+          "selector": ".price-box__price--untaxed .amount",
+          "type": "read_price"
+        }
+      ]
+    }
+  }
+}

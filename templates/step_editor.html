@@ -9,6 +9,33 @@
         <p class="mt-2 text-gray-600">Create and edit configuration steps with a visual interface.</p>
     </div>
 
+    <!-- Current Configuration Info -->
+    <div class="flex justify-between items-center mb-4">
+        <div class="flex-1">
+            <div id="currentConfigInfo" class="hidden">
+                <div class="bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                    <div class="flex items-center gap-2">
+                        <svg class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div class="flex items-center">
+                            <span class="text-xs text-blue-900">Currently editing:</span>
+                            <span class="text-xs font-medium text-blue-900 ml-1">
+                                Domain: <span id="currentDomain" class="font-mono text-xs">-</span>
+                                | Category: <span id="currentCategory" class="font-mono text-xs">-</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="ml-4">
+            <button id="loadConfigBtn" class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Load Config
+            </button>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Left side: Step Editor -->
         <div class="bg-white shadow rounded-lg p-6">
@@ -89,6 +116,47 @@
     </div>
 </div>
 
+<!-- Load Configuration Modal -->
+<div id="loadConfigModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Load Configuration</h3>
+            </div>
+            <div class="p-6">
+                <form id="loadConfigForm">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="loadDomain" class="block text-sm font-medium text-gray-700 mb-1">Select Domain</label>
+                            <select id="loadDomain" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="">Select a domain...</option>
+                                {% for domain, config in domain_configs.items() %}
+                                <option value="{{ domain }}">{{ domain }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="loadCategory" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select id="loadCategory" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="square_meter_price">Square Meter Price</option>
+                                <option value="shipping">Shipping</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button id="cancelLoadBtn" class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button id="confirmLoadBtn" class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                    Load
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Save Configuration Modal -->
 <div id="saveConfigModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden">
     <div class="flex min-h-full items-center justify-center p-4">
@@ -101,7 +169,15 @@
                     <div class="space-y-4">
                         <div>
                             <label for="domainName" class="block text-sm font-medium text-gray-700 mb-1">Domain Name</label>
-                            <input type="text" id="domainName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="example.com">
+                            <div class="flex gap-2">
+                                <select id="existingDomain" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                    <option value="">Create new domain...</option>
+                                    {% for domain, config in domain_configs.items() %}
+                                    <option value="{{ domain }}">{{ domain }}</option>
+                                    {% endfor %}
+                                </select>
+                                <input type="text" id="domainName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="example.com">
+                            </div>
                         </div>
                         <div>
                             <label for="configCategory" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
@@ -128,6 +204,9 @@
 
 {% block scripts %}
 <script>
+// Store domain configurations from the server
+const domainConfigs = {{ domain_configs | tojson | safe }};
+
 let steps = [];
 let editingIndex = -1;
 
@@ -146,11 +225,31 @@ const stepFields = {
             label: 'Value',
             type: 'value_with_vars',
             required: true,
-            variables: ['thickness', 'width', 'length', 'quantity']
+            variables: ['thickness', 'width', 'length', 'quantity'],
+            help: 'The value to select. You can use variables like {thickness} that will be replaced with actual values'
         },
-        { name: 'unit', type: 'select', label: 'Unit', options: ['mm', 'cm'], required: false },
-        { name: 'option_container', type: 'text', label: 'Option Container', required: false },
-        { name: 'option_selector', type: 'text', label: 'Option Selector', required: false }
+        { 
+            name: 'unit', 
+            type: 'select', 
+            label: 'Unit', 
+            options: ['mm', 'cm'], 
+            required: false,
+            help: 'The unit of measurement for the value. Will convert values automatically'
+        },
+        { 
+            name: 'option_container', 
+            type: 'text', 
+            label: 'Option Container', 
+            required: false,
+            help: 'CSS selector for custom dropdown container. Only needed for non-standard dropdowns'
+        },
+        { 
+            name: 'option_selector', 
+            type: 'text', 
+            label: 'Option Selector', 
+            required: false,
+            help: 'CSS selector pattern for options within a custom dropdown. Use {value} as placeholder'
+        }
     ],
     input: [
         {
@@ -165,9 +264,17 @@ const stepFields = {
             label: 'Value',
             type: 'value_with_vars',
             required: true,
-            variables: ['thickness', 'width', 'length', 'quantity']
+            variables: ['thickness', 'width', 'length', 'quantity'],
+            help: 'The value to fill in. You can use variables like {thickness} that will be replaced with actual values'
         },
-        { name: 'unit', type: 'select', label: 'Unit', options: ['mm', 'cm'], required: false }
+        { 
+            name: 'unit', 
+            type: 'select', 
+            label: 'Unit', 
+            options: ['mm', 'cm'], 
+            required: false,
+            help: 'The unit of measurement for the value. Will convert values automatically'
+        }
     ],
     click: [
         {
@@ -177,10 +284,23 @@ const stepFields = {
             required: true,
             help: 'Enter a CSS selector (e.g., #button-id, .class-name) or XPath (e.g., //button[contains(text(), "Submit")])'
         },
-        { name: 'description', type: 'text', label: 'Description', required: false }
+        { 
+            name: 'description', 
+            type: 'text', 
+            label: 'Description', 
+            required: false,
+            help: 'Optional description of what this click does (e.g., "Add to cart" or "Calculate price")'
+        }
     ],
     wait: [
-        { name: 'duration', type: 'select', label: 'Duration', options: ['short', 'default', 'long', 'longer'], required: true }
+        { 
+            name: 'duration', 
+            type: 'select', 
+            label: 'Duration', 
+            options: ['short', 'default', 'long', 'longer'], 
+            required: true,
+            help: 'How long to wait: short (0.5s), default (1s), long (1.5s), longer (3s)'
+        }
     ],
     blur: [
         {
@@ -188,7 +308,7 @@ const stepFields = {
             label: 'Selector',
             type: 'text',
             required: true,
-            help: 'Enter a CSS selector (e.g., #input-id, .class-name) or XPath (e.g., //input[@name="username"])'
+            help: 'Enter a CSS selector for the field to blur (unfocus). Used after entering values when needed'
         }
     ],
     read_price: [
@@ -197,15 +317,22 @@ const stepFields = {
             type: 'text', 
             label: 'Selector', 
             required: true,
-            help: 'You can use: CSS selectors (#id, .class), XPath expressions (//div[@class="example"]), or text content (text="Submit")'
+            help: 'Selector for the price element. Can use CSS (#price), XPath (//span[@class="price"]), or text content'
         },
-        { name: 'includes_vat', type: 'checkbox', label: 'Includes VAT', required: false }
+        { 
+            name: 'includes_vat', 
+            type: 'checkbox', 
+            label: 'Includes VAT', 
+            required: false,
+            help: 'Check if the price shown includes VAT. Will be used for correct price calculations'
+        }
     ]
 };
 
 // Initialize event listeners
 document.addEventListener('DOMContentLoaded', () => {
     // Button event listeners
+    document.getElementById('loadConfigBtn').addEventListener('click', showLoadConfigModal);
     document.getElementById('addStepBtn').addEventListener('click', showAddStepModal);
     document.getElementById('clearStepsBtn').addEventListener('click', clearSteps);
     document.getElementById('copyJsonBtn').addEventListener('click', copyJsonToClipboard);
@@ -214,6 +341,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('saveStepBtn').addEventListener('click', saveStep);
     document.getElementById('cancelSaveBtn').addEventListener('click', hideSaveConfigModal);
     document.getElementById('confirmSaveBtn').addEventListener('click', saveConfiguration);
+    document.getElementById('cancelLoadBtn').addEventListener('click', hideLoadConfigModal);
+    document.getElementById('confirmLoadBtn').addEventListener('click', loadConfiguration);
+
+    // Domain selection handlers
+    document.getElementById('existingDomain').addEventListener('change', handleExistingDomainChange);
 
     // Step type change handler
     document.getElementById('stepType').addEventListener('change', updateStepFields);
@@ -242,6 +374,26 @@ function showSaveConfigModal() {
 function hideSaveConfigModal() {
     document.getElementById('saveConfigModal').classList.add('hidden');
     document.getElementById('saveConfigForm').reset();
+}
+
+function showLoadConfigModal() {
+    document.getElementById('loadConfigModal').classList.remove('hidden');
+}
+
+function hideLoadConfigModal() {
+    document.getElementById('loadConfigModal').classList.add('hidden');
+    document.getElementById('loadConfigForm').reset();
+}
+
+function handleExistingDomainChange(e) {
+    const domainInput = document.getElementById('domainName');
+    if (e.target.value) {
+        domainInput.value = e.target.value;
+        domainInput.disabled = true;
+    } else {
+        domainInput.value = '';
+        domainInput.disabled = false;
+    }
 }
 
 function updateStepFields() {
@@ -322,11 +474,12 @@ function updateStepFields() {
         // Add help text if available
         if (field.help) {
             const helpContainer = document.createElement('div');
-            helpContainer.className = 'mt-1 flex items-start gap-2';
+            helpContainer.className = 'mt-2 flex items-start gap-1';
             
             const infoIcon = document.createElement('div');
-            infoIcon.className = 'flex-shrink-0 w-3.5 h-3.5 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center text-center leading-none';
-            infoIcon.innerHTML = '<span class="text-gray-500 text-[10px] font-medium" style="margin-top: -1px;">i</span>';
+            infoIcon.innerHTML = `<svg class="h-3 w-3 text-gray-400 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>`;
             
             const helpText = document.createElement('p');
             helpText.className = 'text-xs text-gray-500 flex-1';
@@ -507,22 +660,27 @@ function editStep(index) {
     editingIndex = index;
     const step = steps[index];
     
+    // Set the step type and update fields
     document.getElementById('stepType').value = step.type;
     updateStepFields();
     
-    // Fill in the fields
-    stepFields[step.type].forEach(field => {
-        const element = document.getElementById(field.name);
-        if (element) {
-            if (element.type === 'checkbox') {
-                element.checked = step[field.name] || false;
-            } else {
-                element.value = step[field.name] || '';
+    // Wait for the fields to be created
+    setTimeout(() => {
+        // Fill in the fields
+        stepFields[step.type].forEach(field => {
+            const element = document.getElementById(field.name);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    element.checked = step[field.name] || false;
+                } else {
+                    element.value = step[field.name] || '';
+                }
             }
-        }
-    });
+        });
 
-    document.getElementById('saveStepBtn').textContent = 'Update Step';
+        document.getElementById('saveStepBtn').textContent = 'Update Step';
+    }, 0);
+
     showAddStepModal();
 }
 
@@ -537,6 +695,10 @@ function deleteStep(index) {
 function clearSteps() {
     if (confirm('Are you sure you want to clear all steps?')) {
         steps = [];
+        // Reset current configuration info
+        document.getElementById('currentConfigInfo').classList.add('hidden');
+        document.getElementById('currentDomain').textContent = '-';
+        document.getElementById('currentCategory').textContent = '-';
         updateStepList();
         updateJsonPreview();
     }
@@ -558,12 +720,45 @@ function copyJsonToClipboard() {
     });
 }
 
+async function loadConfiguration() {
+    const domain = document.getElementById('loadDomain').value;
+    const category = document.getElementById('loadCategory').value;
+
+    if (!domain) {
+        alert('Please select a domain');
+        return;
+    }
+
+    const config = domainConfigs[domain];
+    if (!config || !config.categories || !config.categories[category]) {
+        alert(`No ${category} configuration found for ${domain}`);
+        return;
+    }
+
+    // Update current configuration info
+    document.getElementById('currentConfigInfo').classList.remove('hidden');
+    document.getElementById('currentDomain').textContent = domain;
+    document.getElementById('currentCategory').textContent = category;
+
+    steps = config.categories[category].steps || [];
+    updateStepList();
+    updateJsonPreview();
+    hideLoadConfigModal();
+}
+
 async function saveConfiguration() {
-    const domain = document.getElementById('domainName').value.trim();
+    const existingDomain = document.getElementById('existingDomain').value;
+    const newDomain = document.getElementById('domainName').value.trim();
+    const domain = existingDomain || newDomain;
     const category = document.getElementById('configCategory').value;
 
     if (!domain) {
         alert('Please enter a domain name');
+        return;
+    }
+
+    // If saving to an existing domain, ask for confirmation
+    if (existingDomain && !confirm(`Are you sure you want to update the existing configuration for ${existingDomain}?`)) {
         return;
     }
 
@@ -575,6 +770,17 @@ async function saveConfiguration() {
             }
         }
     };
+
+    // If updating existing domain, merge with existing categories
+    if (existingDomain && domainConfigs[existingDomain]) {
+        const existingConfig = domainConfigs[existingDomain];
+        config.categories = {
+            ...existingConfig.categories,
+            [category]: {
+                steps: steps
+            }
+        };
+    }
 
     try {
         const response = await fetch('/api/config', {

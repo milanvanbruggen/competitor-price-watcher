@@ -81,13 +81,16 @@ class PriceCalculator:
         async with async_playwright() as p:
             # Launch browser with headless mode based on environment
             browser = await p.chromium.launch(headless=HEADLESS)
-            # Create page with full HD viewport
-            page = await browser.new_page(viewport={'width': 1920, 'height': 1080})
+            # Create page with full HD viewport and increased timeout
+            page = await browser.new_page(
+                viewport={'width': 1920, 'height': 1080},
+                default_timeout=120000  # Increase timeout to 120 seconds
+            )
 
             try:
-                # Navigate to URL
+                # Navigate to URL with increased timeout
                 self._update_status(f"Navigating to {url}", "navigation", {"url": url})
-                await page.goto(url)
+                await page.goto(url, timeout=120000)  # 120 seconds timeout
                 self._update_status("Waiting for page to be fully loaded", "loading")
                 await page.wait_for_load_state('networkidle')
                 self._update_status("Page loaded successfully", "loaded")

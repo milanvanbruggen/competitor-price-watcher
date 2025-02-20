@@ -12,7 +12,14 @@ from sqlalchemy.orm import Session
 from database import get_db
 import crud, schemas
 
-app = FastAPI()
+# Increase timeout to 120 seconds
+app = FastAPI(
+    title="Competitor Price Watcher",
+    description="API for watching competitor prices",
+    version="1.0.0",
+    default_response_class=JSONResponse,
+    timeout=120
+)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 

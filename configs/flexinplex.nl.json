@@ -1,0 +1,151 @@
+{
+  "categories": {
+    "shipping": {
+      "steps": [
+        {
+          "description": "Only essential cookies button",
+          "selector": ".js-cookie-confirmation-essentials",
+          "type": "click"
+        },
+        {
+          "duration": "short",
+          "type": "wait"
+        },
+        {
+          "option_selector": "option[value=\"{thickness}\"]",
+          "selector": ".variation__select select",
+          "type": "select",
+          "unit": "mm",
+          "value": "{thickness}"
+        },
+        {
+          "selector": ".size .inputs:nth-child(0) input",
+          "type": "input",
+          "unit": "mm",
+          "value": "{width}"
+        },
+        {
+          "duration": "default",
+          "type": "wait"
+        },
+        {
+          "selector": ".size .inputs:nth-child(1) input",
+          "type": "input",
+          "unit": "mm",
+          "value": "{length}"
+        },
+        {
+          "duration": "default",
+          "type": "wait"
+        },
+        {
+          "description": "Open cart",
+          "selector": ".cart",
+          "type": "click"
+        },
+        {
+          "duration": "short",
+          "type": "wait"
+        },
+        {
+          "description": "Checkout",
+          "selector": ".cart .submenu .button.green",
+          "type": "click"
+        },
+        {
+          "selector": ".amount",
+          "type": "input",
+          "unit": "mm",
+          "value": "{quantity}"
+        },
+        {
+          "selector": ".amount",
+          "type": "blur"
+        },
+        {
+          "duration": "short",
+          "type": "wait"
+        },
+        {
+          "description": "Next",
+          "selector": "button[data-step=\"next\"]",
+          "type": "click"
+        },
+        {
+          "selector": "input[name=\"delivery[zipCode]\"]",
+          "type": "input",
+          "unit": "mm",
+          "value": "1022AB"
+        },
+        {
+          "duration": "short",
+          "type": "wait"
+        },
+        {
+          "selector": "input[name=\"delivery[streetNumber]\"]",
+          "type": "input",
+          "unit": "mm",
+          "value": "1"
+        },
+        {
+          "duration": "short",
+          "type": "wait"
+        },
+        {
+          "includes_vat": false,
+          "selector": ".subtotal .row:nth-child(1) . data",
+          "type": "read_price"
+        },
+        {
+          "selector": ".size .inputs:nth-child(0) input",
+          "type": "input",
+          "unit": "mm",
+          "value": "{width}"
+        },
+        {
+          "selector": ".size .inputs:nth-child(1) input",
+          "type": "input",
+          "unit": "mm",
+          "value": "{length}"
+        }
+      ]
+    },
+    "square_meter_price": {
+      "steps": [
+        {
+          "option_selector": "option[value=\"{thickness}\"]",
+          "selector": ".variation__select select",
+          "type": "select",
+          "unit": "mm",
+          "value": "{thickness}"
+        },
+        {
+          "selector": ".inputs input",
+          "type": "input",
+          "unit": "mm",
+          "value": "{width}"
+        },
+        {
+          "duration": "default",
+          "type": "wait"
+        },
+        {
+          "selector": ".inputs input",
+          "type": "input",
+          "unit": "mm",
+          "value": "{length}"
+        },
+        {
+          "duration": "default",
+          "type": "wait"
+        },
+        {
+          "includes_vat": false,
+          "selector": "#pdp-configurator-summary-top .excl .price",
+          "type": "read_price"
+        }
+      ]
+    }
+  },
+  "domain": "flexinplex.nl"
+}

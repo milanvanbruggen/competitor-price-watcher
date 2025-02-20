@@ -88,7 +88,10 @@ class PriceCalculator:
                 # Navigate to URL
                 self._update_status(f"Navigating to {url}", "navigation", {"url": url})
                 await page.goto(url)
-                self._update_status("Page loaded", "loaded")
+                self._update_status("Waiting for page to be fully loaded", "loading")
+                await page.wait_for_load_state('networkidle')
+                self._update_status("Page loaded successfully", "loaded")
+                await page.wait_for_timeout(100)  # Small delay to ensure status is sent
 
                 # Execute steps
                 steps = domain_config['categories'][category]['steps']

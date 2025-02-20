@@ -81,11 +81,15 @@ class PriceCalculator:
         async with async_playwright() as p:
             # Launch browser with headless mode based on environment
             browser = await p.chromium.launch(headless=HEADLESS)
-            # Create page with full HD viewport and increased timeout
-            page = await browser.new_page(
-                viewport={'width': 1920, 'height': 1080},
-                default_timeout=120000  # Increase timeout to 120 seconds
+            
+            # Create context with viewport settings
+            context = await browser.new_context(
+                viewport={'width': 1920, 'height': 1080}
             )
+            
+            # Create page from context and set timeout
+            page = await context.new_page()
+            page.set_default_timeout(120000)  # 120 seconds timeout
 
             try:
                 # Navigate to URL with increased timeout

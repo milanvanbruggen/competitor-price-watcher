@@ -2,6 +2,11 @@
 
 {% block title %}360 Competitor Dashboard - Configuration{% endblock %}
 
+{% block styles %}
+<!-- Add diff2html CSS -->
+<link rel="stylesheet" href="{{ url_for('static', path='css/diff2html.min.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="mb-6">
@@ -37,6 +42,7 @@
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="domain_{{ domain }}">{{ config | tojson(indent=2) }}</textarea>
                     <div class="mt-4 flex gap-2">
                         <button class="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" onclick="saveDomainConfig('{{ domain }}')">Save</button>
+                        <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="showVersions('domain', '{{ domain }}')">Version History</button>
                         <button class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2" onclick="deleteDomainConfig('{{ domain }}')">Delete</button>
                         <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="exportDomainConfig('{{ domain }}')">Export</button>
                     </div>
@@ -65,6 +71,7 @@
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="country_{{ country }}">{{ config | tojson(indent=2) }}</textarea>
                     <div class="mt-4 flex gap-2">
                         <button class="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" onclick="saveCountryConfig('{{ country }}')">Save</button>
+                        <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="showVersions('country', '{{ country }}')">Version History</button>
                         <button class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2" onclick="deleteCountryConfig('{{ country }}')">Delete</button>
                     </div>
                 </div>
@@ -92,6 +99,7 @@
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="package_{{ id }}">{{ config | tojson(indent=2) }}</textarea>
                     <div class="mt-4 flex gap-2">
                         <button class="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" onclick="savePackageConfig('{{ id }}')">Save</button>
+                        <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="showVersions('package', '{{ id }}')">Version History</button>
                         <button class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2" onclick="deletePackageConfig('{{ id }}')">Delete</button>
                     </div>
                 </div>
@@ -196,9 +204,54 @@
         </div>
     </div>
 </div>
+
+<!-- Version History Modal -->
+<div id="versionModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" style="z-index: 100;">
+    <div class="fixed inset-0 overflow-hidden">
+        <div class="flex h-full items-center justify-center p-4">
+            <div class="relative w-full h-[calc(100vh-2rem)] flex">
+                <div class="bg-white rounded-lg shadow-xl w-full flex h-full">
+                    <!-- Left sidebar with versions -->
+                    <div class="w-96 bg-gray-50 border-r border-gray-200 overflow-y-auto rounded-l-lg">
+                        <div class="p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-medium text-gray-900">Version History</h3>
+                                <button onclick="closeVersionModal()" class="text-gray-400 hover:text-gray-500">
+                                    <span class="sr-only">Close</span>
+                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div id="versionList" class="space-y-4">
+                                <!-- Versions will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Main content area with diff -->
+                    <div class="flex-1 overflow-y-auto rounded-r-lg">
+                        <div class="p-6">
+                            <div id="diffContainer">
+                                <!-- Diff will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<!-- Load diff library first -->
+<script src="{{ url_for('static', path='js/diff.js') }}"></script>
+
+<!-- Load diff2html libraries -->
+<script src="{{ url_for('static', path='js/diff2html.min.js') }}"></script>
+<script src="{{ url_for('static', path='js/diff2html-ui.min.js') }}"></script>
+
 <script>
 // Modal functions
 function showModal(modalId) {
@@ -222,28 +275,28 @@ function newDomainConfig() {
         "domain": "",
         "categories": {
             "square_meter_price": {
-                "steps": [
-                    {
-                        "type": "select",
-                        "selector": "",
-                        "value": "{thickness}",
-                        "unit": "mm"
-                    },
-                    {
-                        "type": "input",
-                        "selector": "",
-                        "value": "{width}",
-                        "unit": "mm"
-                    },
-                    {
-                        "type": "wait",
+        "steps": [
+            {
+                "type": "select",
+                "selector": "",
+                "value": "{thickness}",
+                "unit": "mm"
+            },
+            {
+                "type": "input",
+                "selector": "",
+                "value": "{width}",
+                "unit": "mm"
+            },
+            {
+                "type": "wait",
                         "duration": "default"
-                    },
-                    {
-                        "type": "input",
-                        "selector": "",
-                        "value": "{length}",
-                        "unit": "mm"
+            },
+            {
+                "type": "input",
+                "selector": "",
+                "value": "{length}",
+                "unit": "mm"
                     }
                 ]
             }
@@ -298,7 +351,7 @@ async function createDomainConfig() {
         const configText = document.getElementById('newDomainConfig').value;
         const config = JSON.parse(configText);
         config.domain = domain;  // Ensure domain is set in config
-
+        
         const response = await fetch('/api/config', {
             method: 'POST',
             headers: {
@@ -309,7 +362,7 @@ async function createDomainConfig() {
                 config: config
             })
         });
-
+        
         const result = await response.json();
         if (!result.success) {
             throw new Error(result.error || 'Failed to create configuration');
@@ -317,7 +370,7 @@ async function createDomainConfig() {
 
         hideModal('newDomainModal');
         alert('Configuration created successfully');
-        location.reload();
+            location.reload();
     } catch (error) {
         alert(`Error creating configuration: ${error.message}`);
     }
@@ -396,7 +449,7 @@ async function createCountryConfig() {
 
         const configText = document.getElementById('newCountryConfig').value;
         const config = JSON.parse(configText);
-
+        
         const response = await fetch('/api/country', {
             method: 'POST',
             headers: {
@@ -407,7 +460,7 @@ async function createCountryConfig() {
                 config: config
             })
         });
-
+        
         const result = await response.json();
         if (!result.success) {
             throw new Error(result.error || 'Failed to create configuration');
@@ -425,12 +478,12 @@ async function deleteCountryConfig(country) {
     if (!confirm(`Are you sure you want to delete the configuration for ${country}?`)) {
         return;
     }
-
+    
     try {
         const response = await fetch(`/api/country/${country}`, {
             method: 'DELETE'
         });
-
+        
         const result = await response.json();
         if (!result.success) {
             throw new Error(result.error || 'Failed to delete configuration');
@@ -508,7 +561,7 @@ async function createPackageConfig() {
                 config: config
             })
         });
-
+        
         const result = await response.json();
         if (!result.success) {
             throw new Error(result.error || 'Failed to create configuration');
@@ -516,7 +569,7 @@ async function createPackageConfig() {
 
         hideModal('newPackageModal');
         alert('Configuration created successfully');
-        location.reload();
+            location.reload();
     } catch (error) {
         alert(`Error creating configuration: ${error.message}`);
     }
@@ -582,7 +635,7 @@ async function importConfig() {
                 if (!config.domain) {
                     throw new Error('Configuration file must contain a domain field');
                 }
-
+                
                 const response = await fetch('/api/config', {
                     method: 'POST',
                     headers: {
@@ -593,7 +646,7 @@ async function importConfig() {
                         config: config
                     })
                 });
-
+                
                 const result = await response.json();
                 if (!result.success) {
                     throw new Error(result.error || 'Failed to import configuration');
@@ -635,7 +688,7 @@ function filterDomains() {
     const searchInput = document.getElementById('domainSearch');
     const searchTerm = searchInput.value.toLowerCase();
     const domainItems = document.querySelectorAll('.domain-item');
-
+    
     domainItems.forEach(item => {
         const domain = item.getAttribute('data-domain').toLowerCase();
         if (domain.includes(searchTerm)) {
@@ -763,5 +816,190 @@ function updateStatus(status) {
         }
     }
 }
+
+function calculateDiff(oldConfig, newConfig) {
+    const oldStr = JSON.stringify(oldConfig, null, 2);
+    const newStr = JSON.stringify(newConfig, null, 2);
+    const diffJson = Diff.createTwoFilesPatch("previous", "current", oldStr, newStr);
+    const diff2htmlUi = new Diff2HtmlUI({diff: diffJson});
+    return diff2htmlUi.draw();
+}
+
+async function showVersions(type, id) {
+    const modal = document.getElementById('versionModal');
+    const versionList = document.getElementById('versionList');
+    const diffContainer = document.getElementById('diffContainer');
+    
+    modal.classList.remove('hidden');
+    versionList.innerHTML = '<div class="text-center">Loading versions...</div>';
+    diffContainer.innerHTML = '';
+    
+    try {
+        const endpoint = type === 'domain' ? `config/${id}` : `${type}/${id}`;
+        const response = await fetch(`/api/${endpoint}/versions`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch versions');
+        }
+        
+        const data = await response.json();
+        const versions = Array.isArray(data) ? data : [];
+        
+        if (versions.length === 0) {
+            versionList.innerHTML = '<div class="text-gray-500">No version history available.</div>';
+            return;
+        }
+        
+        versionList.innerHTML = versions.map((version, index) => {
+            const isFirst = index === 0;
+            const date = new Date(version.created_at).toLocaleString('nl-NL');
+            return `
+                <div data-version-index="${index}" class="cursor-pointer hover:bg-gray-50 ${isFirst ? 'bg-blue-50' : 'bg-white'} rounded-lg p-4 mb-2" onclick="handleVersionClick(${index}, ${index + 1})">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-medium text-gray-900">Version ${version.version}</span>
+                                ${isFirst ? '<span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">Current</span>' : ''}
+                            </div>
+                            <span class="text-xs text-gray-500 mt-1 block">${date}</span>
+                        </div>
+                        ${!isFirst ? `
+                            <button onclick="event.stopPropagation(); restoreVersion(${type}, '${id}', ${version.version})" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Restore
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        window.versionHistory = versions;
+        
+        if (versions.length > 1) {
+            handleVersionClick(0, 1);
+        }
+        
+    } catch (error) {
+        console.error('Error loading versions:', error);
+        versionList.innerHTML = `<div class="text-red-500">Error loading versions: ${error.message}</div>`;
+    }
+}
+
+function handleVersionClick(newIndex, oldIndex) {
+    // Update selection state in the version list
+    const versionItems = document.querySelectorAll('#versionList > div[data-version-index]');
+    versionItems.forEach(item => {
+        const index = parseInt(item.getAttribute('data-version-index'));
+        if (index === newIndex) {
+            item.classList.remove('bg-white', 'hover:bg-gray-50');
+            item.classList.add('bg-blue-50', 'ring-2', 'ring-blue-500');
+        } else {
+            item.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-500');
+            item.classList.add('bg-white', 'hover:bg-gray-50');
+        }
+    });
+
+    // Show the diff
+    showDiff(newIndex, oldIndex);
+}
+
+function showDiff(newIndex, oldIndex) {
+    const versions = window.versionHistory;
+    const diffContainer = document.getElementById('diffContainer');
+    
+    if (!versions || !versions[newIndex]) {
+        console.error('Version history not available');
+        return;
+    }
+    
+    const newVersion = versions[newIndex];
+    const oldVersion = oldIndex !== null ? versions[oldIndex] : null;
+    
+    // Create a formatted diff with "Version X" format
+    const diff = Diff.createTwoFilesPatch(
+        `Version ${oldVersion ? oldVersion.version : 'none'}`,
+        `Version ${newVersion.version}`,
+        oldVersion ? JSON.stringify(oldVersion.config, null, 2) : '',
+        JSON.stringify(newVersion.config, null, 2)
+    );
+    
+    // Clear previous diff
+    diffContainer.innerHTML = '';
+    
+    // Create a new diff2html UI instance with optimized configuration for full-screen
+    const configuration = {
+        drawFileList: false,
+        matching: 'lines',
+        highlight: true,
+        outputFormat: 'side-by-side',
+        renderNothingWhenEmpty: true,
+        maxLineSizeInBlockForComparison: 200,
+        styles: {
+            'side-by-side': true
+        }
+    };
+    
+    const diff2htmlUi = new Diff2HtmlUI(diffContainer, diff, configuration);
+    diff2htmlUi.draw();
+    
+    // Add custom styling for better full-screen display
+    const diffOutput = diffContainer.querySelector('.d2h-file-list-wrapper');
+    if (diffOutput) {
+        diffOutput.style.width = '100%';
+        diffOutput.style.maxWidth = '100%';
+    }
+}
+
+async function restoreVersion(type, id, version) {
+    if (!confirm('Are you sure you want to restore this version? This will overwrite the current configuration.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/${type === 'domain' ? 'config' : type}/${id}/restore/${version}`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) throw new Error('Failed to restore version');
+        
+        alert('Version restored successfully');
+            location.reload();
+    } catch (error) {
+        alert('Error restoring version: ' + error.message);
+    }
+}
+
+function closeVersionModal() {
+    document.getElementById('versionModal').classList.add('hidden');
+}
+
+async function deleteConfig(type, id) {
+    if (!confirm('Are you sure you want to delete this configuration?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/${type === 'domain' ? 'config' : type}/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) throw new Error('Failed to delete configuration');
+        
+        alert('Configuration deleted successfully');
+            location.reload();
+    } catch (error) {
+        alert('Error deleting configuration: ' + error.message);
+    }
+}
+
+// Close modal when clicking outside
+document.getElementById('versionModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeVersionModal();
+    }
+});
 </script>
 {% endblock %} 

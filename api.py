@@ -11,6 +11,7 @@ from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.orm import Session
 from database import get_db
 import crud, schemas
+from datetime import datetime
 
 # Increase timeout to 120 seconds
 app = FastAPI(
@@ -49,6 +50,12 @@ class CountryRequest(BaseModel):
 
 class PackageRequest(BaseModel):
     package_id: str
+    config: dict
+
+class VersionResponse(BaseModel):
+    version: int
+    created_at: datetime
+    comment: str | None
     config: dict
 
 @app.get("/", response_class=HTMLResponse)
@@ -225,15 +232,6 @@ async def save_config(request: ConfigRequest, db: Session = Depends(get_db)):
         # Save configuration to database
         config = schemas.DomainConfigCreate(domain=request.domain, config=request.config)
         crud.create_domain_config(db, config)
-        
-        # Also save configuration to file for backward compatibility
-        config_dir = os.path.join(os.path.dirname(__file__), 'configs')
-        os.makedirs(config_dir, exist_ok=True)
-        
-        config_path = os.path.join(config_dir, f"{request.domain}.json")
-        with open(config_path, 'w') as f:
-            json.dump(request.config, f, indent=2)
-            
         return JSONResponse({"success": True})
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
@@ -323,4 +321,67 @@ async def price_status_stream(request: Request):
 
     return EventSourceResponse(event_generator())
 
-app.add_route("/api/status-stream", price_status_stream) 
+app.add_route("/api/status-stream", price_status_stream)
+
+@app.get("/api/config/{domain}/versions")
+async def get_domain_versions(domain: str, db: Session = Depends(get_db)):
+    """Haal alle versies op van een domein configuratie"""
+    versions = crud.get_config_versions(db, 'domain', domain)
+    if not versions:
+        raise HTTPException(status_code=404, detail="No versions found")
+    return [VersionResponse(
+        version=v.version,
+        created_at=v.created_at,
+        comment=v.comment,
+        config=v.config
+    ) for v in versions]
+
+@app.post("/api/config/{domain}/restore/{version}")
+async def restore_domain_version(domain: str, version: int, db: Session = Depends(get_db)):
+    """Herstel een specifieke versie van een domein configuratie"""
+    config = crud.restore_config_version(db, 'domain', domain, version)
+    if not config:
+        raise HTTPException(status_code=404, detail="Version not found")
+    return {"success": True}
+
+@app.get("/api/country/{country}/versions")
+async def get_country_versions(country: str, db: Session = Depends(get_db)):
+    """Haal alle versies op van een land configuratie"""
+    versions = crud.get_config_versions(db, 'country', country)
+    if not versions:
+        raise HTTPException(status_code=404, detail="No versions found")
+    return [VersionResponse(
+        version=v.version,
+        created_at=v.created_at,
+        comment=v.comment,
+        config=v.config
+    ) for v in versions]
+
+@app.post("/api/country/{country}/restore/{version}")
+async def restore_country_version(country: str, version: int, db: Session = Depends(get_db)):
+    """Herstel een specifieke versie van een land configuratie"""
+    config = crud.restore_config_version(db, 'country', country, version)
+    if not config:
+        raise HTTPException(status_code=404, detail="Version not found")
+    return {"success": True}
+
+@app.get("/api/packages/{package_id}/versions")
+async def get_package_versions(package_id: str, db: Session = Depends(get_db)):
+    """Haal alle versies op van een pakket configuratie"""
+    versions = crud.get_config_versions(db, 'package', package_id)
+    if not versions:
+        raise HTTPException(status_code=404, detail="No versions found")
+    return [VersionResponse(
+        version=v.version,
+        created_at=v.created_at,
+        comment=v.comment,
+        config=v.config
+    ) for v in versions]
+
+@app.post("/api/packages/{package_id}/restore/{version}")
+async def restore_package_version(package_id: str, version: int, db: Session = Depends(get_db)):
+    """Herstel een specifieke versie van een pakket configuratie"""
+    config = crud.restore_config_version(db, 'package', package_id, version)
+    if not config:
+        raise HTTPException(status_code=404, detail="Version not found")
+    return {"success": True} 

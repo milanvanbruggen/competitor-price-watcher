@@ -99,6 +99,39 @@
     }
 }</pre>
         </div>
+
+        <div class="endpoint">
+            <h4>Get Version History</h4>
+            <p><code>GET /api/config/{domain}/versions</code></p>
+            <p>Retrieve version history for a domain configuration.</p>
+            <h5>Response:</h5>
+            <pre>{
+    [
+        {
+            "version": 2,
+            "created_at": "2024-02-21T10:30:00Z",
+            "comment": null,
+            "config": { ... }
+        },
+        {
+            "version": 1,
+            "created_at": "2024-02-21T09:15:00Z",
+            "comment": null,
+            "config": { ... }
+        }
+    ]
+}</pre>
+        </div>
+
+        <div class="endpoint">
+            <h4>Restore Version</h4>
+            <p><code>POST /api/config/{domain}/restore/{version}</code></p>
+            <p>Restore a specific version of a domain configuration.</p>
+            <h5>Response:</h5>
+            <pre>{
+    "success": true
+}</pre>
+        </div>
     </div>
 
     <!-- Configuration Documentation -->
@@ -231,6 +264,50 @@
         }
     ]
 }</div>
+    </div>
+
+    <!-- Version Control Documentation -->
+    <div class="docs-section">
+        <h2>Version Control</h2>
+        <p>The system maintains version history for all configurations (domains, countries, and packages). This allows you to track changes and restore previous versions if needed.</p>
+
+        <h3>Version History</h3>
+        <p>For each configuration type:</p>
+        <ul>
+            <li>Up to 5 most recent versions are stored</li>
+            <li>Each version includes:
+                <ul>
+                    <li>Version number</li>
+                    <li>Creation timestamp</li>
+                    <li>Complete configuration state</li>
+                    <li>Optional comment</li>
+                </ul>
+            </li>
+            <li>The most recent version is always marked as "Current"</li>
+        </ul>
+
+        <h3>Version Management</h3>
+        <p>You can manage versions through:</p>
+        <ul>
+            <li>The "Version History" button on any configuration</li>
+            <li>The version history modal showing:
+                <ul>
+                    <li>List of all versions with timestamps</li>
+                    <li>Side-by-side diff view comparing versions</li>
+                    <li>Option to restore previous versions</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Restoring Versions</h3>
+        <p>To restore a previous version:</p>
+        <ol>
+            <li>Click "Version History" on the configuration</li>
+            <li>Select the version you want to restore</li>
+            <li>Click the "Restore" button next to that version</li>
+            <li>Confirm the restoration</li>
+        </ol>
+        <p>Note: Restoring a version will create a new version with the restored content, preserving the version history.</p>
     </div>
 
     <!-- Country Configuration -->

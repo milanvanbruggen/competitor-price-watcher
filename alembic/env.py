@@ -14,7 +14,7 @@ from models import Base
 config = context.config
 
 # Get the database URL from environment variable
-database_url = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost/competitor_price_watcher")
+database_url = os.getenv("DATABASE_URL", "sqlite:///./competitor_price_watcher.db")
 config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.

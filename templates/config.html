@@ -18,8 +18,14 @@
     
     <div class="flex items-center gap-4 mb-6">
         <div class="flex gap-4 flex-grow">
-            <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="newDomainConfig()">Add New Domain</button>
-            <button class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="showImportModal()">Import Configuration</button>
+            <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="newDomainConfig()">
+                <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                Add New Domain
+            </button>
+            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showImportModal()">
+                <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                Import Configuration
+            </button>
         </div>
         <div class="w-72">
             <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" id="domainSearch" placeholder="Search domains..." onkeyup="filterDomains()">
@@ -30,21 +36,35 @@
         {% for domain, config in domain_configs.items() %}
         <div class="bg-white shadow rounded-lg overflow-hidden domain-item" data-domain="{{ domain }}">
             <div class="border-b border-gray-200">
-                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}">
+                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}">
                     <span class="font-medium text-gray-900">{{ domain }}</span>
-                    <svg class="h-5 w-5 text-gray-500 transform transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
                 </button>
             </div>
             <div id="collapse{{ loop.index }}" class="hidden">
                 <div class="p-4">
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="domain_{{ domain }}">{{ config | tojson(indent=2) }}</textarea>
-                    <div class="mt-4 flex gap-2">
-                        <button class="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" onclick="saveDomainConfig('{{ domain }}')">Save</button>
-                        <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="showVersions('domain', '{{ domain }}')">Version History</button>
-                        <button class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2" onclick="deleteDomainConfig('{{ domain }}')">Delete</button>
-                        <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="exportDomainConfig('{{ domain }}')">Export</button>
+                    <div class="mt-4 flex justify-between">
+                        <div class="flex gap-2">
+                            <button class="inline-flex items-center justify-center rounded-md border border-green-700 bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-sm" onclick="saveDomainConfig('{{ domain }}')">
+                                <i class="fas fa-floppy-disk h-4 w-4 mr-2"></i>
+                                Save
+                            </button>
+                            <button class="inline-flex items-center justify-center rounded-md border border-red-600 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-sm" onclick="deleteDomainConfig('{{ domain }}')">
+                                <i class="fas fa-trash h-4 w-4 mr-2"></i>
+                                Delete
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showVersions('domain', '{{ domain }}')">
+                                <i class="fas fa-clock-rotate-left h-4 w-4 mr-2"></i>
+                                Version History
+                            </button>
+                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="exportDomainConfig('{{ domain }}')">
+                                <i class="fas fa-file-export h-4 w-4 mr-2"></i>
+                                Export
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -53,26 +73,44 @@
     </div>
 
     <h2 class="text-2xl font-bold text-gray-900 mt-8 mb-6">Country Configurations</h2>
-    <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mb-6" onclick="newCountryConfig()">Add New Country</button>
+    <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm mb-6" onclick="newCountryConfig()">
+        <i class="fas fa-plus h-4 w-4 mr-2"></i>
+        Add New Country
+    </button>
     
     <div class="space-y-2" id="countryAccordion">
         {% for country, config in country_configs.items() %}
         <div class="bg-white shadow rounded-lg overflow-hidden">
             <div class="border-b border-gray-200">
-                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCountry{{ loop.index }}">
+                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCountry{{ loop.index }}">
                     <span class="font-medium text-gray-900">{{ country }} ({{ config.name }})</span>
-                    <svg class="h-5 w-5 text-gray-500 transform transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
                 </button>
             </div>
             <div id="collapseCountry{{ loop.index }}" class="hidden">
                 <div class="p-4">
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="country_{{ country }}">{{ config | tojson(indent=2) }}</textarea>
-                    <div class="mt-4 flex gap-2">
-                        <button class="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" onclick="saveCountryConfig('{{ country }}')">Save</button>
-                        <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="showVersions('country', '{{ country }}')">Version History</button>
-                        <button class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2" onclick="deleteCountryConfig('{{ country }}')">Delete</button>
+                    <div class="mt-4 flex justify-between">
+                        <div class="flex gap-2">
+                            <button class="inline-flex items-center justify-center rounded-md border border-green-700 bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-sm" onclick="saveCountryConfig('{{ country }}')">
+                                <i class="fas fa-floppy-disk h-4 w-4 mr-2"></i>
+                                Save
+                            </button>
+                            <button class="inline-flex items-center justify-center rounded-md border border-red-600 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-sm" onclick="deleteCountryConfig('{{ country }}')">
+                                <i class="fas fa-trash h-4 w-4 mr-2"></i>
+                                Delete
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showVersions('country', '{{ country }}')">
+                                <i class="fas fa-clock-rotate-left h-4 w-4 mr-2"></i>
+                                Version History
+                            </button>
+                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="exportCountryConfig('{{ country }}')">
+                                <i class="fas fa-file-export h-4 w-4 mr-2"></i>
+                                Export
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -81,26 +119,44 @@
     </div>
 
     <h2 class="text-2xl font-bold text-gray-900 mt-8 mb-6">Package Configurations</h2>
-    <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mb-6" onclick="newPackageConfig()">Add New Package</button>
+    <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm mb-6" onclick="newPackageConfig()">
+        <i class="fas fa-plus h-4 w-4 mr-2"></i>
+        Add New Package
+    </button>
     
     <div class="space-y-2" id="packageAccordion">
         {% for id, config in package_configs.items() %}
         <div class="bg-white shadow rounded-lg overflow-hidden">
             <div class="border-b border-gray-200">
-                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePackage{{ loop.index }}">
+                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePackage{{ loop.index }}">
                     <span class="font-medium text-gray-900">{{ config.name }} ({{ config.display }})</span>
-                    <svg class="h-5 w-5 text-gray-500 transform transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
                 </button>
             </div>
             <div id="collapsePackage{{ loop.index }}" class="hidden">
                 <div class="p-4">
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="package_{{ id }}">{{ config | tojson(indent=2) }}</textarea>
-                    <div class="mt-4 flex gap-2">
-                        <button class="inline-flex justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" onclick="savePackageConfig('{{ id }}')">Save</button>
-                        <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="showVersions('package', '{{ id }}')">Version History</button>
-                        <button class="inline-flex justify-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2" onclick="deletePackageConfig('{{ id }}')">Delete</button>
+                    <div class="mt-4 flex justify-between">
+                        <div class="flex gap-2">
+                            <button class="inline-flex items-center justify-center rounded-md border border-green-700 bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-sm" onclick="savePackageConfig('{{ id }}')">
+                                <i class="fas fa-floppy-disk h-4 w-4 mr-2"></i>
+                                Save
+                            </button>
+                            <button class="inline-flex items-center justify-center rounded-md border border-red-600 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-sm" onclick="deletePackageConfig('{{ id }}')">
+                                <i class="fas fa-trash h-4 w-4 mr-2"></i>
+                                Delete
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showVersions('package', '{{ id }}')">
+                                <i class="fas fa-clock-rotate-left h-4 w-4 mr-2"></i>
+                                Version History
+                            </button>
+                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="exportPackageConfig('{{ id }}')">
+                                <i class="fas fa-file-export h-4 w-4 mr-2"></i>
+                                Export
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -127,8 +183,13 @@
                 </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
-                <button class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="hideModal('newDomainModal')">Cancel</button>
-                <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="createDomainConfig()">Create</button>
+                <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('newDomainModal')">
+                    Cancel
+                </button>
+                <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="createDomainConfig()">
+                    <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                    Create
+                </button>
             </div>
         </div>
     </div>
@@ -152,8 +213,13 @@
                 </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
-                <button class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="hideModal('newCountryModal')">Cancel</button>
-                <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="createCountryConfig()">Create</button>
+                <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('newCountryModal')">
+                    Cancel
+                </button>
+                <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="createCountryConfig()">
+                    <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                    Create
+                </button>
             </div>
         </div>
     </div>
@@ -173,8 +239,13 @@
                 </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
-                <button class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="hideModal('importConfigModal')">Cancel</button>
-                <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="importConfig()">Import</button>
+                <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('importConfigModal')">
+                    Cancel
+                </button>
+                <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="importConfig()">
+                    <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                    Import
+                </button>
             </div>
         </div>
     </div>
@@ -198,8 +269,13 @@
                 </div>
             </div>
             <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
-                <button class="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="hideModal('newPackageModal')">Cancel</button>
-                <button class="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" onclick="createPackageConfig()">Create</button>
+                <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('newPackageModal')">
+                    Cancel
+                </button>
+                <button class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="createPackageConfig()">
+                    <i class="fas fa-plus h-4 w-4 mr-2"></i>
+                    Create
+                </button>
             </div>
         </div>
     </div>
@@ -216,11 +292,9 @@
                         <div class="p-6">
                             <div class="flex justify-between items-center mb-4">
                                 <h3 class="text-lg font-medium text-gray-900">Version History</h3>
-                                <button onclick="closeVersionModal()" class="text-gray-400 hover:text-gray-500">
+                                <button onclick="closeVersionModal()" class="text-gray-400 hover:text-gray-500 shadow-sm">
                                     <span class="sr-only">Close</span>
-                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+                                    <i class="fas fa-xmark h-4 w-4"></i>
                                 </button>
                             </div>
                             <div id="versionList" class="space-y-4">
@@ -400,6 +474,7 @@ async function deleteDomainConfig(domain) {
 
 // Country configuration functions
 function newCountryConfig() {
+    showModal('newCountryModal');
     const defaultConfig = {
         "name": "",
         "currency": "EUR",
@@ -498,6 +573,7 @@ async function deleteCountryConfig(country) {
 
 // Package configuration functions
 function newPackageConfig() {
+    showModal('newPackageModal');
     const defaultConfig = {
         "name": "",
         "description": "",
@@ -674,9 +750,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetElement = document.querySelector(targetId);
             if (targetElement) {
                 targetElement.classList.toggle('hidden');
-                const icon = this.querySelector('svg');
+                const icon = this.querySelector('i');
                 if (icon) {
-                    icon.style.transform = targetElement.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+                    icon.classList.toggle('hidden');
                 }
             }
         });
@@ -835,7 +911,25 @@ async function showVersions(type, id) {
     diffContainer.innerHTML = '';
     
     try {
-        const endpoint = type === 'domain' ? `config/${id}` : `${type}/${id}`;
+        // Controleer of we een geldig ID hebben
+        if (!id) {
+            throw new Error('Invalid ID provided');
+        }
+
+        // Bouw de juiste endpoint URL op
+        let endpoint;
+        if (type === 'domain') {
+            endpoint = `config/${id}`;
+        } else if (type === 'country') {
+            endpoint = `country/${id}`;
+        } else if (type === 'package') {
+            // Zorg ervoor dat we een numerieke package ID gebruiken
+            const packageId = id.toString();
+            endpoint = `packages/${packageId}`;
+        } else {
+            throw new Error('Invalid type provided');
+        }
+        
         const response = await fetch(`/api/${endpoint}/versions`);
         
         if (!response.ok) {
@@ -864,10 +958,8 @@ async function showVersions(type, id) {
                             <span class="text-xs text-gray-500 mt-1 block">${date}</span>
                         </div>
                         ${!isFirst ? `
-                            <button onclick="event.stopPropagation(); restoreVersion(${type}, '${id}', ${version.version})" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
+                            <button onclick="event.stopPropagation(); restoreVersion('${type}', '${id}', ${version.version})" class="inline-flex items-center justify-center rounded-md border border-gray-400 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                <i class="fas fa-clock-rotate-left h-4 w-4 mr-2"></i>
                                 Restore
                             </button>
                         ` : ''}
@@ -957,17 +1049,42 @@ async function restoreVersion(type, id, version) {
     if (!confirm('Are you sure you want to restore this version? This will overwrite the current configuration.')) {
         return;
     }
-    
+
     try {
-        const response = await fetch(`/api/${type === 'domain' ? 'config' : type}/${id}/restore/${version}`, {
-            method: 'POST'
+        // Controleer of we een geldig ID hebben
+        if (!id) {
+            throw new Error('Invalid ID provided');
+        }
+
+        // Bouw de juiste endpoint URL op
+        let endpoint;
+        if (type === 'domain') {
+            endpoint = `config/${id}`;
+        } else if (type === 'country') {
+            endpoint = `country/${id}`;
+        } else if (type === 'package') {
+            // Zorg ervoor dat we een numerieke package ID gebruiken
+            const packageId = id.toString();
+            endpoint = `packages/${packageId}`;
+        } else {
+            throw new Error('Invalid type provided');
+        }
+        
+        const response = await fetch(`/api/${endpoint}/restore/${version}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
-        
-        if (!response.ok) throw new Error('Failed to restore version');
-        
+
+        if (!response.ok) {
+            throw new Error(`Failed to restore version: ${response.statusText}`);
+        }
+
         alert('Version restored successfully');
-            location.reload();
+        location.reload();
     } catch (error) {
+        console.error('Error restoring version:', error);
         alert('Error restoring version: ' + error.message);
     }
 }

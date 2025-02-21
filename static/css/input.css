@@ -1,4 +1,13 @@
 @tailwind base;
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: currentColor;
+  }
+}
+
 @tailwind components;
 @tailwind utilities;
 

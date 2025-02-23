@@ -4,7 +4,7 @@
 
 {% block styles %}
 <!-- Add diff2html CSS -->
-<link rel="stylesheet" href="{{ url_for('static', path='css/diff2html.min.css') }}">
+<link rel="stylesheet" href="/static/css/diff2html.min.css">
 {% endblock %}
 
 {% block content %}
@@ -319,12 +319,10 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Load diff library first -->
-<script src="{{ url_for('static', path='js/diff.js') }}"></script>
-
-<!-- Load diff2html libraries -->
-<script src="{{ url_for('static', path='js/diff2html.min.js') }}"></script>
-<script src="{{ url_for('static', path='js/diff2html-ui.min.js') }}"></script>
+<!-- Add diff libraries -->
+<script src="/static/js/diff.js"></script>
+<script src="/static/js/diff2html.min.js"></script>
+<script src="/static/js/diff2html-ui.min.js"></script>
 
 <script>
 // Modal functions

@@ -31,3 +31,7 @@ primary_region = "ams"
   cpu_kind = "shared"
   cpus = 8
   memory_mb = 4096
+
+[mounts]
+  source = "competitor_price_watcher_data"
+  destination = "/data"

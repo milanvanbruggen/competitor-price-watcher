@@ -1,5 +1,6 @@
 from logging.config import fileConfig
 import os
+from config import IS_PRODUCTION, LOCAL_DATABASE_URL
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
@@ -13,8 +14,17 @@ from models import Base
 # access to the values within the .ini file in use.
 config = context.config
 
-# Get the database URL from environment variable
-database_url = os.getenv("DATABASE_URL", "sqlite:///./competitor_price_watcher.db")
+# Get the database URL based on environment
+if IS_PRODUCTION:
+    database_url = os.getenv("DATABASE_URL")
+    if database_url and database_url.startswith("postgres://"):
+        # SQLAlchemy 1.4+ requires postgresql:// instead of postgres://
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    if not database_url:
+        raise ValueError("DATABASE_URL environment variable is required in production")
+else:
+    database_url = LOCAL_DATABASE_URL
+
 config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.

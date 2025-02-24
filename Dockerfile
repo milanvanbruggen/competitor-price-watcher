@@ -33,8 +33,16 @@ RUN playwright install-deps
 # Copy the rest of the application
 COPY . .
 
+# Create startup script
+RUN echo '#!/bin/bash\n\
+echo "Running database migrations..."\n\
+alembic upgrade head\n\
+echo "Starting application..."\n\
+exec uvicorn api:app --host 0.0.0.0 --port 8080 --timeout-keep-alive 120' > /app/start.sh \
+    && chmod +x /app/start.sh
+
 # Expose the port
 EXPOSE 8080
 
-# Start the application with increased timeout
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8080", "--timeout-keep-alive", "120"] 
+# Start the application with the startup script
+CMD ["/app/start.sh"] 

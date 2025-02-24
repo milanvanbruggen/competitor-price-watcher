@@ -19,6 +19,7 @@ primary_region = "ams"
   auto_start_machines = true
   min_machines_running = 0
   processes = ["app"]
+  max_machines_running = 1  # Limit to 1 instance
 
 [[http_service.checks]]
   grace_period = "10s"

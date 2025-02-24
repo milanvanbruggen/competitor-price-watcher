@@ -9,17 +9,22 @@ import asyncio
 from price_calculator import PriceCalculator
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.orm import Session
-from database import get_db
+from database import get_db, init_db
 import crud, schemas
 from datetime import datetime
 
-# Increase timeout to 120 seconds
+# Initialize database on startup
+init_db()
+
+# Increase timeout to 120 seconds and configure host/port
 app = FastAPI(
     title="Competitor Price Watcher",
     description="API for watching competitor prices",
     version="1.0.0",
     default_response_class=JSONResponse,
-    timeout=120
+    timeout=120,
+    host="0.0.0.0",
+    port=8080
 )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")

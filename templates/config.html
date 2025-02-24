@@ -141,7 +141,7 @@
     </div>
     
     <div class="space-y-2" id="packageAccordion">
-        {% for id, config in package_configs.items() %}
+        {% for id, config in package_configs.items()|sort %}
         <div class="bg-white shadow rounded-lg overflow-hidden">
             <div class="border-b border-gray-200">
                 <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePackage{{ loop.index }}">

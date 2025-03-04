@@ -9,6 +9,34 @@
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Notification container -->
+    <div id="notification" class="fixed top-4 right-4 z-50 hidden">
+        <div class="rounded-md p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-900" id="notificationMessage"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold">Configuration</h1>
+        <div class="flex gap-4">
+            <button onclick="exportConfigs()" class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm">
+                <i class="fas fa-file-export h-4 w-4 mr-2"></i>
+                Export All
+            </button>
+            <button onclick="document.getElementById('importModal').classList.remove('hidden')" class="inline-flex items-center justify-center rounded-md border border-green-700 bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-sm">
+                <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                Import All
+            </button>
+        </div>
+    </div>
+
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-900 flex items-center">
             Domain Configurations
@@ -22,7 +50,7 @@
                 <i class="fas fa-plus h-4 w-4 mr-2"></i>
                 Add New Domain
             </button>
-            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showImportModal()">
+            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showModal('domainImportModal')">
                 <i class="fas fa-file-import h-4 w-4 mr-2"></i>
                 Import Configuration
             </button>
@@ -40,7 +68,7 @@
                     <span class="font-medium text-gray-900">{{ config.domain }}</span>
                     <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
                 </button>
-            </div>
+                    </div>
             <div id="collapse{{ loop.index }}" class="hidden">
                 <div class="p-4">
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="domain_{{ domain }}">{{ config | tojson(indent=2) }}</textarea>
@@ -94,7 +122,7 @@
                     <span class="font-medium text-gray-900">{{ config.name }} ({{ config.country_code }})</span>
                     <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
                 </button>
-            </div>
+                    </div>
             <div id="collapseCountry{{ loop.index }}" class="hidden">
                 <div class="p-4">
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="country_{{ country }}">{{ config | tojson(indent=2) }}</textarea>
@@ -148,7 +176,7 @@
                     <span class="font-medium text-gray-900">{{ config.name }} ({{ config.display }})</span>
                     <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
                 </button>
-            </div>
+                    </div>
             <div id="collapsePackage{{ loop.index }}" class="hidden">
                 <div class="p-4">
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="package_{{ id }}">{{ config | tojson(indent=2) }}</textarea>
@@ -193,7 +221,7 @@
                     <label for="newDomainConfig" class="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="newDomainConfig"></textarea>
                 </div>
-            </div>
+                </div>
             <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
                 <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('newDomainModal')">
                     Cancel
@@ -219,7 +247,7 @@
                     <label for="newCountryConfig" class="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="newCountryConfig"></textarea>
                 </div>
-            </div>
+                </div>
             <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
                 <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('newCountryModal')">
                     Cancel
@@ -271,7 +299,7 @@
                     <label for="newPackageConfig" class="block text-sm font-medium text-gray-700 mb-1">Configuration</label>
                     <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="newPackageConfig"></textarea>
                 </div>
-            </div>
+                </div>
             <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
                 <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="hideModal('newPackageModal')">
                     Cancel
@@ -372,6 +400,67 @@
         </div>
     </div>
 </div>
+
+<!-- Import Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="importModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Import All Configurations</h3>
+            </div>
+            <div class="p-6">
+                <form id="importForm" class="space-y-4">
+                    <div>
+                        <label for="configFile" class="block text-sm font-medium text-gray-700 mb-1">Configuration File</label>
+                        <input type="file" id="configFile" accept=".json" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="clearExisting" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="clearExisting" class="ml-2 block text-sm text-gray-900">Clear existing configurations</label>
+                    </div>
+                </form>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button type="button" onclick="hideModal('importModal')" class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm">
+                    Cancel
+                </button>
+                <button type="submit" form="importForm" class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm">
+                    <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Domain Import Modal -->
+<div class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden" id="domainImportModal">
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Import Domain Configuration</h3>
+            </div>
+            <div class="p-6">
+                <form id="domainImportForm" class="space-y-4">
+                    <div>
+                        <label for="domainFile" class="block text-sm font-medium text-gray-700 mb-1">Domain File (CSV)</label>
+                        <input type="file" id="domainFile" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        <p class="mt-1 text-sm text-gray-500">CSV should contain: domain,selector,price_selector</p>
+                    </div>
+                </form>
+            </div>
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+                <button type="button" onclick="hideModal('domainImportModal')" class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm">
+                    Cancel
+                </button>
+                <button type="submit" form="domainImportForm" class="inline-flex items-center justify-center rounded-md border border-blue-700 bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm">
+                    <i class="fas fa-file-import h-4 w-4 mr-2"></i>
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -394,6 +483,24 @@ function hideModal(modalId) {
     if (modal) {
         modal.classList.add('hidden');
     }
+}
+
+// Notification function
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('notification');
+    const messageElement = document.getElementById('notificationMessage');
+    
+    // Set message and style based on type
+    messageElement.textContent = message;
+    notification.className = `fixed top-4 right-4 z-50 ${type === 'success' ? 'bg-green-50' : 'bg-red-50'}`;
+    
+    // Show notification
+    notification.classList.remove('hidden');
+    
+    // Hide after 3 seconds
+    setTimeout(() => {
+        notification.classList.add('hidden');
+    }, 3000);
 }
 
 // Domain configuration functions
@@ -1319,5 +1426,107 @@ async function importPackageConfig() {
         alert(`Error importing configuration: ${error.message}`);
     }
 }
+
+async function exportConfigs() {
+    try {
+        const response = await fetch('/api/configs/export', {
+            method: 'POST'
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Export failed');
+        }
+        
+        // Get the filename from the Content-Disposition header
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const filename = contentDisposition ? contentDisposition.split('filename=')[1].replace(/"/g, '') : 'configs_backup.json';
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showNotification('Configurations exported successfully', 'success');
+    } catch (error) {
+        console.error('Export error:', error);
+        showNotification(`Failed to export configurations: ${error.message}`, 'error');
+    }
+}
+
+document.getElementById('importForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = document.getElementById('configFile').files[0];
+    const clearExisting = document.getElementById('clearExisting').checked;
+    
+    if (!file) {
+        showNotification('Please select a file to import', 'error');
+        return;
+    }
+
+    try {
+        // Read and validate the file content
+        const content = await file.text();
+        const config = JSON.parse(content);
+        
+        // Validate the required structure
+        if (!config.domain_configs || !config.country_configs || !config.package_configs) {
+            throw new Error('Invalid configuration format. The file must contain domain_configs, country_configs, and package_configs arrays.');
+        }
+
+        const formData = new FormData();
+        formData.append('file', new Blob([content], { type: 'application/json' }));
+        formData.append('clear_existing', clearExisting);
+
+        const response = await fetch('/api/configs/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Import failed');
+        }
+        
+        const result = await response.json();
+        showNotification('Configurations imported successfully', 'success');
+        hideModal('importModal');
+        location.reload();
+    } catch (error) {
+        showNotification(`Failed to import configurations: ${error.message}`, 'error');
+    }
+});
+
+document.getElementById('domainImportForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const file = document.getElementById('domainFile').files[0];
+    
+    if (!file) {
+        showNotification('Please select a file to import', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/domains/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) throw new Error('Import failed');
+        
+        const result = await response.json();
+        showNotification('Domains imported successfully', 'success');
+        hideModal('domainImportModal');
+        location.reload();
+    } catch (error) {
+        showNotification('Failed to import domains', 'error');
+    }
+});
 </script>
 {% endblock %} 

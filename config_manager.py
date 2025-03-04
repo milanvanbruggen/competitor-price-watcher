@@ -120,19 +120,26 @@ def import_configs(configs: Dict[str, List[Dict]], db: Session, clear_existing: 
 
         # Process package configurations
         for package_config in configs.get('package_configs', []):
-            package_id = package_config.get('id')
+            # Try to get package_id from either 'id' or 'package_id' field
+            package_id = package_config.get('package_id') or package_config.get('id')
             if package_id:
                 # Check if package exists
-                existing = db.query(PackageConfig).filter(PackageConfig.package_id == package_id).first()
+                existing = db.query(PackageConfig).filter(PackageConfig.package_id == str(package_id)).first()
                 if existing:
                     # Update existing config
-                    existing.config = package_config.get('config', {})
+                    config_data = package_config.get('config', {})
+                    if not config_data:  # If no config field, use the entire object
+                        config_data = package_config
+                    existing.config = config_data
                     existing.updated_at = datetime.now(timezone.utc)
                 else:
                     # Create new config
+                    config_data = package_config.get('config', {})
+                    if not config_data:  # If no config field, use the entire object
+                        config_data = package_config
                     new_config = PackageConfig(
-                        package_id=package_id,
-                        config=package_config.get('config', {})
+                        package_id=str(package_id),
+                        config=config_data
                     )
                     db.add(new_config)
 

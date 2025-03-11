@@ -60,43 +60,59 @@
         </div>
     </div>
     
-    <div class="space-y-2" id="domainAccordion">
+    <div class="space-y-6" id="domainAccordion">
+        {% set grouped_domains = {} %}
         {% for domain, config in domain_configs.items() %}
-        <div class="bg-white shadow rounded-lg overflow-hidden domain-item" data-domain="{{ domain }}">
-            <div class="border-b border-gray-200">
-                <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}">
-                    <span class="font-medium text-gray-900">{{ config.domain }}</span>
-                    <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
-                </button>
-                    </div>
-            <div id="collapse{{ loop.index }}" class="hidden">
-                <div class="p-4">
-                    <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="domain_{{ domain }}">{{ config | tojson(indent=2) }}</textarea>
-                    <div class="mt-4 flex justify-between">
-                        <div class="flex gap-2">
-                            <button class="inline-flex items-center justify-center rounded-md border border-green-700 bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-sm" onclick="saveDomainConfig('{{ domain }}')">
-                                <i class="fas fa-floppy-disk h-4 w-4 mr-2"></i>
-                                Save
-                            </button>
-                            <button class="inline-flex items-center justify-center rounded-md border border-red-600 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-sm" onclick="deleteDomainConfig('{{ domain }}')">
-                                <i class="fas fa-trash h-4 w-4 mr-2"></i>
-                                Delete
+            {% set extension = '.' + domain.split('.')[-1] %}
+            {% if extension not in grouped_domains %}
+                {% set _ = grouped_domains.update({extension: []}) %}
+            {% endif %}
+            {% set _ = grouped_domains[extension].append((domain, config)) %}
+        {% endfor %}
+        
+        {% for extension in grouped_domains.keys()|sort %}
+            <div class="mb-4">
+                <h3 class="text-lg font-medium text-gray-900 mb-2">{{ extension }} domeinen ({{ grouped_domains[extension]|length }})</h3>
+                <div class="space-y-2">
+                    {% for domain, config in grouped_domains[extension]|sort %}
+                    <div class="bg-white shadow rounded-lg overflow-hidden domain-item" data-domain="{{ domain }}">
+                        <div class="border-b border-gray-200">
+                            <button class="w-full px-4 py-3 text-left hover:bg-gray-50 focus:outline-none flex justify-between items-center shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}{{ extension|replace('.', '') }}">
+                                <span class="font-medium text-gray-900">{{ config.domain }}</span>
+                                <i class="fas fa-chevron-down h-5 w-5 text-gray-500 transform transition-transform duration-200"></i>
                             </button>
                         </div>
-                        <div class="flex gap-2">
-                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showVersions('domain', '{{ domain }}')">
-                                <i class="fas fa-clock-rotate-left h-4 w-4 mr-2"></i>
-                                Version History
-                            </button>
-                            <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="exportDomainConfig('{{ domain }}')">
-                                <i class="fas fa-file-export h-4 w-4 mr-2"></i>
-                                Export
-                            </button>
+                        <div id="collapse{{ loop.index }}{{ extension|replace('.', '') }}" class="hidden">
+                            <div class="p-4">
+                                <textarea class="w-full h-72 font-mono text-sm bg-gray-50 p-4 rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" id="domain_{{ domain }}">{{ config | tojson(indent=2) }}</textarea>
+                                <div class="mt-4 flex justify-between">
+                                    <div class="flex gap-2">
+                                        <button class="inline-flex items-center justify-center rounded-md border border-green-700 bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-sm" onclick="saveDomainConfig('{{ domain }}')">
+                                            <i class="fas fa-floppy-disk h-4 w-4 mr-2"></i>
+                                            Save
+                                        </button>
+                                        <button class="inline-flex items-center justify-center rounded-md border border-red-600 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 shadow-sm" onclick="deleteDomainConfig('{{ domain }}')">
+                                            <i class="fas fa-trash h-4 w-4 mr-2"></i>
+                                            Delete
+                                        </button>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="showVersions('domain', '{{ domain }}')">
+                                            <i class="fas fa-clock-rotate-left h-4 w-4 mr-2"></i>
+                                            Version History
+                                        </button>
+                                        <button class="inline-flex items-center justify-center rounded-md border border-gray-400 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm" onclick="exportDomainConfig('{{ domain }}')">
+                                            <i class="fas fa-file-export h-4 w-4 mr-2"></i>
+                                            Export
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
             </div>
-        </div>
         {% endfor %}
     </div>
 
@@ -969,15 +985,46 @@ function filterDomains() {
     const searchInput = document.getElementById('domainSearch');
     const searchTerm = searchInput.value.toLowerCase();
     const domainItems = document.querySelectorAll('.domain-item');
+    let visibleCount = 0;
     
+    // Zoek door alle domein items
     domainItems.forEach(item => {
         const domain = item.getAttribute('data-domain').toLowerCase();
         if (domain.includes(searchTerm)) {
             item.style.display = '';
+            visibleCount++;
         } else {
             item.style.display = 'none';
         }
     });
+    
+    // Toon of verberg de extensie headers op basis van zichtbare domeinen
+    const extensionHeaders = document.querySelectorAll('#domainAccordion > div.mb-4');
+    extensionHeaders.forEach(header => {
+        const domainSection = header.querySelector('.space-y-2');
+        const visibleDomains = domainSection.querySelectorAll('.domain-item[style=""]').length;
+        
+        if (visibleDomains === 0) {
+            header.style.display = 'none';
+        } else {
+            header.style.display = '';
+            // Update het aantal zichtbare domeinen in de header
+            const headerTitle = header.querySelector('h3');
+            const extensionName = headerTitle.textContent.split(' ')[0];
+            headerTitle.textContent = `${extensionName} domeinen (${visibleDomains})`;
+        }
+    });
+    
+    // Als er geen zoekterm is, herstel dan alle originele domeinaantallen
+    if (!searchTerm) {
+        extensionHeaders.forEach(header => {
+            const headerTitle = header.querySelector('h3');
+            const domainSection = header.querySelector('.space-y-2');
+            const totalDomains = domainSection.querySelectorAll('.domain-item').length;
+            const extensionName = headerTitle.textContent.split(' ')[0];
+            headerTitle.textContent = `${extensionName} domeinen (${totalDomains})`;
+        });
+    }
 }
 
 // Status stream handling

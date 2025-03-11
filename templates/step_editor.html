@@ -551,13 +551,23 @@ function saveStep() {
         }
     });
 
-    if (editingIndex >= 0) {
+    // Sla op of de stap wordt bewerkt of nieuw is voordat de modal wordt verborgen
+    const isEditing = editingIndex >= 0;
+    
+    if (isEditing) {
+        // Vervang de bestaande stap op dezelfde positie
         steps[editingIndex] = step;
     } else {
+        // Voeg een nieuwe stap toe
         steps.push(step);
     }
 
+    // Verberg de modal (deze reset de form maar niet de editingIndex)
     hideAddStepModal();
+    
+    // Reset de editingIndex expliciet na het opslaan
+    editingIndex = -1;
+    
     updateStepList();
     updateJsonPreview();
 }
@@ -689,6 +699,9 @@ function editStep(index) {
     editingIndex = index;
     const step = steps[index];
     
+    // Toon de modal zonder showAddStepModal te gebruiken om te voorkomen dat editingIndex wordt gereset
+    document.getElementById('addStepModal').classList.remove('hidden');
+    
     // Set the step type and update fields
     document.getElementById('stepType').value = step.type;
     updateStepFields();
@@ -709,8 +722,6 @@ function editStep(index) {
 
         document.getElementById('saveStepBtn').textContent = 'Update Step';
     }, 0);
-
-    showAddStepModal();
 }
 
 function deleteStep(index) {

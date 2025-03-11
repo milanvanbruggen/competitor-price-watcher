@@ -128,7 +128,12 @@
                                     <tr>
                                         <td class="px-4 py-3 text-sm"><span class="text-gray-500">unit</span></td>
                                         <td class="px-4 py-3 text-sm text-gray-500">string</td>
-                                        <td class="px-4 py-3 text-sm text-gray-500">Unit of the value (mm/cm)</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">Unit of the value (mm/cm/m)</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-gray-500">clear_first</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">boolean</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">Whether to clear the field before typing (default: true)</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -160,6 +165,11 @@
                                         <td class="px-4 py-3 text-sm text-gray-500">string</td>
                                         <td class="px-4 py-3 text-sm text-gray-500">CSS selector for the element to click</td>
                                     </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-gray-500">description</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">string</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">Optional description of what this click does</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -186,7 +196,7 @@
                                     <tr>
                                         <td class="px-4 py-3 text-sm"><span class="text-red-600 font-medium">duration</span></td>
                                         <td class="px-4 py-3 text-sm text-gray-500">string/number</td>
-                                        <td class="px-4 py-3 text-sm text-gray-500">Wait time in ms or predefined value</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">Wait time in seconds or predefined value</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -194,16 +204,128 @@
                         <div class="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
                             <strong class="text-green-800">Predefined wait times:</strong>
                             <ul class="mt-2 space-y-1 text-green-700">
-                                <li><code class="bg-green-100 px-1 py-0.5 rounded text-sm">short</code>: 250ms</li>
-                                <li><code class="bg-green-100 px-1 py-0.5 rounded text-sm">default</code>: 500ms</li>
-                                <li><code class="bg-green-100 px-1 py-0.5 rounded text-sm">long</code>: 1000ms</li>
-                                <li><code class="bg-green-100 px-1 py-0.5 rounded text-sm">longer</code>: 2000ms</li>
+                                <li><code class="bg-green-100 px-1 py-0.5 rounded text-sm">short</code>: 0.5 seconds</li>
+                                <li><code class="bg-green-100 px-1 py-0.5 rounded text-sm">default</code>: 1.0 second</li>
+                                <li><code class="bg-green-100 px-1 py-0.5 rounded text-sm">long</code>: 1.5 seconds</li>
+                                <li><code class="bg-green-100 px-1 py-0.5 rounded text-sm">longer</code>: 3.0 seconds</li>
                             </ul>
                         </div>
                         <pre class="bg-gray-50 p-4 rounded-lg mt-4 text-sm font-mono">
 {
     "type": "wait",
     "duration": "long"
+}</pre>
+                    </div>
+
+                    <div class="border-t border-gray-200 pt-6 mt-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">blur</h3>
+                        <p class="text-gray-600 mb-4">Blurs (unfocuses) an input field, which can trigger validation or calculations on some websites.</p>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parameter</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-red-600 font-medium">selector</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">string</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">CSS selector for the element to blur</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <pre class="bg-gray-50 p-4 rounded-lg mt-4 text-sm font-mono">
+{
+    "type": "blur",
+    "selector": "#width"
+}</pre>
+                    </div>
+
+                    <div class="border-t border-gray-200 pt-6 mt-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">modify_element</h3>
+                        <p class="text-gray-600 mb-4">Modifies an element's attributes or executes custom JavaScript on it. Useful for fixing hard-to-click elements or working around website limitations.</p>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parameter</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-red-600 font-medium">selector</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">string</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">CSS selector for the element to modify</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-gray-500">add_class</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">string</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">CSS class to add to the element</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-gray-500">add_attribute</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">object</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">Key-value pairs of attributes to add</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-gray-500">script</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">string</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">Custom JavaScript to run on the element</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <pre class="bg-gray-50 p-4 rounded-lg mt-4 text-sm font-mono">
+{
+    "type": "modify_element",
+    "selector": ".cart",
+    "script": "element.style.zIndex = '9999'; element.style.position = 'relative';"
+}</pre>
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                            <p class="text-yellow-800"><strong>Tip:</strong> The <code>modify_element</code> step is particularly useful for dealing with elements that are difficult to click because they're obscured or have other interaction issues. The element is accessible in the script via the variable <code>element</code>.</p>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-200 pt-6 mt-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">read_price</h3>
+                        <p class="text-gray-600 mb-4">Reads a price from an element on the page.</p>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parameter</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-red-600 font-medium">selector</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">string</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">CSS selector for the element containing the price</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-gray-500">includes_vat</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">boolean</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">Whether the price includes VAT (true) or not (false)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mt-4">
+                            <p class="text-indigo-800"><strong>Note:</strong> If the price element is not found, the system will return 0.00 as the price instead of failing. This is particularly useful for handling optional costs like shipping.</p>
+                        </div>
+                        <pre class="bg-gray-50 p-4 rounded-lg mt-4 text-sm font-mono">
+{
+    "type": "read_price",
+    "selector": ".price-total",
+    "includes_vat": true
 }</pre>
                     </div>
                 </section>
@@ -272,7 +394,7 @@
 }</pre>
                     </div>
 
-                    <h4 class="text-lg font-medium text-gray-900 mb-4">Example 2: Custom dropdown with extra calculations</h4>
+                    <h4 class="text-lg font-medium text-gray-900 mb-4 mt-6">Example 2: Complex configuration with click issues</h4>
                     <div class="step-example">
 <pre>{
     "domain": "example.com",
@@ -282,8 +404,6 @@
                 {
                     "type": "select",
                     "selector": ".thickness-select",
-                    "option_container": ".thickness-options",
-                    "option_selector": "li[data-value='{value}']",
                     "value": "{thickness}",
                     "unit": "mm"
                 },
@@ -293,9 +413,13 @@
                 },
                 {
                     "type": "input",
-                    "selector": "#dimensions input:first-child",
+                    "selector": "#width",
                     "value": "{width}",
                     "unit": "cm"
+                },
+                {
+                    "type": "blur",
+                    "selector": "#width"
                 },
                 {
                     "type": "wait",
@@ -303,25 +427,53 @@
                 },
                 {
                     "type": "input",
-                    "selector": "#dimensions input:last-child",
+                    "selector": "#length",
                     "value": "{length}",
                     "unit": "cm"
-                },
-                {
-                    "type": "click",
-                    "selector": "#calculate"
                 },
                 {
                     "type": "wait",
                     "duration": "default"
                 },
                 {
+                    "type": "modify_element",
+                    "selector": ".cart-button",
+                    "script": "element.style.zIndex = '999'; element.style.position = 'relative';"
+                },
+                {
+                    "type": "click",
+                    "selector": ".cart-button"
+                },
+                {
+                    "type": "wait",
+                    "duration": "longer"
+                },
+                {
                     "type": "read_price",
                     "selector": "#total-price",
-                    "includes_vat": true,
-                    "calculation": {
-                        "divide_by": 100
-                    }
+                    "includes_vat": true
+                }
+            ]
+        },
+        "shipping": {
+            "steps": [
+                {
+                    "type": "input",
+                    "selector": "#postcode",
+                    "value": "1000AA"
+                },
+                {
+                    "type": "click",
+                    "selector": "#calculate-shipping"
+                },
+                {
+                    "type": "wait",
+                    "duration": "long"
+                },
+                {
+                    "type": "read_price",
+                    "selector": ".shipping-cost",
+                    "includes_vat": true
                 }
             ]
         }

@@ -518,10 +518,10 @@ class PriceCalculator:
         self._update_status("Reading price", "read_price", {"selector": selector})
         
         try:
-            element = await page.wait_for_selector(selector)
+            element = await page.wait_for_selector(selector, timeout=5000)  # 5 seconden timeout
             if not element:
-                self._update_status("Price element not found", "error")
-                raise ValueError(f"Price element not found with selector: {selector}")
+                self._update_status("Price element not found, returning 0.00", "read_price", {"price": 0.0})
+                return 0.0
 
             price_text = await element.text_content()
             self._update_status("Found price text", "read_price", {"text": price_text})
@@ -533,8 +533,8 @@ class PriceCalculator:
             self._update_status(f"Price found: €{price:.2f}", "read_price", {"price": price})
             return price
         except Exception as e:
-            self._update_status(f"Error reading price: {str(e)}", "error")
-            raise
+            self._update_status(f"Error reading price, returning 0.00: {str(e)}", "warn")
+            return 0.0
 
     def _convert_dimensions(self, dimensions: Dict[str, float], units: Dict[str, str]) -> Dict[str, float]:
         """Convert dimensions to the units required by the domain"""

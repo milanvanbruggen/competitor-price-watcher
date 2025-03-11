@@ -98,6 +98,7 @@
                                 <option value="click">Click</option>
                                 <option value="wait">Wait</option>
                                 <option value="blur">Blur</option>
+                                <option value="modify_element">Modify Element</option>
                                 <option value="read_price">Read Price</option>
                             </select>
                         </div>
@@ -263,7 +264,7 @@ const stepFields = {
             label: 'Selector',
             type: 'text',
             required: true,
-            help: 'Enter a CSS selector (e.g., #input-id, .class-name) or XPath (e.g., //input[@name="username"])'
+            help: 'Enter a CSS selector (e.g., #input-id, .class-name) or XPath (e.g., //input[@name="quantity"])'
         },
         {
             name: 'value',
@@ -271,15 +272,22 @@ const stepFields = {
             type: 'value_with_vars',
             required: true,
             variables: ['thickness', 'width', 'length', 'quantity'],
-            help: 'The value to fill in. You can use variables like {thickness} that will be replaced with actual values'
+            help: 'The value to input. You can use variables like {thickness} that will be replaced with actual values'
         },
         { 
             name: 'unit', 
             type: 'select', 
             label: 'Unit', 
-            options: ['mm', 'cm'], 
+            options: ['mm', 'cm', 'm', 'mm²', 'cm²', 'm²'], 
             required: false,
             help: 'The unit of measurement for the value. Will convert values automatically'
+        },
+        { 
+            name: 'clear_first', 
+            type: 'checkbox', 
+            label: 'Clear First', 
+            required: false,
+            help: 'Whether to clear the input field before entering the new value'
         }
     ],
     click: [
@@ -288,14 +296,14 @@ const stepFields = {
             label: 'Selector',
             type: 'text',
             required: true,
-            help: 'Enter a CSS selector (e.g., #button-id, .class-name) or XPath (e.g., //button[contains(text(), "Submit")])'
+            help: 'Enter a CSS selector (e.g., #button-id, .class-name) or XPath (e.g., //button[contains(text(),"Add")])'
         },
-        { 
-            name: 'description', 
-            type: 'text', 
-            label: 'Description', 
+        {
+            name: 'description',
+            label: 'Description',
+            type: 'text',
             required: false,
-            help: 'Optional description of what this click does (e.g., "Add to cart" or "Calculate price")'
+            help: 'Optional description of what this click is doing'
         }
     ],
     wait: [
@@ -315,6 +323,29 @@ const stepFields = {
             type: 'text',
             required: true,
             help: 'Enter a CSS selector for the field to blur (unfocus). Used after entering values when needed'
+        }
+    ],
+    modify_element: [
+        {
+            name: 'selector',
+            label: 'Selector',
+            type: 'text',
+            required: true,
+            help: 'Enter a CSS selector for the element to modify'
+        },
+        {
+            name: 'add_class',
+            label: 'Add Class',
+            type: 'text',
+            required: false,
+            help: 'Optional: CSS class to add to the element'
+        },
+        {
+            name: 'script',
+            label: 'Custom JavaScript',
+            type: 'text',
+            required: false,
+            help: 'Optional: Custom JavaScript to run on the element'
         }
     ],
     read_price: [

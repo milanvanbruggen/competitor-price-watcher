@@ -137,6 +137,8 @@ class PriceCalculator:
                         )
                         
                         return price_excl, price_incl
+                    elif step_type == 'modify_element':
+                        await self._handle_modify(page, step)
 
             except Exception as e:
                 self._update_status(f"Error: {str(e)}", "error")
@@ -311,6 +313,11 @@ class PriceCalculator:
 
     async def _handle_input(self, page, step, dimensions):
         value = step['value']
+        clear_first = step.get('clear_first', True)  # Default to clearing the field first
+        max_retries = 3
+        selector = step['selector']
+        
+        # Variabelen in de value string vervangen door waarden uit dimensions
         for key in ['thickness', 'width', 'length', 'quantity']:
             if f"{{{key}}}" in value:
                 if key in dimensions:
@@ -323,7 +330,7 @@ class PriceCalculator:
                         f"Setting {key} to {converted_value}",
                         "input",
                         {
-                            "selector": step['selector'],
+                            "selector": selector,
                             "value": str(converted_value),
                             "unit": step.get('unit', 'mm')
                         }
@@ -332,51 +339,158 @@ class PriceCalculator:
                     self._update_status(f"Dimension {key} not found", "error")
                     raise ValueError(f"Dimension {key} not found in dimensions dict")
 
-        logging.info(f"Handling input: {step['selector']} with value {value}")
-        self._update_status(f"Setting input value {value}", "input", {"selector": step['selector'], "value": value})
+        logging.info(f"Handling input: {selector} with value {value}")
+        self._update_status(f"Setting input value {value}", "input", {"selector": selector, "value": value})
         
-        element = await page.wait_for_selector(step['selector'])
-        
-        # First clear the input field
-        await element.evaluate('(el) => { el.value = ""; }')
-        await asyncio.sleep(0.5)
-        await element.press('Backspace')
-        
-        # Then fill the new value
-        await element.type(str(value))
-        
-        # Dispatch all events at once
-        await element.evaluate('''(el) => {
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            el.dispatchEvent(new Event('blur', { bubbles: true }));
-        }''')
-        
-        await asyncio.sleep(0.5)  # Single wait after all events
+        for attempt in range(max_retries):
+            try:
+                # Wacht langer op het element in de online omgeving
+                element = await page.wait_for_selector(selector, timeout=5000)  # 5 seconden timeout
+                if not element:
+                    raise ValueError(f"Element not found: {selector}")
+                
+                # Scroll naar het element om zeker te zijn dat het zichtbaar is
+                await element.scroll_into_view_if_needed()
+                await asyncio.sleep(0.5)
+                
+                # Focus op het element voordat we beginnen
+                await element.focus()
+                await asyncio.sleep(0.3)
+                
+                if clear_first:
+                    # Leeg het veld op verschillende manieren
+                    await element.evaluate('(el) => { el.value = ""; }')
+                    await asyncio.sleep(0.3)
+                    
+                    # Selecteer alle tekst en verwijder
+                    await element.click(click_count=3)  # Triple click selecteert alle tekst
+                    await asyncio.sleep(0.2)
+                    await element.press('Backspace')
+                    await asyncio.sleep(0.2)
+                
+                # Type de nieuwe waarde, met korte pauzes tussen tekens
+                await element.type(str(value), delay=50)  # 50ms vertraging tussen tekens
+                
+                # Stuur events om de website te informeren over de wijziging
+                await element.evaluate('''(el) => {
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    el.dispatchEvent(new Event('blur', { bubbles: true }));
+                }''')
+                
+                # Bevestig dat de waarde correct is ingevoerd
+                actual_value = await element.evaluate('(el) => el.value')
+                if actual_value == str(value) or str(value) in actual_value:
+                    self._update_status(f"Successfully set input to {value}", "input", {"status": "success"})
+                    break
+                else:
+                    self._update_status(f"Value mismatch: expected {value}, got {actual_value}", "warn")
+                    if attempt == max_retries - 1:
+                        # Als dit de laatste poging was, probeer nog één andere methode
+                        await element.evaluate(f'(el) => {{ el.value = "{value}"; }}')
+                
+                # Langere wachttijd tussen acties
+                await asyncio.sleep(1.0)
+                
+            except Exception as e:
+                self._update_status(f"Error setting input (attempt {attempt+1}/{max_retries}): {str(e)}", "warn")
+                if attempt == max_retries - 1:  # als dit de laatste poging was
+                    self._update_status(f"Failed to set input after {max_retries} attempts", "error")
+                    raise
+                await asyncio.sleep(1.0)  # wacht voor de volgende poging
 
     async def _handle_click(self, page, step):
         """Handle a click step"""
         selector = step['selector']
         description = step.get('description', '')
+        max_retries = 3
         
         # Add more descriptive messages for specific actions
         if 'figure' in selector.lower():
             self._update_status(f"Selecting figure shape", "click", {"selector": selector})
         elif 'calculator' in selector.lower():
             self._update_status(f"Opening calculator section", "click", {"selector": selector})
-        elif 'winkelwagen' in selector.lower():
+        elif 'winkelwagen' in selector.lower() or '.cart' in selector.lower():
             self._update_status(f"Adding to shopping cart", "click", {"selector": selector})
         else:
             self._update_status(f"Clicking {selector}", "click", {"selector": selector})
         
-        try:
-            element = await page.wait_for_selector(selector)
-            if element:
-                await element.click()
-                self._update_status(f"Successfully clicked {selector}", "click", {"selector": selector, "status": "success"})
-        except Exception as e:
-            self._update_status(f"Click failed: {str(e)}", "error")
-            raise
+        for attempt in range(max_retries):
+            try:
+                # Wacht langer op het element
+                element = await page.wait_for_selector(selector, timeout=5000)
+                if not element:
+                    raise ValueError(f"Element not found: {selector}")
+                
+                # Zorg ervoor dat het element zichtbaar is
+                is_visible = await element.is_visible()
+                if not is_visible:
+                    self._update_status(f"Element {selector} is not visible, trying to scroll into view", "warn")
+                    await element.scroll_into_view_if_needed()
+                    await asyncio.sleep(0.5)
+                
+                # Als het een .cart element is of winkelwagen, probeer het op verschillende manieren te klikken
+                if '.cart' in selector.lower() or 'winkelwagen' in selector.lower():
+                    # Probeer eerst JavaScript klik
+                    try:
+                        await page.evaluate(f"""
+                            const element = document.querySelector('{selector}');
+                            if (element) {{
+                                // Zorg ervoor dat het element zichtbaar is
+                                element.style.zIndex = '9999';
+                                element.style.position = 'relative';
+                                element.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                setTimeout(() => {{
+                                    // Klik na een korte vertraging
+                                    element.click();
+                                }}, 100);
+                            }}
+                        """)
+                        await asyncio.sleep(1.0)
+                        self._update_status(f"Clicked {selector} using JavaScript", "click", {"status": "success"})
+                    except Exception as js_error:
+                        self._update_status(f"JavaScript click failed: {str(js_error)}", "warn")
+                        # Als JavaScript klik mislukt, probeer normale klik
+                        await element.click()
+                else:
+                    # Normale klik voor andere elementen
+                    await element.click()
+                
+                self._update_status(f"Successfully clicked {selector}", "click", {"status": "success"})
+                await asyncio.sleep(1.0)  # Langere wachttijd na klik
+                return True
+                
+            except Exception as e:
+                self._update_status(f"Click failed (attempt {attempt+1}/{max_retries}): {str(e)}", "warn")
+                
+                # Speciale aanpak voor cart elementen bij laatste poging
+                if attempt == max_retries - 1 and ('.cart' in selector.lower() or 'winkelwagen' in selector.lower()):
+                    try:
+                        # Laatste poging: gebruik execute_script voor direct document.querySelector
+                        self._update_status(f"Trying alternative method to click {selector}", "click")
+                        await page.evaluate(f"""
+                            const cart = document.querySelector('{selector}');
+                            if (cart) {{
+                                cart.style.pointerEvents = 'auto';
+                                cart.style.opacity = '1';
+                                cart.style.visibility = 'visible';
+                                cart.style.display = 'block';
+                                cart.style.zIndex = '10000';
+                                cart.scrollIntoView({{behavior: 'smooth', block: 'center'}});
+                                setTimeout(() => cart.click(), 200);
+                            }}
+                        """)
+                        await asyncio.sleep(1.5)
+                        self._update_status(f"Attempted alternative click on {selector}", "click")
+                        return True
+                    except Exception as final_error:
+                        self._update_status(f"All click attempts failed: {str(final_error)}", "error")
+                
+                if attempt == max_retries - 1:
+                    self._update_status(f"Click failed after {max_retries} attempts", "error")
+                    raise
+                
+                await asyncio.sleep(1.0)  # Wacht voordat we het opnieuw proberen
 
     async def _handle_wait(self, step):
         """Handle a wait step"""
@@ -825,3 +939,86 @@ class PriceCalculator:
         except Exception as e:
             self._update_status(f"Blur failed: {str(e)}", "error")
             raise 
+
+    async def _handle_modify(self, page, step):
+        """Handle a modify_element step that runs JavaScript to modify an element"""
+        selector = step['selector']
+        script = step.get('script', '')
+        add_class = step.get('add_class', '')
+        add_attribute = step.get('add_attribute', {})
+        
+        self._update_status(f"Modifying element {selector}", "modify", {"selector": selector})
+        
+        try:
+            # Wacht tot het element beschikbaar is
+            element = await page.wait_for_selector(selector)
+            if not element:
+                self._update_status(f"Element not found: {selector}", "error")
+                return
+                
+            if add_class:
+                # Voeg een class toe aan het element
+                await page.evaluate("""
+                    const element = document.querySelector(""" + f'"{selector}"' + """);
+                    if (element) {{
+                        element.classList.add(""" + f'"{add_class}"' + """);
+                    }}
+                """)
+                self._update_status(f"Added class '{add_class}' to {selector}", "modify", {"status": "success"})
+                
+            if add_attribute and isinstance(add_attribute, dict):
+                # Voeg attributen toe aan het element
+                for attr_name, attr_value in add_attribute.items():
+                    await page.evaluate("""
+                        const element = document.querySelector(""" + f'"{selector}"' + """);
+                        if (element) {{
+                            element.setAttribute(""" + f'"{attr_name}", "{attr_value}"' + """);
+                        }}
+                    """)
+                self._update_status(f"Added attributes to {selector}", "modify", {"status": "success"})
+                
+            if script:
+                # Voer aangepast JavaScript uit
+                js_code = """
+                    const element = document.querySelector(""" + f'"{selector}"' + """);
+                    if (element) {{
+                        try {{
+                            """ + script + """
+                            console.log('Custom script executed successfully');
+                        }} catch (e) {{
+                            console.error('Error executing script:', e);
+                        }}
+                    }}
+                """
+                await page.evaluate(js_code)
+                self._update_status(f"Executed custom script on {selector}", "modify", {"status": "success"})
+                
+        except Exception as e:
+            self._update_status(f"Modify element failed: {str(e)}", "error")
+            raise
+
+    async def _process_step(self, page, step, dimensions):
+        """Process a single step in the configuration"""
+        step_type = step['type']
+        
+        try:
+            if step_type == 'select':
+                await self._handle_select(page, step, dimensions)
+            elif step_type == 'input':
+                await self._handle_input(page, step, dimensions)
+            elif step_type == 'click':
+                await self._handle_click(page, step)
+            elif step_type == 'wait':
+                await self._handle_wait(step)
+            elif step_type == 'read_price':
+                return await self._handle_read_price(page, step)
+            elif step_type == 'modify_element':
+                await self._handle_modify(page, step)
+            else:
+                self._update_status(f"Unknown step type: {step_type}", "error")
+                
+        except Exception as e:
+            self._update_status(f"Error processing step: {str(e)}", "error")
+            raise
+        
+        return None 

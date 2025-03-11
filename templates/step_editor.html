@@ -81,13 +81,13 @@
 </div>
 
 <!-- Add Step Modal -->
-<div id="addStepModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden">
+<div id="addStepModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md my-8">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h3 class="text-lg font-medium text-gray-900">Add Step</h3>
             </div>
-            <div class="p-6">
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
                 <form id="addStepForm">
                     <div class="space-y-4">
                         <div>
@@ -108,7 +108,7 @@
                     </div>
                 </form>
             </div>
-            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2 sticky bottom-0">
                 <button id="cancelStepBtn" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                     Cancel
                 </button>
@@ -122,13 +122,13 @@
 </div>
 
 <!-- Load Configuration Modal -->
-<div id="loadConfigModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden">
+<div id="loadConfigModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md my-8">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h3 class="text-lg font-medium text-gray-900">Load Configuration</h3>
             </div>
-            <div class="p-6">
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
                 <form id="loadConfigForm">
                     <div class="space-y-4">
                         <div>
@@ -150,7 +150,7 @@
                     </div>
                 </form>
             </div>
-            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2 sticky bottom-0">
                 <button id="cancelLoadBtn" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                     Cancel
                 </button>
@@ -164,13 +164,13 @@
 </div>
 
 <!-- Save Configuration Modal -->
-<div id="saveConfigModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden">
+<div id="saveConfigModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md my-8">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h3 class="text-lg font-medium text-gray-900">Save Configuration</h3>
             </div>
-            <div class="p-6">
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
                 <form id="saveConfigForm">
                     <div class="space-y-4">
                         <div>
@@ -195,7 +195,7 @@
                     </div>
                 </form>
             </div>
-            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
+            <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2 sticky bottom-0">
                 <button id="cancelSaveBtn" class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                     Cancel
                 </button>
@@ -221,11 +221,40 @@ let editingIndex = -1;
 const stepFields = {
     select: [
         {
+            name: 'select_method',
+            label: 'Selectiemethode',
+            type: 'radio',
+            options: [
+                { value: 'selector', label: 'Via CSS selector' },
+                { value: 'index', label: 'Via index (positie)' }
+            ],
+            default: 'selector',
+            help: 'Kies hoe je een element wilt selecteren: via een CSS/XPath selector of via de positie (index)'
+        },
+        {
             name: 'selector',
             label: 'Selector',
             type: 'text',
             required: true,
-            help: 'Enter a CSS selector (e.g., #select-id, .class-name) or XPath (e.g., //select[@name="options"])'
+            help: 'Enter a CSS selector (e.g., #select-id, .class-name) or XPath (e.g., //select[@name="options"])',
+            condition: { field: 'select_method', value: 'selector' }
+        },
+        {
+            name: 'select_element',
+            label: 'Dropdown Selector',
+            type: 'text',
+            required: true,
+            help: 'CSS selector voor het dropdown element waaruit je wilt selecteren',
+            condition: { field: 'select_method', value: 'index' }
+        },
+        {
+            name: 'option_index',
+            label: 'Optie index',
+            type: 'number',
+            required: true,
+            min: 0,
+            help: 'De index (positie) van de optie die je wilt selecteren (0 = eerste optie)',
+            condition: { field: 'select_method', value: 'index' }
         },
         {
             name: 'value',
@@ -233,7 +262,8 @@ const stepFields = {
             type: 'value_with_vars',
             required: true,
             variables: ['thickness', 'width', 'length', 'quantity'],
-            help: 'The value to select. You can use variables like {thickness} that will be replaced with actual values'
+            help: 'The value to select. You can use variables like {thickness} that will be replaced with actual values',
+            condition: { field: 'select_method', value: 'selector' }
         },
         { 
             name: 'unit', 
@@ -241,21 +271,24 @@ const stepFields = {
             label: 'Unit', 
             options: ['mm', 'cm'], 
             required: false,
-            help: 'The unit of measurement for the value. Will convert values automatically'
+            help: 'The unit of measurement for the value. Will convert values automatically',
+            condition: { field: 'select_method', value: 'selector' }
         },
         { 
             name: 'option_container', 
             type: 'text', 
             label: 'Option Container', 
             required: false,
-            help: 'CSS selector for custom dropdown container. Only needed for non-standard dropdowns'
+            help: 'CSS selector for custom dropdown container. Only needed for non-standard dropdowns',
+            condition: { field: 'select_method', value: 'selector' }
         },
         { 
             name: 'option_selector', 
             type: 'text', 
             label: 'Option Selector', 
             required: false,
-            help: 'CSS selector pattern for options within a custom dropdown. Use {value} as placeholder'
+            help: 'CSS selector pattern for options within a custom dropdown. Use {value} as placeholder',
+            condition: { field: 'select_method', value: 'selector' }
         }
     ],
     input: [
@@ -390,13 +423,54 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial update
     updateStepFields();
     updateJsonPreview();
+    
+    // Automatisch alle modals configureren om Enter-toets te ondersteunen
+    setupAllModals();
 });
+
+// Helper function om Enter-toets te koppelen aan primaire button in modals
+function setupModalEnterKey(modalId, primaryButtonIdOrElement) {
+    const modal = document.getElementById(modalId);
+    let primaryButton;
+    
+    // Controleer of we een ID of een element hebben gekregen
+    if (typeof primaryButtonIdOrElement === 'string') {
+        primaryButton = document.getElementById(primaryButtonIdOrElement);
+    } else if (primaryButtonIdOrElement instanceof Element) {
+        primaryButton = primaryButtonIdOrElement;
+    }
+    
+    if (!modal || !primaryButton) return;
+    
+    // Verwijder eerst eventuele bestaande handlers
+    modal.removeEventListener('keydown', modal._keydownHandler);
+    
+    // Maak en sla de handler op zodat deze later kan worden verwijderd
+    modal._keydownHandler = function(e) {
+        if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+            // Voorkom dat de Enter-toets in textarea's de form submit trigger
+            if (e.target.tagName.toLowerCase() === 'textarea') return;
+            
+            // Voorkom standaard form submit gedrag
+            e.preventDefault();
+            
+            // Trigger klik op de primaire knop
+            primaryButton.click();
+        }
+    };
+    
+    // Voeg event listener toe
+    modal.addEventListener('keydown', modal._keydownHandler);
+}
 
 function showAddStepModal() {
     document.getElementById('addStepModal').classList.remove('hidden');
     editingIndex = -1;
     document.getElementById('saveStepBtn').textContent = 'Add Step';
     updateStepFields();
+    
+    // Koppel Enter-toets aan primaire knop
+    setupModalEnterKey('addStepModal', 'saveStepBtn');
 }
 
 function hideAddStepModal() {
@@ -406,6 +480,9 @@ function hideAddStepModal() {
 
 function showSaveConfigModal() {
     document.getElementById('saveConfigModal').classList.remove('hidden');
+    
+    // Koppel Enter-toets aan primaire knop
+    setupModalEnterKey('saveConfigModal', 'confirmSaveBtn');
 }
 
 function hideSaveConfigModal() {
@@ -415,6 +492,9 @@ function hideSaveConfigModal() {
 
 function showLoadConfigModal() {
     document.getElementById('loadConfigModal').classList.remove('hidden');
+    
+    // Koppel Enter-toets aan primaire knop
+    setupModalEnterKey('loadConfigModal', 'confirmLoadBtn');
 }
 
 function hideLoadConfigModal() {
@@ -437,96 +517,282 @@ function updateStepFields() {
     const stepType = document.getElementById('stepType').value;
     const fieldsContainer = document.getElementById('stepFields');
     fieldsContainer.innerHTML = '';
+    
+    // Map om alle veldwaarden bij te houden voor conditionele velden
+    const fieldValues = {};
 
-    stepFields[stepType].forEach(field => {
-        const div = document.createElement('div');
-        div.className = 'mb-4';
-
-        const label = document.createElement('label');
-        label.className = 'block text-sm font-medium text-gray-700 mb-1';
-        label.textContent = field.label;
-
-        let input;
-        if (field.type === 'value_with_vars') {
-            // Create a container for the value input and variable selector
-            const container = document.createElement('div');
-            container.className = 'flex gap-2';
-
-            // Create the value input
-            const valueInput = document.createElement('input');
-            valueInput.type = 'text';
-            valueInput.id = field.name;
-            valueInput.name = field.name;
-            valueInput.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
-            valueInput.required = field.required;
-
-            // Create the variable selector
-            const varSelect = document.createElement('select');
-            varSelect.className = 'mt-1 block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
-            varSelect.innerHTML = `
-                <option value="">Insert variable...</option>
-                ${field.variables.map(v => `<option value="{${v}}">{${v}}</option>`).join('')}
-            `;
-            varSelect.addEventListener('change', function() {
-                if (this.value) {
-                    valueInput.value = this.value;
-                    this.value = ''; // Reset dropdown after selection
+    // Eerst alle velden verwerken die geen voorwaarde hebben
+    stepFields[stepType].filter(field => !field.condition).forEach(field => {
+        createField(field, fieldsContainer, fieldValues);
+    });
+    
+    // Als we een select type hebben met radio buttons, zorgen dat de juiste waarde wordt ingesteld
+    if (stepType === 'select') {
+        // Wacht even totdat de velden zijn gemaakt
+        setTimeout(() => {
+            // Controleer of we select_method radio buttons hebben
+            const selectorRadio = document.getElementById('select_method_selector');
+            const indexRadio = document.getElementById('select_method_index');
+            
+            if (selectorRadio && indexRadio) {
+                // Zorg ervoor dat minstens één van de radio buttons is geselecteerd
+                if (!selectorRadio.checked && !indexRadio.checked) {
+                    selectorRadio.checked = true;
                 }
-            });
+                
+                // Update de fieldValues map met de geselecteerde waarde
+                fieldValues['select_method'] = selectorRadio.checked ? 'selector' : 'index';
+                
+                // Verwerk de conditionele velden op basis van de selectie
+                updateConditionalFields(stepType, fieldValues);
+                
+                // Voeg event listeners toe aan de radio buttons
+                selectorRadio.addEventListener('change', () => {
+                    if (selectorRadio.checked) {
+                        fieldValues['select_method'] = 'selector';
+                        updateConditionalFields(stepType, fieldValues);
+                    }
+                });
+                
+                indexRadio.addEventListener('change', () => {
+                    if (indexRadio.checked) {
+                        fieldValues['select_method'] = 'index';
+                        updateConditionalFields(stepType, fieldValues);
+                    }
+                });
+            }
+        }, 50);
+    } else {
+        // Voor andere types, verwerk conditionele velden meteen
+        updateFieldValues(stepType, fieldValues);
+        
+        // Verwerk conditionele velden op basis van initiële waarden
+        stepFields[stepType].filter(field => field.condition).forEach(field => {
+            const condition = field.condition;
+            const dependentValue = fieldValues[condition.field];
+            
+            if (dependentValue === condition.value) {
+                createField(field, fieldsContainer, fieldValues);
+            }
+        });
+        
+        // Voeg event listeners toe aan velden die andere velden beïnvloeden
+        stepFields[stepType].filter(field => {
+            return stepFields[stepType].some(f => f.condition && f.condition.field === field.name);
+        }).forEach(field => {
+            const element = document.getElementById(field.name);
+            if (!element) return;
+            
+            if (field.type === 'radio') {
+                const radioGroup = document.querySelectorAll(`input[name="${field.name}"]`);
+                radioGroup.forEach(radio => {
+                    radio.addEventListener('change', () => updateConditionalFields(stepType, fieldValues));
+                });
+            } else {
+                element.addEventListener('change', () => updateConditionalFields(stepType, fieldValues));
+            }
+        });
+    }
+}
 
-            container.appendChild(valueInput);
-            container.appendChild(varSelect);
-            div.appendChild(label);
-            div.appendChild(container);
-
-            fieldsContainer.appendChild(div);
-            return;
-        } else if (field.type === 'select') {
-            input = document.createElement('select');
-            field.options.forEach(option => {
-                const opt = document.createElement('option');
-                opt.value = option;
-                opt.textContent = option;
-                input.appendChild(opt);
-            });
-        } else if (field.type === 'checkbox') {
-            input = document.createElement('input');
-            input.type = 'checkbox';
-            input.className = 'rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500';
+// Helper functie om conditionele velden bij te werken wanneer afhankelijke velden wijzigen
+function updateConditionalFields(stepType, fieldValues) {
+    const fieldsContainer = document.getElementById('stepFields');
+    
+    // Update de waarden map
+    updateFieldValues(stepType, fieldValues);
+    
+    // Alle velden met condities opnieuw evalueren
+    stepFields[stepType].filter(field => field.condition).forEach(field => {
+        const condition = field.condition;
+        const dependentValue = fieldValues[condition.field];
+        const existingField = document.querySelector(`.field-container[data-field="${field.name}"]`);
+        
+        // Controleer of het veld moet worden getoond
+        const shouldShow = dependentValue === condition.value;
+        
+        if (shouldShow) {
+            // Toon het veld als het nog niet zichtbaar is
+            if (!existingField) {
+                createField(field, fieldsContainer, fieldValues);
+            }
         } else {
-            input = document.createElement('input');
-            input.type = field.type;
+            // Verberg het veld als het zichtbaar is
+            if (existingField) {
+                existingField.remove();
+            }
         }
+    });
+}
 
+// Helper functie om de huidige waarden van alle velden bij te werken
+function updateFieldValues(stepType, fieldValues) {
+    stepFields[stepType].forEach(field => {
+        if (field.type === 'radio') {
+            const selectedRadio = document.querySelector(`input[name="${field.name}"]:checked`);
+            if (selectedRadio) {
+                fieldValues[field.name] = selectedRadio.value;
+            } else {
+                fieldValues[field.name] = field.default || '';
+            }
+        } else {
+            const element = document.getElementById(field.name);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    fieldValues[field.name] = element.checked;
+                } else {
+                    fieldValues[field.name] = element.value;
+                }
+            }
+        }
+    });
+}
+
+// Helper functie om een enkel veld te maken en toe te voegen aan de container
+function createField(field, container, fieldValues) {
+    const div = document.createElement('div');
+    div.className = 'mb-4 field-container';
+    div.dataset.field = field.name;
+
+    const label = document.createElement('label');
+    label.className = 'block text-sm font-medium text-gray-700 mb-1';
+    label.textContent = field.label;
+    
+    div.appendChild(label);
+
+    if (field.type === 'radio') {
+        const radioContainer = document.createElement('div');
+        radioContainer.className = 'mt-1 space-y-2';
+        
+        field.options.forEach((option, index) => {
+            const radioWrap = document.createElement('div');
+            radioWrap.className = 'flex items-center';
+            
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.id = `${field.name}_${option.value}`;
+            radio.name = field.name;
+            radio.value = option.value;
+            radio.className = 'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300';
+            
+            // Stel de default waarde in
+            if ((index === 0 && !field.default) || option.value === field.default) {
+                radio.checked = true;
+                fieldValues[field.name] = option.value;
+            }
+            
+            const radioLabel = document.createElement('label');
+            radioLabel.htmlFor = `${field.name}_${option.value}`;
+            radioLabel.className = 'ml-2 block text-sm text-gray-700';
+            radioLabel.textContent = option.label;
+            
+            radioWrap.appendChild(radio);
+            radioWrap.appendChild(radioLabel);
+            radioContainer.appendChild(radioWrap);
+        });
+        
+        div.appendChild(radioContainer);
+    } else if (field.type === 'value_with_vars') {
+        // Create a container for the value input and variable selector
+        const container = document.createElement('div');
+        container.className = 'flex gap-2';
+
+        // Create the value input
+        const valueInput = document.createElement('input');
+        valueInput.type = 'text';
+        valueInput.id = field.name;
+        valueInput.name = field.name;
+        valueInput.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+        valueInput.required = field.required;
+
+        // Create the variable selector
+        const varSelect = document.createElement('select');
+        varSelect.className = 'mt-1 block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+        varSelect.innerHTML = `
+            <option value="">Insert variable...</option>
+            ${field.variables.map(v => `<option value="{${v}}">{${v}}</option>`).join('')}
+        `;
+        varSelect.addEventListener('change', function() {
+            if (this.value) {
+                valueInput.value = this.value;
+                fieldValues[field.name] = this.value;
+                this.value = ''; // Reset dropdown after selection
+            }
+        });
+
+        container.appendChild(valueInput);
+        container.appendChild(varSelect);
+        div.appendChild(container);
+    } else if (field.type === 'select') {
+        const select = document.createElement('select');
+        select.id = field.name;
+        select.name = field.name;
+        select.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+        select.required = field.required;
+        
+        field.options.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option;
+            opt.textContent = option;
+            select.appendChild(opt);
+        });
+        
+        div.appendChild(select);
+        fieldValues[field.name] = select.value;
+    } else if (field.type === 'checkbox') {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = field.name;
+        checkbox.name = field.name;
+        checkbox.className = 'rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500';
+        checkbox.required = field.required;
+        
+        div.appendChild(checkbox);
+        fieldValues[field.name] = checkbox.checked;
+    } else if (field.type === 'number') {
+        const input = document.createElement('input');
+        input.type = 'number';
         input.id = field.name;
         input.name = field.name;
-        if (field.type !== 'checkbox') {
-            input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
-        }
+        input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
         input.required = field.required;
-
-        div.appendChild(label);
+        
+        if (field.min !== undefined) input.min = field.min;
+        if (field.max !== undefined) input.max = field.max;
+        if (field.step !== undefined) input.step = field.step;
+        
         div.appendChild(input);
+        fieldValues[field.name] = input.value;
+    } else {
+        const input = document.createElement('input');
+        input.type = field.type;
+        input.id = field.name;
+        input.name = field.name;
+        input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+        input.required = field.required;
+        
+        div.appendChild(input);
+        fieldValues[field.name] = input.value;
+    }
 
-        // Add help text if available
-        if (field.help) {
-            const helpContainer = document.createElement('div');
-            helpContainer.className = 'mt-2 flex items-start gap-1';
-            
-            const infoIcon = document.createElement('div');
-            infoIcon.innerHTML = `<i class="fas fa-circle-info h-3 w-3 text-gray-400 mt-1"></i>`;
-            
-            const helpText = document.createElement('p');
-            helpText.className = 'text-xs text-gray-500 flex-1';
-            helpText.textContent = field.help;
-            
-            helpContainer.appendChild(infoIcon);
-            helpContainer.appendChild(helpText);
-            div.appendChild(helpContainer);
-        }
+    // Add help text if available
+    if (field.help) {
+        const helpContainer = document.createElement('div');
+        helpContainer.className = 'mt-2 flex items-start gap-1';
+        
+        const infoIcon = document.createElement('div');
+        infoIcon.innerHTML = `<i class="fas fa-circle-info h-3 w-3 text-gray-400 mt-1"></i>`;
+        
+        const helpText = document.createElement('p');
+        helpText.className = 'text-xs text-gray-500 flex-1';
+        helpText.textContent = field.help;
+        
+        helpContainer.appendChild(infoIcon);
+        helpContainer.appendChild(helpText);
+        div.appendChild(helpContainer);
+    }
 
-        fieldsContainer.appendChild(div);
-    });
+    container.appendChild(div);
 }
 
 function saveStep() {
@@ -538,9 +804,32 @@ function saveStep() {
 
     const stepType = document.getElementById('stepType').value;
     const step = { type: stepType };
-
+    
+    // Eerst alle zichtbare velden vinden
+    const visibleFields = document.querySelectorAll('.field-container');
+    const visibleFieldNames = Array.from(visibleFields).map(el => el.dataset.field);
+    
+    // Verzamel alle waarden van relevante velden
     stepFields[stepType].forEach(field => {
+        // Controleer of dit veld zichtbaar is, behalve voor radio buttons (die hebben een speciale behandeling nodig)
+        if (!visibleFieldNames.includes(field.name) && field.type !== 'radio') {
+            return;
+        }
+        
+        // Voor radio buttons, haal de geselecteerde waarde op
+        if (field.type === 'radio') {
+            const selectedRadio = document.querySelector(`input[name="${field.name}"]:checked`);
+            if (selectedRadio) {
+                step[field.name] = selectedRadio.value;
+            } else if (field.default) {
+                step[field.name] = field.default;
+            }
+            return;
+        }
+        
         const element = document.getElementById(field.name);
+        if (!element) return;
+        
         if (element.type === 'checkbox') {
             step[field.name] = element.checked;
         } else {
@@ -550,6 +839,35 @@ function saveStep() {
             }
         }
     });
+    
+    // Speciale verwerking voor index-gebaseerde select (voor backward compatibility met bestaande implementatie)
+    if (stepType === 'select' && step.select_method === 'index') {
+        // Markeer expliciet dat dit een index-gebaseerde selectie is
+        step.use_index = true;
+        
+        // Rename voor samenhang
+        if (step.select_element) {
+            step.selector = step.select_element;
+            delete step.select_element;
+        }
+        
+        // Zorg ervoor dat option_index altijd aanwezig is en een string/nummer is
+        if (!step.option_index) {
+            step.option_index = "0";
+        }
+        
+        // Voor index-gebaseerde selectie gebruiken we een speciale waarde die niet als getal wordt geïnterpreteerd
+        // We formatteren het als 'index:{nummer}' zodat de backend het speciaal kan behandelen
+        step.value = `index:${step.option_index}`;
+        
+        // Deze velden zijn niet nodig voor index-gebaseerde selectie
+        delete step.unit;
+        delete step.option_container;
+        delete step.option_selector;
+    }
+    
+    // Verwijder de select_method uit het uiteindelijke step object omdat dit alleen UI-gerelateerd is
+    delete step.select_method;
 
     // Sla op of de stap wordt bewerkt of nieuw is voordat de modal wordt verborgen
     const isEditing = editingIndex >= 0;
@@ -688,10 +1006,19 @@ function handleDrop(e) {
 
 function formatStepDetails(step) {
     const details = [];
-    if (step.selector) details.push(`Selector: ${step.selector}`);
-    if (step.value) details.push(`Value: ${step.value}`);
-    if (step.duration) details.push(`Duration: ${step.duration}`);
-    if (step.description) details.push(step.description);
+    
+    // Voor index-gebaseerde select stappen, toon speciale informatie
+    if (step.type === 'select' && step.use_index) {
+        details.push(`Dropdown: ${step.selector}`);
+        details.push(`Index: ${step.option_index}`);
+    } else {
+        // Standaard details voor alle andere stappen
+        if (step.selector) details.push(`Selector: ${step.selector}`);
+        if (step.value) details.push(`Value: ${step.value}`);
+        if (step.duration) details.push(`Duration: ${step.duration}`);
+        if (step.description) details.push(step.description);
+    }
+    
     return details.join(' | ') || 'No additional details';
 }
 
@@ -702,26 +1029,107 @@ function editStep(index) {
     // Toon de modal zonder showAddStepModal te gebruiken om te voorkomen dat editingIndex wordt gereset
     document.getElementById('addStepModal').classList.remove('hidden');
     
-    // Set the step type and update fields
+    // Zet de step type in de dropdown
     document.getElementById('stepType').value = step.type;
-    updateStepFields();
     
-    // Wait for the fields to be created
-    setTimeout(() => {
-        // Fill in the fields
-        stepFields[step.type].forEach(field => {
-            const element = document.getElementById(field.name);
-            if (element) {
-                if (element.type === 'checkbox') {
-                    element.checked = step[field.name] || false;
-                } else {
-                    element.value = step[field.name] || '';
-                }
+    // Voor index-gebaseerde select steps, zet select_method op 'index'
+    if (step.type === 'select' && step.use_index) {
+        // We moeten eerst velden genereren zodat radio buttons bestaan
+        updateStepFields();
+        
+        // Selecteer de 'index' radio button
+        const indexRadio = document.getElementById('select_method_index');
+        if (indexRadio) {
+            indexRadio.checked = true;
+            
+            // Trigger een change event om conditionele velden bij te werken
+            const event = new Event('change');
+            indexRadio.dispatchEvent(event);
+        }
+        
+        // Wacht even tot de UI is bijgewerkt
+        setTimeout(() => {
+            // Vul de velden voor index-gebaseerde selectie
+            const selectElement = document.getElementById('select_element');
+            if (selectElement) {
+                selectElement.value = step.selector || '';
             }
-        });
+            
+            const optionIndex = document.getElementById('option_index');
+            if (optionIndex) {
+                optionIndex.value = step.option_index || 0;
+            }
+            
+            document.getElementById('saveStepBtn').textContent = 'Update Step';
+            
+            // Koppel Enter-toets aan primaire knop
+            setupModalEnterKey('addStepModal', 'saveStepBtn');
+        }, 100);
+    } else if (step.type === 'select') {
+        // Voor reguliere select steps, zet select_method op 'selector'
+        updateStepFields();
+        
+        // Selecteer de 'selector' radio button
+        const selectorRadio = document.getElementById('select_method_selector');
+        if (selectorRadio) {
+            selectorRadio.checked = true;
+            
+            // Trigger een change event om conditionele velden bij te werken
+            const event = new Event('change');
+            selectorRadio.dispatchEvent(event);
+        }
+        
+        // Wait for the fields to be created and updated
+        setTimeout(() => {
+            // Vul de velden voor de stap
+            stepFields[step.type].forEach(field => {
+                // Skip de radio buttons, die zijn hierboven al ingesteld
+                if (field.type === 'radio') return;
+                
+                // Voor conditionele velden, controleer of ze bij de huidige select_method horen
+                if (field.condition && field.condition.field === 'select_method' && field.condition.value !== 'selector') {
+                    return;
+                }
+                
+                const element = document.getElementById(field.name);
+                if (element) {
+                    if (element.type === 'checkbox') {
+                        element.checked = step[field.name] || false;
+                    } else {
+                        element.value = step[field.name] || '';
+                    }
+                }
+            });
 
-        document.getElementById('saveStepBtn').textContent = 'Update Step';
-    }, 0);
+            document.getElementById('saveStepBtn').textContent = 'Update Step';
+            
+            // Koppel Enter-toets aan primaire knop
+            setupModalEnterKey('addStepModal', 'saveStepBtn');
+        }, 100);
+    } else {
+        // Voor andere stap types, normale verwerking
+        updateStepFields();
+    
+        // Wait for the fields to be created
+        setTimeout(() => {
+            // Fill in the fields
+            stepFields[step.type].forEach(field => {
+                const element = document.getElementById(field.name);
+                if (element) {
+                    if (element.type === 'checkbox') {
+                        element.checked = step[field.name] || false;
+                    } else {
+                        element.value = step[field.name] || '';
+                    }
+                }
+            });
+
+            document.getElementById('saveStepBtn').textContent = 'Update Step';
+            
+            // Koppel Enter-toets aan primaire knop
+            setupModalEnterKey('addStepModal', 'saveStepBtn');
+        }, 100);
+    }
 }
 
 function deleteStep(index) {
@@ -846,6 +1254,49 @@ async function saveConfiguration() {
     } catch (error) {
         alert(`Error saving configuration: ${error.message}`);
     }
+}
+
+// Automatisch alle modals configureren om Enter-toets te ondersteunen
+function setupAllModals() {
+    // Verzamel alle modals in de applicatie
+    const modals = document.querySelectorAll('div[id$="Modal"]');
+    
+    modals.forEach(modal => {
+        const modalId = modal.id;
+        
+        // Zoek de primaire knop in deze modal (meestal de blauwe button)
+        // We kijken eerst naar een .btn-primary of bg-blue klasse, dan naar een knop met een blauwe achtergrond
+        // of als fallback de laatste knop in de footer (meestal de bevestigingsknop)
+        const modalButtons = modal.querySelectorAll('button');
+        let primaryButton = null;
+        
+        // Zoek eerst een knop met primary of blue class
+        for (const button of modalButtons) {
+            if (button.classList.contains('btn-primary') || 
+                button.classList.contains('bg-blue-600') || 
+                button.classList.contains('bg-blue-700')) {
+                primaryButton = button;
+                break;
+            }
+        }
+        
+        // Als fallback, neem de laatste knop in de footer als primaire knop
+        if (!primaryButton && modalButtons.length > 0) {
+            // Check voor knoppen in de footer area (meestal onderaan)
+            const footerButtons = modal.querySelectorAll('.px-6.py-4.bg-gray-50 button');
+            if (footerButtons.length > 0) {
+                primaryButton = footerButtons[footerButtons.length - 1];
+            } else {
+                // Als laatste optie, neem gewoon de laatste knop
+                primaryButton = modalButtons[modalButtons.length - 1];
+            }
+        }
+        
+        if (primaryButton) {
+            // Stel de enter-toets in voor deze modal met de gevonden primaire knop
+            setupModalEnterKey(modalId, primaryButton);
+        }
+    });
 }
 </script>
 {% endblock %} 

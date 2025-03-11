@@ -491,6 +491,37 @@ function showModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('hidden');
+        
+        // Zoek de primaire button in de modal (meestal de blauwe button)
+        let primaryButton = null;
+        
+        // In onze modals is de primaire knop meestal de laatste knop in de button-rij
+        // of een button met blauwe styling (bg-blue-600, bg-green-600)
+        primaryButton = modal.querySelector('button.bg-blue-600') || 
+                        modal.querySelector('button.bg-green-600') ||
+                        modal.querySelector('button[type="submit"]');
+        
+        if (primaryButton) {
+            // Verwijder eerst eventuele bestaande handlers
+            modal.removeEventListener('keydown', modal._keydownHandler);
+            
+            // Maak en sla de handler op zodat deze later kan worden verwijderd
+            modal._keydownHandler = function(e) {
+                if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+                    // Voorkom dat de Enter-toets in textarea's en input velden in forms de submit trigger
+                    if (e.target.tagName.toLowerCase() === 'textarea' || e.target.tagName.toLowerCase() === 'input') return;
+                    
+                    // Voorkom standaard form submit gedrag
+                    e.preventDefault();
+                    
+                    // Trigger klik op de primaire knop
+                    primaryButton.click();
+                }
+            };
+            
+            // Voeg event listener toe
+            modal.addEventListener('keydown', modal._keydownHandler);
+        }
     }
 }
 

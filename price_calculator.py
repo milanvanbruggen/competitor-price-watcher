@@ -159,8 +159,111 @@ class PriceCalculator:
 
     async def _handle_select(self, page, step, dimensions):
         """Handle a select/input step"""
+        # Controleer eerst of 'value' aanwezig is in de step dictionary
+        if 'value' not in step:
+            if 'use_index' in step and step['use_index'] and 'option_index' in step:
+                # Voeg automatisch een value toe in het juiste format
+                step['value'] = f"index:{step['option_index']}"
+                self._update_status(f"Added value 'index:{step['option_index']}' based on option_index", "select")
+            else:
+                self._update_status("No value specified for select step", "error")
+                raise ValueError("Missing required field 'value' in select step")
+        
         value = step['value']
         selector = step['selector']
+        
+        # Check for index-based selection
+        if value.startswith('index:'):
+            try:
+                # Extract the index from the value string (format: 'index:X')
+                index = int(value.split(':', 1)[1])
+                logging.info(f"Handling index-based selection: {selector} with index {index}")
+                self._update_status(f"Selecting option with index {index}", "select", {"selector": selector, "index": index})
+                
+                # Find the select element
+                element = await page.wait_for_selector(selector, timeout=5000)
+                if not element:
+                    raise ValueError(f"No element found matching selector: {selector}")
+                
+                # Ensure the element is visible
+                await element.scroll_into_view_if_needed()
+                await asyncio.sleep(0.5)
+                
+                # Check if it's a standard SELECT element
+                tag_name = await element.evaluate('el => el.tagName.toLowerCase()')
+                if tag_name == 'select':
+                    # For SELECT elements, we can directly select by index
+                    options = await element.evaluate('(select) => Array.from(select.options).map(o => o.value)')
+                    if index < len(options):
+                        # Select the option by index
+                        await element.click()  # Click to open dropdown
+                        await asyncio.sleep(0.2)
+                        # Get the option value at the specified index
+                        option_value = options[index]
+                        await element.select_option(value=option_value)
+                        await asyncio.sleep(0.5)
+                        await element.evaluate('(el) => el.dispatchEvent(new Event("change", { bubbles: true }))')
+                        return
+                    else:
+                        raise ValueError(f"Index {index} is out of range for select element with {len(options)} options")
+                else:
+                    # For non-standard dropdowns, try to find all options and click the one at the specified index
+                    await element.click()  # Click to open dropdown
+                    await asyncio.sleep(0.5)
+                    
+                    # Try to find options (this depends on the site's structure)
+                    options = await page.query_selector_all('li, .option, .dropdown-item, [role="option"]')
+                    if not options:
+                        self._update_status(f"No dropdown options found", "warn")
+                        # Try again with a different approach - look for children of the dropdown
+                        options = await element.evaluate('''
+                            (el) => {
+                                // Try to find all clickable children
+                                const allOptions = [
+                                    ...Array.from(document.querySelectorAll('li, .option, .dropdown-item, [role="option"]')),
+                                    ...Array.from(el.querySelectorAll('*'))
+                                ].filter(el => el.offsetParent !== null); // Only visible elements
+                                return allOptions;
+                            }
+                        ''')
+                    
+                    # If we still have no options, try a last approach
+                    if not options or len(options) <= index:
+                        self._update_status(f"Could not find {index} options in dropdown", "warn")
+                        # Try JavaScript selection
+                        await page.evaluate(f'''
+                            (selector, index) => {{
+                                const el = document.querySelector(selector);
+                                if (el) {{
+                                    // Try common dropdown implementations
+                                    if (el.options && el.options.length > index) {{
+                                        // Standard select
+                                        el.selectedIndex = index;
+                                        el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    }} else if (el.querySelectorAll) {{
+                                        // Try to find child elements
+                                        const options = el.querySelectorAll('li, .option, div, a, span');
+                                        if (options && options.length > index) {{
+                                            options[index].click();
+                                        }}
+                                    }}
+                                }}
+                            }}
+                        ''', selector, index)
+                        await asyncio.sleep(1)
+                        return
+                    
+                    # Click the option at the specified index
+                    if index < len(options):
+                        await options[index].click()
+                        await asyncio.sleep(0.5)
+                        return
+                    else:
+                        raise ValueError(f"Index {index} is out of range for dropdown with {len(options)} options")
+            
+            except Exception as e:
+                self._update_status(f"Error with index-based selection: {str(e)}", "error")
+                raise ValueError(f"Failed to select option by index: {str(e)}")
         
         # Handle regular value-based selection
         for key in ['thickness', 'width', 'length']:
@@ -185,7 +288,38 @@ class PriceCalculator:
         
         logging.info(f"Handling select/input: {selector} with target value {value}")
         self._update_status(f"Handling select/input with value {value}", "select", {"selector": selector, "value": value})
-        target_value = float(value)
+        
+        try:
+            target_value = float(value)
+        except ValueError:
+            # If we can't convert to float, treat it as a string-based selection
+            self._update_status(f"Using string-based selection with value: {value}", "select")
+            
+            element = await page.wait_for_selector(selector, timeout=5000)
+            if not element:
+                raise ValueError(f"No element found matching selector: {selector}")
+                
+            tag_name = await element.evaluate('el => el.tagName.toLowerCase()')
+            if tag_name == 'select':
+                # For select elements, try to find option with matching text
+                await element.select_option(label=value)
+                await asyncio.sleep(0.5)
+                return
+            else:
+                # For non-standard dropdowns, try to find an option containing the text
+                await element.click()  # Click to open dropdown
+                await asyncio.sleep(0.5)
+                
+                # Try to find options with matching text
+                options = await page.query_selector_all('li, .option, .dropdown-item, [role="option"]')
+                for option in options:
+                    option_text = await option.text_content()
+                    if value.lower() in option_text.lower():
+                        await option.click()
+                        await asyncio.sleep(0.5)
+                        return
+                
+                raise ValueError(f"No option found with text containing '{value}'")
 
         # First check if we need to open a dropdown/container
         if 'container_trigger' in step:

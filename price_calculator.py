@@ -10,6 +10,8 @@ from datetime import datetime
 from database import SessionLocal
 import crud
 from config import HEADLESS
+import random
+import string
 
 logging.basicConfig(level=logging.INFO)
 
@@ -161,13 +163,31 @@ class PriceCalculator:
         """Handle a select/input step"""
         # Controleer eerst of 'value' aanwezig is in de step dictionary
         if 'value' not in step:
+            # Als use_index is ingesteld en option_index is beschikbaar, gebruik index gebaseerde selectie
             if 'use_index' in step and step['use_index'] and 'option_index' in step:
                 # Voeg automatisch een value toe in het juiste format
                 step['value'] = f"index:{step['option_index']}"
                 self._update_status(f"Added value 'index:{step['option_index']}' based on option_index", "select")
+            # Als er geen selector is, probeer opties te raden op basis van andere velden
+            elif 'selector' in step:
+                # Log dit als een waarschuwing en gebruik een default waarde
+                self._update_status(f"No value specified for select step, using empty value", "warn")
+                step['value'] = ""  # Lege string als fallback
             else:
-                self._update_status("No value specified for select step", "error")
-                raise ValueError("Missing required field 'value' in select step")
+                # Als er geen selector is, kunnen we niet verder
+                self._update_status("Missing required fields for select step", "error")
+                raise ValueError("Missing required fields in select step: need 'value' or 'use_index' + 'option_index'")
+        
+        # Controleer of de selector aanwezig is
+        if 'selector' not in step:
+            if 'select_element' in step:
+                # Als select_element aanwezig is, gebruik dat als selector (compatibiliteit met index selectie)
+                step['selector'] = step['select_element']
+                self._update_status(f"Using select_element as selector", "select")
+            else:
+                # Als er geen selector is, kunnen we niet verder
+                self._update_status("No selector specified for select step", "error")
+                raise ValueError("Missing required field 'selector' in select step")
         
         value = step['value']
         selector = step['selector']
@@ -264,6 +284,35 @@ class PriceCalculator:
             except Exception as e:
                 self._update_status(f"Error with index-based selection: {str(e)}", "error")
                 raise ValueError(f"Failed to select option by index: {str(e)}")
+        
+        # Value is een lege string, probeer de eerste optie te selecteren
+        if value == "":
+            try:
+                element = await page.wait_for_selector(selector, timeout=5000)
+                if not element:
+                    self._update_status(f"Element not found: {selector}", "error")
+                    return  # Ga verder zonder error
+                
+                tag_name = await element.evaluate('el => el.tagName.toLowerCase()')
+                if tag_name == 'select':
+                    # Voor select elementen, selecteer de eerste optie
+                    await element.select_option(index=0)
+                    self._update_status(f"Selected first option for empty value", "select")
+                    await asyncio.sleep(0.5)
+                    return
+                else:
+                    # Voor non-standard dropdowns, klik erop en selecteer de eerste optie
+                    await element.click()
+                    await asyncio.sleep(0.5)
+                    options = await page.query_selector_all('li, .option, .dropdown-item, [role="option"]')
+                    if options and len(options) > 0:
+                        await options[0].click()
+                        self._update_status(f"Selected first dropdown option for empty value", "select")
+                        await asyncio.sleep(0.5)
+                        return
+            except Exception as e:
+                self._update_status(f"Error selecting first option: {str(e)}", "warn")
+                # Ga verder met reguliere selectie
         
         # Handle regular value-based selection
         for key in ['thickness', 'width', 'length']:
@@ -446,35 +495,140 @@ class PriceCalculator:
             raise ValueError(f"Could not find matching option for value {value}mm (closest diff was {smallest_diff})")
 
     async def _handle_input(self, page, step, dimensions):
-        value = step['value']
-        clear_first = step.get('clear_first', True)  # Default to clearing the field first
-        max_retries = 3
+        # Check eerst of 'selector' aanwezig is
+        if 'selector' not in step:
+            self._update_status(f"Missing selector in input step", "error")
+            raise ValueError("No selector specified for input step")
+            
         selector = step['selector']
+        max_retries = 3
+        clear_first = step.get('clear_first', True)  # Default to clearing the field first
         
-        # Variabelen in de value string vervangen door waarden uit dimensions
-        for key in ['thickness', 'width', 'length', 'quantity']:
-            if f"{{{key}}}" in value:
-                if key in dimensions:
-                    converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
-                    # Convert to integer if it's a whole number
-                    if converted_value.is_integer():
-                        converted_value = int(converted_value)
-                    value = value.replace(f"{{{key}}}", str(converted_value))
-                    self._update_status(
-                        f"Setting {key} to {converted_value}",
-                        "input",
-                        {
-                            "selector": selector,
-                            "value": str(converted_value),
-                            "unit": step.get('unit', 'mm')
-                        }
-                    )
-                else:
-                    self._update_status(f"Dimension {key} not found", "error")
-                    raise ValueError(f"Dimension {key} not found in dimensions dict")
+        # Check voor randomize
+        if step.get('randomize') or step.get('input_method') == 'randomize':
+            random_type = step.get('random_type', 'Generic Term')
+            
+            # Genereer willekeurige waarde op basis van het type
+            if random_type == 'First Name':
+                first_names = ['Jan', 'Piet', 'Klaas', 'Maria', 'Anna', 'Sara', 'Emma', 'Sophie', 'Thomas', 'Daan']
+                step['value'] = random.choice(first_names)
+                self._update_status(f"Using random first name: {step['value']}", "input", {"selector": selector, "value": step['value']})
+            elif random_type == 'Last Name':
+                last_names = ['Jansen', 'de Vries', 'van den Berg', 'Bakker', 'Visser', 'Meijer', 'de Boer', 'Mulder', 'de Groot', 'Bos']
+                step['value'] = random.choice(last_names)
+                self._update_status(f"Using random last name: {step['value']}", "input", {"selector": selector, "value": step['value']})
+            elif random_type == 'Email Address':
+                domains = ['gmail.com', 'outlook.com', 'hotmail.com', 'yahoo.com', 'protonmail.com']
+                first_names = ['jan', 'piet', 'klaas', 'maria', 'anna', 'sara', 'emma', 'thomas', 'daan', 'lisa']
+                last_names = ['jansen', 'devries', 'bakker', 'visser', 'meijer', 'deboer', 'mulder', 'degroot', 'bos']
+                numbers = [str(random.randint(1, 999)) for _ in range(3)]
+                
+                # Create email with random parts
+                parts = [random.choice(first_names), random.choice(last_names), random.choice(numbers)]
+                random.shuffle(parts)
+                email_name = '.'.join(parts[:2])
+                domain = random.choice(domains)
+                step['value'] = f"{email_name}@{domain}"
+                self._update_status(f"Using random email: {step['value']}", "input", {"selector": selector, "value": step['value']})
+            elif random_type == 'Password':
+                # Haal wachtwoordinstellingen op uit stap
+                min_length = int(step.get('password_min_length', 8))  # Ensure this is an integer
+                max_length = int(step.get('password_max_length', 16))  # Ensure this is an integer
+                include_uppercase = step.get('password_include_uppercase', True)
+                include_numbers = step.get('password_include_numbers', True)
+                include_special = step.get('password_include_special', True)
+                
+                # Debug logging
+                self._update_status(
+                    f"Password settings - min_length: {min_length}, max_length: {max_length}, " +
+                    f"uppercase: {include_uppercase}, numbers: {include_numbers}, special: {include_special}",
+                    "debug"
+                )
+                
+                # Bepaal de tekens die gebruikt kunnen worden
+                chars = string.ascii_lowercase
+                if include_uppercase:
+                    chars += string.ascii_uppercase
+                if include_numbers:
+                    chars += string.digits
+                if include_special:
+                    # Use a more limited set of special characters that are more likely to work across websites
+                    chars += '!@#$%^&*'
+                    
+                # Genereer een wachtwoord met willekeurige lengte tussen min en max
+                password_length = random.randint(min_length, max_length)
+                
+                # Ensure at least one character of each required type is included
+                must_include = []
+                if include_uppercase:
+                    must_include.append(random.choice(string.ascii_uppercase))
+                if include_numbers:
+                    must_include.append(random.choice(string.digits))
+                if include_special:
+                    must_include.append(random.choice('!@#$%^&*'))
+                
+                # Generate remaining characters
+                remaining_length = password_length - len(must_include)
+                remaining_chars = [random.choice(chars) for _ in range(remaining_length)]
+                
+                # Combine and shuffle
+                all_chars = must_include + remaining_chars
+                random.shuffle(all_chars)
+                
+                # Generate the password and ensure it's a string
+                password = ''.join(all_chars)
+                step['value'] = password  # Store the password
+                
+                # Log the password generation (without showing the actual password)
+                self._update_status(
+                    f"Generated random password (length: {password_length})",
+                    "input",
+                    {
+                        "selector": selector,
+                        "value": "[HIDDEN]",
+                        "length": str(password_length),
+                        "includes_uppercase": str(include_uppercase),
+                        "includes_numbers": str(include_numbers),
+                        "includes_special": str(include_special)
+                    }
+                )
+            else:  # Generic Term
+                terms = ['test', 'sample', 'example', 'demo', 'trial', 'preview', 'beta', 'review', 'check', 'verify']
+                step['value'] = random.choice(terms)
+                self._update_status(f"Using random term: {step['value']}", "input", {"selector": selector, "value": step['value']})
+        else:
+            # Check of 'value' aanwezig is als we niet randomizen
+            if 'value' not in step:
+                self._update_status(f"No value specified for input step, using empty string", "warn")
+                step['value'] = ""  # Gebruik lege string als fallback
+            else:
+                # Originele waarde uit stap
+                step['value'] = step['value']
+                
+                # Variabelen in de value string vervangen door waarden uit dimensions
+                for key in ['thickness', 'width', 'length', 'quantity']:
+                    if f"{{{key}}}" in step['value']:
+                        if key in dimensions:
+                            converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
+                            # Convert to integer if it's a whole number
+                            if isinstance(converted_value, float) and converted_value.is_integer():
+                                converted_value = int(converted_value)
+                            step['value'] = step['value'].replace(f"{{{key}}}", str(converted_value))
+                            self._update_status(
+                                f"Setting {key} to {converted_value}",
+                                "input",
+                                {
+                                    "selector": selector,
+                                    "value": str(converted_value),
+                                    "unit": step.get('unit', 'mm')
+                                }
+                            )
+                        else:
+                            self._update_status(f"Dimension {key} not found", "error")
+                            raise ValueError(f"Dimension {key} not found in dimensions dict")
 
-        logging.info(f"Handling input: {selector} with value {value}")
-        self._update_status(f"Setting input value {value}", "input", {"selector": selector, "value": value})
+        logging.info(f"Handling input: {selector} with value {step['value']}")
+        self._update_status(f"Setting input value {step['value']}", "input", {"selector": selector, "value": step['value']})
         
         for attempt in range(max_retries):
             try:
@@ -503,25 +657,73 @@ class PriceCalculator:
                     await asyncio.sleep(0.2)
                 
                 # Type de nieuwe waarde, met korte pauzes tussen tekens
-                await element.type(str(value), delay=50)  # 50ms vertraging tussen tekens
+                try:
+                    # Handle passwords with special characters 
+                    if step.get('random_type') == 'Password':
+                        # First try with type()
+                        await element.type(str(step['value']), delay=50)
+                    else:
+                        await element.type(str(step['value']), delay=50)
+                    
+                    # Stuur events om de website te informeren over de wijziging
+                    await element.evaluate('''(el) => {
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        el.dispatchEvent(new Event('blur', { bubbles: true }));
+                    }''')
+                    
+                    # Bevestig dat de waarde correct is ingevoerd
+                    actual_value = await element.evaluate('(el) => el.value')
+                    # Always convert to string for comparison
+                    actual_value_str = str(actual_value)
+                    step_value_str = str(step['value'])
+                    
+                    if actual_value_str == step_value_str or step_value_str in actual_value_str:
+                        self._update_status(f"Successfully set input to {step_value_str if step.get('random_type') != 'Password' else '[HIDDEN]'}", "input", {"status": "success"})
+                        break
+                    else:
+                        self._update_status(f"Value mismatch: expected value not matching actual value", "warn")
+                        
+                        # For passwords or values with special characters, try an alternative method as a last resort
+                        if attempt == max_retries - 1:
+                            # Try direct JavaScript fill for the password
+                            value = str(step['value'])
+                            
+                            # Double escape special characters for JavaScript
+                            escaped_value = value.replace('\\', '\\\\').replace('"', '\\"').replace("'", "\\'")
+                            js_code = f'''(el) => {{
+                                try {{
+                                    // First try direct value assignment
+                                    el.value = "{escaped_value}";
+                                    // Then dispatch appropriate events
+                                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                                    return true;
+                                }} catch(e) {{
+                                    console.error("Error setting value:", e);
+                                    return false;
+                                }}
+                            }}'''
+                            
+                            success = await element.evaluate(js_code)
+                            if success:
+                                self._update_status("Successfully set value using JavaScript method", "input", {"status": "success"})
+                            else:
+                                self._update_status("Failed to set value with all methods", "error")
                 
-                # Stuur events om de website te informeren over de wijziging
-                await element.evaluate('''(el) => {
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                    el.dispatchEvent(new Event('blur', { bubbles: true }));
-                }''')
-                
-                # Bevestig dat de waarde correct is ingevoerd
-                actual_value = await element.evaluate('(el) => el.value')
-                if actual_value == str(value) or str(value) in actual_value:
-                    self._update_status(f"Successfully set input to {value}", "input", {"status": "success"})
-                    break
-                else:
-                    self._update_status(f"Value mismatch: expected {value}, got {actual_value}", "warn")
+                except Exception as e:
+                    self._update_status(f"Error in typing: {str(e)}", "warn")
                     if attempt == max_retries - 1:
-                        # Als dit de laatste poging was, probeer nog één andere methode
-                        await element.evaluate(f'(el) => {{ el.value = "{value}"; }}')
+                        # As a last resort for passwords, try filling character by character
+                        if step.get('random_type') == 'Password':
+                            try:
+                                await element.fill('')  # Clear first
+                                password = str(step['value'])
+                                for char in password:
+                                    await page.keyboard.press(char)
+                                self._update_status("Typed password character by character", "input")
+                            except Exception as char_error:
+                                self._update_status(f"Character-by-character typing failed: {str(char_error)}", "error")
                 
                 # Langere wachttijd tussen acties
                 await asyncio.sleep(1.0)
@@ -1133,7 +1335,35 @@ class PriceCalculator:
 
     async def _process_step(self, page, step, dimensions):
         """Process a single step in the configuration"""
+        # Check of dit een geldig stap object is
+        if not isinstance(step, dict):
+            self._update_status(f"Invalid step type: {type(step)}", "error")
+            raise ValueError(f"Step must be a dictionary, got {type(step)}")
+
+        # Valideer dat het stap type bestaat
+        if 'type' not in step:
+            self._update_status("Step missing 'type' field", "error")
+            raise ValueError("Step configuration missing required 'type' field")
+            
         step_type = step['type']
+        
+        # Voeg extra validatie toe voor specifieke staptypes
+        if step_type == 'select' and 'value' not in step and 'use_index' not in step:
+            # Voor select stappen zonder value of use_index, voeg een lege waarde toe
+            step['value'] = ""
+            self._update_status("Adding empty value for select step", "warn")
+        
+        if step_type == 'input':
+            # Voor input stappen, controleer of we randomiseren
+            if step.get('input_method') == 'randomize':
+                # Als we randomiseren, zorg ervoor dat random_type aanwezig is
+                if 'random_type' not in step:
+                    step['random_type'] = 'Generic Term'
+                    self._update_status("Adding default random_type for input step", "warn")
+            elif 'value' not in step:
+                # Als we niet randomiseren en geen waarde hebben, voeg een lege string toe
+                step['value'] = ""
+                self._update_status("Adding empty value for input step", "warn")
         
         try:
             if step_type == 'select':
@@ -1148,11 +1378,16 @@ class PriceCalculator:
                 return await self._handle_read_price(page, step)
             elif step_type == 'modify_element':
                 await self._handle_modify(page, step)
+            elif step_type == 'blur':
+                await self._handle_blur(page, step)
             else:
                 self._update_status(f"Unknown step type: {step_type}", "error")
+                raise ValueError(f"Unknown step type: {step_type}")
                 
         except Exception as e:
             self._update_status(f"Error processing step: {str(e)}", "error")
+            # Voeg gedetailleerde informatie toe over de stap die mislukte
+            logging.error(f"Failed step details: {json.dumps(step, default=str)}")
             raise
         
         return None 

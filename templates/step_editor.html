@@ -3,6 +3,9 @@
 {% block title %}Step Editor{% endblock %}
 
 {% block content %}
+<!-- Additional hidden element to store domain config data safely -->
+<div id="domain-config-data" style="display: none;" data-domain-configs='{{ domain_configs | tojson | safe }}'></div>
+
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-900">Step Editor</h2>
@@ -211,9 +214,8 @@
 
 {% block scripts %}
 <script>
-// Store domain configurations from the server
-const domainConfigs = {{ domain_configs | tojson | safe }};
-
+// Initialize variables
+let domainConfigs = {};
 let steps = [];
 let editingIndex = -1;
 
@@ -222,14 +224,14 @@ const stepFields = {
     select: [
         {
             name: 'select_method',
-            label: 'Selectiemethode',
+            label: 'Selection Method',
             type: 'radio',
             options: [
                 { value: 'selector', label: 'Via CSS selector' },
-                { value: 'index', label: 'Via index (positie)' }
+                { value: 'index', label: 'Via index (position)' }
             ],
             default: 'selector',
-            help: 'Kies hoe je een element wilt selecteren: via een CSS/XPath selector of via de positie (index)'
+            help: 'Choose how to select an element: via a CSS/XPath selector or via position (index)'
         },
         {
             name: 'selector',
@@ -244,16 +246,16 @@ const stepFields = {
             label: 'Dropdown Selector',
             type: 'text',
             required: true,
-            help: 'CSS selector voor het dropdown element waaruit je wilt selecteren',
+            help: 'CSS selector for the dropdown element you want to select from',
             condition: { field: 'select_method', value: 'index' }
         },
         {
             name: 'option_index',
-            label: 'Optie index',
+            label: 'Option Index',
             type: 'number',
             required: true,
             min: 0,
-            help: 'De index (positie) van de optie die je wilt selecteren (0 = eerste optie)',
+            help: 'The index (position) of the option you want to select (0 = first option)',
             condition: { field: 'select_method', value: 'index' }
         },
         {
@@ -293,6 +295,17 @@ const stepFields = {
     ],
     input: [
         {
+            name: 'input_method',
+            label: 'Input Method',
+            type: 'radio',
+            options: [
+                { value: 'fixed', label: 'Fixed value' },
+                { value: 'randomize', label: 'Random value (randomize: true)' }
+            ],
+            default: 'fixed',
+            help: 'Choose whether to enter a fixed value or generate a random value'
+        },
+        {
             name: 'selector',
             label: 'Selector',
             type: 'text',
@@ -305,7 +318,66 @@ const stepFields = {
             type: 'value_with_vars',
             required: true,
             variables: ['thickness', 'width', 'length', 'quantity'],
-            help: 'The value to input. You can use variables like {thickness} that will be replaced with actual values'
+            help: 'The value to input. You can use variables like {thickness} that will be replaced with actual values',
+            condition: { field: 'input_method', value: 'fixed' }
+        },
+        {
+            name: 'random_type',
+            label: 'Random Value Type',
+            type: 'select',
+            options: ['First Name', 'Last Name', 'Email Address', 'Password', 'Generic Term'],
+            required: true,
+            help: 'Choose which type of random value should be generated. This works in combination with the "randomize: true" setting',
+            condition: { field: 'input_method', value: 'randomize' }
+        },
+        {
+            name: 'password_min_length',
+            label: 'Minimum Password Length',
+            type: 'number',
+            min: 8,
+            max: 32,
+            default: 12,
+            required: false,
+            help: 'Minimum length of the generated password (8-32 characters)',
+            condition: { field: 'random_type', value: 'Password' }
+        },
+        {
+            name: 'password_max_length',
+            label: 'Maximum Password Length',
+            type: 'number',
+            min: 8,
+            max: 32,
+            default: 16,
+            required: false,
+            help: 'Maximum length of the generated password (8-32 characters)',
+            condition: { field: 'random_type', value: 'Password' }
+        },
+        {
+            name: 'password_include_uppercase',
+            label: 'Include Uppercase Letters',
+            type: 'checkbox',
+            default: true,
+            required: false,
+            help: 'Add uppercase letters (A-Z) to the password',
+            condition: { field: 'random_type', value: 'Password' }
+        },
+        {
+            name: 'password_include_numbers',
+            label: 'Include Numbers',
+            type: 'checkbox',
+            default: true,
+            required: false,
+            help: 'Add numbers (0-9) to the password',
+            condition: { field: 'random_type', value: 'Password' }
+        },
+        {
+            name: 'password_include_special',
+            label: 'Include Special Characters',
+            type: 'checkbox',
+            default: true,
+            required: false,
+            help: 'Add special characters (!@#$%^&*) to the password',
+            condition: { field: 'random_type', value: 'Password' }
         },
         { 
             name: 'unit', 
@@ -313,7 +385,8 @@ const stepFields = {
             label: 'Unit', 
             options: ['mm', 'cm', 'm', 'mm²', 'cm²', 'm²'], 
             required: false,
-            help: 'The unit of measurement for the value. Will convert values automatically'
+            help: 'The unit of measurement for the value. Will convert values automatically',
+            condition: { field: 'input_method', value: 'fixed' }
         },
         { 
             name: 'clear_first', 
@@ -401,6 +474,19 @@ const stepFields = {
 
 // Initialize event listeners
 document.addEventListener('DOMContentLoaded', () => {
+    // Load domain configurations from the hidden element
+    try {
+        const configDataElement = document.getElementById('domain-config-data');
+        if (configDataElement && configDataElement.dataset.domainConfigs) {
+            domainConfigs = JSON.parse(configDataElement.dataset.domainConfigs);
+            console.log("Domain configs loaded successfully");
+        } else {
+            console.warn("Domain config element or data not found");
+        }
+    } catch (error) {
+        console.error("Error parsing domain configs:", error);
+    }
+
     // Button event listeners
     document.getElementById('loadConfigBtn').addEventListener('click', showLoadConfigModal);
     document.getElementById('addStepBtn').addEventListener('click', showAddStepModal);
@@ -562,6 +648,44 @@ function updateStepFields() {
                 });
             }
         }, 50);
+    } else if (stepType === 'input') {
+        // Als we een input type hebben met radio buttons, zorgen dat de juiste waarde wordt ingesteld
+        setTimeout(() => {
+            // Controleer of we input_method radio buttons hebben
+            const fixedRadio = document.getElementById('input_method_fixed');
+            const randomizeRadio = document.getElementById('input_method_randomize');
+            
+            if (fixedRadio && randomizeRadio) {
+                // Zorg ervoor dat minstens één van de radio buttons is geselecteerd
+                if (!fixedRadio.checked && !randomizeRadio.checked) {
+                    fixedRadio.checked = true;
+                }
+                
+                // Update de fieldValues map met de geselecteerde waarde
+                fieldValues['input_method'] = fixedRadio.checked ? 'fixed' : 'randomize';
+                
+                // Verwerk de conditionele velden op basis van de selectie
+                updateConditionalFields(stepType, fieldValues);
+                
+                // Voeg event listeners toe aan de radio buttons
+                fixedRadio.addEventListener('change', () => {
+                    if (fixedRadio.checked) {
+                        fieldValues['input_method'] = 'fixed';
+                        updateConditionalFields(stepType, fieldValues);
+                    }
+                });
+                
+                randomizeRadio.addEventListener('change', () => {
+                    if (randomizeRadio.checked) {
+                        fieldValues['input_method'] = 'randomize';
+                        updateConditionalFields(stepType, fieldValues);
+                        
+                        // Stel event listeners in voor conditionele velden (inclusief random_type)
+                        setupConditionalFieldListeners(stepType, fieldValues);
+                    }
+                });
+            }
+        }, 50);
     } else {
         // Voor andere types, verwerk conditionele velden meteen
         updateFieldValues(stepType, fieldValues);
@@ -576,22 +700,8 @@ function updateStepFields() {
             }
         });
         
-        // Voeg event listeners toe aan velden die andere velden beïnvloeden
-        stepFields[stepType].filter(field => {
-            return stepFields[stepType].some(f => f.condition && f.condition.field === field.name);
-        }).forEach(field => {
-            const element = document.getElementById(field.name);
-            if (!element) return;
-            
-            if (field.type === 'radio') {
-                const radioGroup = document.querySelectorAll(`input[name="${field.name}"]`);
-                radioGroup.forEach(radio => {
-                    radio.addEventListener('change', () => updateConditionalFields(stepType, fieldValues));
-                });
-            } else {
-                element.addEventListener('change', () => updateConditionalFields(stepType, fieldValues));
-            }
-        });
+        // Stel event listeners in voor conditionele velden
+        setupConditionalFieldListeners(stepType, fieldValues);
     }
 }
 
@@ -654,92 +764,13 @@ function createField(field, container, fieldValues) {
     div.className = 'mb-4 field-container';
     div.dataset.field = field.name;
 
-    const label = document.createElement('label');
-    label.className = 'block text-sm font-medium text-gray-700 mb-1';
-    label.textContent = field.label;
-    
-    div.appendChild(label);
-
-    if (field.type === 'radio') {
-        const radioContainer = document.createElement('div');
-        radioContainer.className = 'mt-1 space-y-2';
+    // Voor checkboxes maken we een aangepaste layout
+    if (field.type === 'checkbox') {
+        // Maak een wrapper voor de checkbox met flexbox
+        const checkboxWrapper = document.createElement('div');
+        checkboxWrapper.className = 'flex items-center gap-2 mt-1';
         
-        field.options.forEach((option, index) => {
-            const radioWrap = document.createElement('div');
-            radioWrap.className = 'flex items-center';
-            
-            const radio = document.createElement('input');
-            radio.type = 'radio';
-            radio.id = `${field.name}_${option.value}`;
-            radio.name = field.name;
-            radio.value = option.value;
-            radio.className = 'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300';
-            
-            // Stel de default waarde in
-            if ((index === 0 && !field.default) || option.value === field.default) {
-                radio.checked = true;
-                fieldValues[field.name] = option.value;
-            }
-            
-            const radioLabel = document.createElement('label');
-            radioLabel.htmlFor = `${field.name}_${option.value}`;
-            radioLabel.className = 'ml-2 block text-sm text-gray-700';
-            radioLabel.textContent = option.label;
-            
-            radioWrap.appendChild(radio);
-            radioWrap.appendChild(radioLabel);
-            radioContainer.appendChild(radioWrap);
-        });
-        
-        div.appendChild(radioContainer);
-    } else if (field.type === 'value_with_vars') {
-        // Create a container for the value input and variable selector
-        const container = document.createElement('div');
-        container.className = 'flex gap-2';
-
-        // Create the value input
-        const valueInput = document.createElement('input');
-        valueInput.type = 'text';
-        valueInput.id = field.name;
-        valueInput.name = field.name;
-        valueInput.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
-        valueInput.required = field.required;
-
-        // Create the variable selector
-        const varSelect = document.createElement('select');
-        varSelect.className = 'mt-1 block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
-        varSelect.innerHTML = `
-            <option value="">Insert variable...</option>
-            ${field.variables.map(v => `<option value="{${v}}">{${v}}</option>`).join('')}
-        `;
-        varSelect.addEventListener('change', function() {
-            if (this.value) {
-                valueInput.value = this.value;
-                fieldValues[field.name] = this.value;
-                this.value = ''; // Reset dropdown after selection
-            }
-        });
-
-        container.appendChild(valueInput);
-        container.appendChild(varSelect);
-        div.appendChild(container);
-    } else if (field.type === 'select') {
-        const select = document.createElement('select');
-        select.id = field.name;
-        select.name = field.name;
-        select.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
-        select.required = field.required;
-        
-        field.options.forEach(option => {
-            const opt = document.createElement('option');
-            opt.value = option;
-            opt.textContent = option;
-            select.appendChild(opt);
-        });
-        
-        div.appendChild(select);
-        fieldValues[field.name] = select.value;
-    } else if (field.type === 'checkbox') {
+        // Maak de checkbox
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = field.name;
@@ -747,32 +778,130 @@ function createField(field, container, fieldValues) {
         checkbox.className = 'rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500';
         checkbox.required = field.required;
         
-        div.appendChild(checkbox);
+        // Maak het label dat rechts van de checkbox staat
+        const checkboxLabel = document.createElement('label');
+        checkboxLabel.htmlFor = field.name;
+        checkboxLabel.className = 'text-sm text-gray-700';
+        checkboxLabel.textContent = field.label;
+        
+        // Voeg alles toe aan de container
+        checkboxWrapper.appendChild(checkbox);
+        checkboxWrapper.appendChild(checkboxLabel);
+        div.appendChild(checkboxWrapper);
+        
+        // Sla de waarde op
         fieldValues[field.name] = checkbox.checked;
-    } else if (field.type === 'number') {
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.id = field.name;
-        input.name = field.name;
-        input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
-        input.required = field.required;
-        
-        if (field.min !== undefined) input.min = field.min;
-        if (field.max !== undefined) input.max = field.max;
-        if (field.step !== undefined) input.step = field.step;
-        
-        div.appendChild(input);
-        fieldValues[field.name] = input.value;
     } else {
-        const input = document.createElement('input');
-        input.type = field.type;
-        input.id = field.name;
-        input.name = field.name;
-        input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
-        input.required = field.required;
-        
-        div.appendChild(input);
-        fieldValues[field.name] = input.value;
+        // Voor alle andere veldtypes, voeg het label toe boven het veld
+        const label = document.createElement('label');
+        label.className = 'block text-sm font-medium text-gray-700 mb-1';
+        label.textContent = field.label;
+        div.appendChild(label);
+
+        if (field.type === 'radio') {
+            const radioContainer = document.createElement('div');
+            radioContainer.className = 'mt-1 space-y-2';
+            
+            field.options.forEach((option, index) => {
+                const radioWrap = document.createElement('div');
+                radioWrap.className = 'flex items-center';
+                
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.id = `${field.name}_${option.value}`;
+                radio.name = field.name;
+                radio.value = option.value;
+                radio.className = 'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300';
+                
+                // Stel de default waarde in
+                if ((index === 0 && !field.default) || option.value === field.default) {
+                    radio.checked = true;
+                    fieldValues[field.name] = option.value;
+                }
+                
+                const radioLabel = document.createElement('label');
+                radioLabel.htmlFor = `${field.name}_${option.value}`;
+                radioLabel.className = 'ml-2 block text-sm text-gray-700';
+                radioLabel.textContent = option.label;
+                
+                radioWrap.appendChild(radio);
+                radioWrap.appendChild(radioLabel);
+                radioContainer.appendChild(radioWrap);
+            });
+            
+            div.appendChild(radioContainer);
+        } else if (field.type === 'value_with_vars') {
+            // Create a container for the value input and variable selector
+            const container = document.createElement('div');
+            container.className = 'flex gap-2';
+    
+            // Create the value input
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.id = field.name;
+            valueInput.name = field.name;
+            valueInput.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+            valueInput.required = field.required;
+    
+            // Create the variable selector
+            const varSelect = document.createElement('select');
+            varSelect.className = 'mt-1 block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+            varSelect.innerHTML = `
+                <option value="">Insert variable...</option>
+                ${field.variables.map(v => `<option value="{${v}}">{${v}}</option>`).join('')}
+            `;
+            varSelect.addEventListener('change', function() {
+                if (this.value) {
+                    valueInput.value = this.value;
+                    fieldValues[field.name] = this.value;
+                    this.value = ''; // Reset dropdown after selection
+                }
+            });
+    
+            container.appendChild(valueInput);
+            container.appendChild(varSelect);
+            div.appendChild(container);
+        } else if (field.type === 'select') {
+            const select = document.createElement('select');
+            select.id = field.name;
+            select.name = field.name;
+            select.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+            select.required = field.required;
+            
+            field.options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option;
+                opt.textContent = option;
+                select.appendChild(opt);
+            });
+            
+            div.appendChild(select);
+            fieldValues[field.name] = select.value;
+        } else if (field.type === 'number') {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.id = field.name;
+            input.name = field.name;
+            input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+            input.required = field.required;
+            
+            if (field.min !== undefined) input.min = field.min;
+            if (field.max !== undefined) input.max = field.max;
+            if (field.step !== undefined) input.step = field.step;
+            
+            div.appendChild(input);
+            fieldValues[field.name] = input.value;
+        } else {
+            const input = document.createElement('input');
+            input.type = field.type;
+            input.id = field.name;
+            input.name = field.name;
+            input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
+            input.required = field.required;
+            
+            div.appendChild(input);
+            fieldValues[field.name] = input.value;
+        }
     }
 
     // Add help text if available
@@ -840,7 +969,7 @@ function saveStep() {
         }
     });
     
-    // Speciale verwerking voor index-gebaseerde select (voor backward compatibility met bestaande implementatie)
+    // Speciale verwerking voor index-gebaseerde select
     if (stepType === 'select' && step.select_method === 'index') {
         // Markeer expliciet dat dit een index-gebaseerde selectie is
         step.use_index = true;
@@ -866,9 +995,25 @@ function saveStep() {
         delete step.option_selector;
     }
     
+    // Speciale verwerking voor randomize input
+    if (stepType === 'input' && step.input_method === 'randomize') {
+        // Markeer als randomize - dit is de eigenschap die de code in price_calculator.py verwacht
+        // De code checkt op step.randomize === true of step.get('randomize') in plaats van input_method
+        step.randomize = true;
+        step.random_type = step.random_type || 'Generic Term';
+        
+        // Verwijder input_method omdat we nu randomize direct gebruiken
+        delete step.input_method;
+    }
+    
     // Verwijder de select_method uit het uiteindelijke step object omdat dit alleen UI-gerelateerd is
     delete step.select_method;
-
+    
+    // Verwijder de input_method omdat die alleen voor de UI is
+    if (step.input_method) {
+        delete step.input_method;
+    }
+    
     // Sla op of de stap wordt bewerkt of nieuw is voordat de modal wordt verborgen
     const isEditing = editingIndex >= 0;
     
@@ -879,7 +1024,7 @@ function saveStep() {
         // Voeg een nieuwe stap toe
         steps.push(step);
     }
-
+    
     // Verberg de modal (deze reset de form maar niet de editingIndex)
     hideAddStepModal();
     
@@ -1007,12 +1152,34 @@ function handleDrop(e) {
 function formatStepDetails(step) {
     const details = [];
     
-    // Voor index-gebaseerde select stappen, toon speciale informatie
+    // For index-based select steps, show special information
     if (step.type === 'select' && step.use_index) {
         details.push(`Dropdown: ${step.selector}`);
         details.push(`Index: ${step.option_index}`);
-    } else {
-        // Standaard details voor alle andere stappen
+    } 
+    // For input steps with randomization, show special information
+    else if (step.type === 'input' && step.randomize) {
+        details.push(`Selector: ${step.selector}`);
+        details.push(`Random type: ${step.random_type || 'Generic Term'}`);
+        
+        // Show extra information for passwords
+        if (step.random_type === 'Password') {
+            const length = step.password_min_length ? 
+                (step.password_max_length ? 
+                    `${step.password_min_length}-${step.password_max_length}` : 
+                    `${step.password_min_length}+`) : 
+                (step.password_max_length ? `≤${step.password_max_length}` : '8-16');
+            
+            const features = [];
+            if (step.password_include_uppercase !== false) features.push('ABC');
+            if (step.password_include_numbers !== false) features.push('123');
+            if (step.password_include_special !== false) features.push('#$%');
+            
+            details.push(`Password settings: ${length} chars ${features.length ? '(' + features.join(',') + ')' : ''}`);
+        }
+    }
+    else {
+        // Default details for all other steps
         if (step.selector) details.push(`Selector: ${step.selector}`);
         if (step.value) details.push(`Value: ${step.value}`);
         if (step.duration) details.push(`Duration: ${step.duration}`);
@@ -1026,110 +1193,201 @@ function editStep(index) {
     editingIndex = index;
     const step = steps[index];
     
-    // Toon de modal zonder showAddStepModal te gebruiken om te voorkomen dat editingIndex wordt gereset
+    // Show the modal
     document.getElementById('addStepModal').classList.remove('hidden');
     
-    // Zet de step type in de dropdown
+    // Set step type in dropdown
     document.getElementById('stepType').value = step.type;
     
-    // Voor index-gebaseerde select steps, zet select_method op 'index'
-    if (step.type === 'select' && step.use_index) {
-        // We moeten eerst velden genereren zodat radio buttons bestaan
-        updateStepFields();
-        
-        // Selecteer de 'index' radio button
-        const indexRadio = document.getElementById('select_method_index');
-        if (indexRadio) {
-            indexRadio.checked = true;
-            
-            // Trigger een change event om conditionele velden bij te werken
-            const event = new Event('change');
-            indexRadio.dispatchEvent(event);
-        }
-        
-        // Wacht even tot de UI is bijgewerkt
-        setTimeout(() => {
-            // Vul de velden voor index-gebaseerde selectie
-            const selectElement = document.getElementById('select_element');
-            if (selectElement) {
-                selectElement.value = step.selector || '';
-            }
-            
-            const optionIndex = document.getElementById('option_index');
-            if (optionIndex) {
-                optionIndex.value = step.option_index || 0;
-            }
-            
-            document.getElementById('saveStepBtn').textContent = 'Update Step';
-            
-            // Koppel Enter-toets aan primaire knop
-            setupModalEnterKey('addStepModal', 'saveStepBtn');
-        }, 100);
-    } else if (step.type === 'select') {
-        // Voor reguliere select steps, zet select_method op 'selector'
-        updateStepFields();
-        
-        // Selecteer de 'selector' radio button
-        const selectorRadio = document.getElementById('select_method_selector');
-        if (selectorRadio) {
-            selectorRadio.checked = true;
-            
-            // Trigger een change event om conditionele velden bij te werken
-            const event = new Event('change');
-            selectorRadio.dispatchEvent(event);
-        }
-        
-        // Wait for the fields to be created and updated
-        setTimeout(() => {
-            // Vul de velden voor de stap
-            stepFields[step.type].forEach(field => {
-                // Skip de radio buttons, die zijn hierboven al ingesteld
-                if (field.type === 'radio') return;
-                
-                // Voor conditionele velden, controleer of ze bij de huidige select_method horen
-                if (field.condition && field.condition.field === 'select_method' && field.condition.value !== 'selector') {
-                    return;
-                }
-                
-                const element = document.getElementById(field.name);
-                if (element) {
-                    if (element.type === 'checkbox') {
-                        element.checked = step[field.name] || false;
-                    } else {
-                        element.value = step[field.name] || '';
-                    }
-                }
-            });
-
-            document.getElementById('saveStepBtn').textContent = 'Update Step';
-            
-            // Koppel Enter-toets aan primaire knop
-            setupModalEnterKey('addStepModal', 'saveStepBtn');
-        }, 100);
-    } else {
-        // Voor andere stap types, normale verwerking
-        updateStepFields();
+    // Update fields for this step type
+    updateStepFields();
     
-        // Wait for the fields to be created
-        setTimeout(() => {
-            // Fill in the fields
-            stepFields[step.type].forEach(field => {
-                const element = document.getElementById(field.name);
-                if (element) {
-                    if (element.type === 'checkbox') {
-                        element.checked = step[field.name] || false;
-                    } else {
-                        element.value = step[field.name] || '';
+    // Wacht even om er zeker van te zijn dat alle velden geladen zijn
+    setTimeout(() => {
+        // For select type, we need to select the correct selection method
+        if (step.type === 'select') {
+            // Determine whether we use index or selector
+            const isIndexBased = step.use_index || (step.value && typeof step.value === 'string' && step.value.startsWith('index:'));
+            
+            // Select the correct radio button
+            const selectorRadio = document.getElementById('select_method_selector');
+            const indexRadio = document.getElementById('select_method_index');
+            
+            if (selectorRadio && indexRadio) {
+                if (isIndexBased) {
+                    indexRadio.checked = true;
+                    
+                    // Trigger change event to update conditionals
+                    indexRadio.dispatchEvent(new Event('change'));
+                    
+                    // Wait for conditionals to load
+                    setTimeout(() => {
+                        // Fill selection fields
+                        const selectElementField = document.getElementById('select_element');
+                        if (selectElementField) {
+                            selectElementField.value = step.selector || '';
+                        }
+                        
+                        // Extract the index number from the value
+                        let optionIndex = "0";
+                        if (step.value && typeof step.value === 'string' && step.value.startsWith('index:')) {
+                            optionIndex = step.value.split(':')[1];
+                        } else if (step.option_index) {
+                            optionIndex = step.option_index;
+                        }
+                        
+                        const optionIndexField = document.getElementById('option_index');
+                        if (optionIndexField) {
+                            optionIndexField.value = optionIndex;
+                        }
+                    }, 100);
+                } else {
+                    selectorRadio.checked = true;
+                    
+                    // Trigger change event to update conditionals
+                    selectorRadio.dispatchEvent(new Event('change'));
+                    
+                    // Wait for conditionals to load
+                    setTimeout(() => {
+                        // Fill selection fields
+                        const selectorField = document.getElementById('selector');
+                        if (selectorField) {
+                            selectorField.value = step.selector || '';
+                        }
+                        
+                        const valueField = document.getElementById('value');
+                        if (valueField) {
+                            valueField.value = step.value || '';
+                        }
+                        
+                        const unitField = document.getElementById('unit');
+                        if (unitField && step.unit) {
+                            unitField.value = step.unit;
+                        }
+                        
+                        const optionContainerField = document.getElementById('option_container');
+                        if (optionContainerField && step.option_container) {
+                            optionContainerField.value = step.option_container;
+                        }
+                        
+                        const optionSelectorField = document.getElementById('option_selector');
+                        if (optionSelectorField && step.option_selector) {
+                            optionSelectorField.value = step.option_selector;
+                        }
+                    }, 100);
+                }
+            }
+        } else if (step.type === 'input') {
+            // Determine whether we use randomize or fixed value
+            const isRandomized = step.randomize === true || step.input_method === 'randomize';
+            
+            // Select the correct radio button
+            const fixedRadio = document.getElementById('input_method_fixed');
+            const randomizeRadio = document.getElementById('input_method_randomize');
+            
+            if (fixedRadio && randomizeRadio) {
+                // Fill first the selector, which is always visible
+                const selectorField = document.getElementById('selector');
+                if (selectorField) {
+                    selectorField.value = step.selector || '';
+                }
+                
+                // Fill clear_first, which is always visible
+                const clearFirstField = document.getElementById('clear_first');
+                if (clearFirstField && 'clear_first' in step) {
+                    clearFirstField.checked = step.clear_first;
+                }
+                
+                if (isRandomized) {
+                    randomizeRadio.checked = true;
+                    
+                    // Trigger change event to update conditionals
+                    randomizeRadio.dispatchEvent(new Event('change'));
+                    
+                    // Wait for conditionals to load
+                    setTimeout(() => {
+                        // Set the random type
+                        const randomTypeSelect = document.getElementById('random_type');
+                        if (randomTypeSelect && step.random_type) {
+                            randomTypeSelect.value = step.random_type;
+                            
+                            // Trigger a change event to show conditionals
+                            randomTypeSelect.dispatchEvent(new Event('change'));
+                            
+                            // Wait a moment to ensure password fields are created
+                            if (step.random_type === 'Password') {
+                                setTimeout(() => {
+                                    // Fill password options
+                                    const minLengthField = document.getElementById('password_min_length');
+                                    if (minLengthField && step.password_min_length) {
+                                        minLengthField.value = step.password_min_length;
+                                    }
+                                    
+                                    const maxLengthField = document.getElementById('password_max_length');
+                                    if (maxLengthField && step.password_max_length) {
+                                        maxLengthField.value = step.password_max_length;
+                                    }
+                                    
+                                    const uppercaseField = document.getElementById('password_include_uppercase');
+                                    if (uppercaseField && step.password_include_uppercase !== undefined) {
+                                        uppercaseField.checked = step.password_include_uppercase;
+                                    }
+                                    
+                                    const numbersField = document.getElementById('password_include_numbers');
+                                    if (numbersField && step.password_include_numbers !== undefined) {
+                                        numbersField.checked = step.password_include_numbers;
+                                    }
+                                    
+                                    const specialField = document.getElementById('password_include_special');
+                                    if (specialField && step.password_include_special !== undefined) {
+                                        specialField.checked = step.password_include_special;
+                                    }
+                                }, 200);
+                            }
+                        }
+                    }, 100);
+                } else {
+                    fixedRadio.checked = true;
+                    
+                    // Trigger change event to update conditionals
+                    fixedRadio.dispatchEvent(new Event('change'));
+                    
+                    // Wait for conditionals to load
+                    setTimeout(() => {
+                        const valueField = document.getElementById('value');
+                        if (valueField) {
+                            valueField.value = step.value || '';
+                        }
+                        
+                        const unitField = document.getElementById('unit');
+                        if (unitField && step.unit) {
+                            unitField.value = step.unit;
+                        }
+                    }, 100);
+                }
+            }
+        } else {
+            // Fill all fields
+            Object.keys(step).forEach(key => {
+                if (key !== 'type') {
+                    const field = document.getElementById(key);
+                    if (field) {
+                        if (field.type === 'checkbox') {
+                            field.checked = step[key];
+                        } else {
+                            field.value = step[key];
+                        }
                     }
                 }
             });
-
-            document.getElementById('saveStepBtn').textContent = 'Update Step';
-            
-            // Koppel Enter-toets aan primaire knop
-            setupModalEnterKey('addStepModal', 'saveStepBtn');
-        }, 100);
-    }
+        }
+        
+        // Update button text
+        document.getElementById('saveStepBtn').textContent = 'Update Step';
+        
+        // Koppel Enter toets aan de primary button
+        setupModalEnterKey('addStepModal', 'saveStepBtn');
+    }, 200); // Longer timeout to ensure all fields are loaded
 }
 
 function deleteStep(index) {
@@ -1156,6 +1414,16 @@ function updateJsonPreview() {
     const config = {
         steps: steps
     };
+    
+    // Example of correct JSON configuration for randomization:
+    // {
+    //   "selector": "#field-firstname",
+    //   "type": "input",
+    //   "randomize": true,
+    //   "random_type": "First Name",
+    //   "clear_first": true
+    // }
+    
     document.getElementById('jsonPreview').textContent = JSON.stringify(config, null, 2);
 }
 
@@ -1295,6 +1563,37 @@ function setupAllModals() {
         if (primaryButton) {
             // Stel de enter-toets in voor deze modal met de gevonden primaire knop
             setupModalEnterKey(modalId, primaryButton);
+        }
+    });
+}
+
+// Helper functie om event listeners in te stellen voor velden die conditionele velden beïnvloeden
+function setupConditionalFieldListeners(stepType, fieldValues) {
+    // Vind alle velden die andere velden beïnvloeden via condities
+    stepFields[stepType].filter(field => {
+        return stepFields[stepType].some(f => f.condition && f.condition.field === field.name);
+    }).forEach(field => {
+        const element = document.getElementById(field.name);
+        if (!element) return;
+        
+        if (field.type === 'radio') {
+            const radioGroup = document.querySelectorAll(`input[name="${field.name}"]`);
+            radioGroup.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    fieldValues[field.name] = radio.value;
+                    updateConditionalFields(stepType, fieldValues);
+                });
+            });
+        } else if (field.type === 'select') {
+            element.addEventListener('change', () => {
+                fieldValues[field.name] = element.value;
+                updateConditionalFields(stepType, fieldValues);
+            });
+        } else {
+            element.addEventListener('change', () => {
+                fieldValues[field.name] = element.type === 'checkbox' ? element.checked : element.value;
+                updateConditionalFields(stepType, fieldValues);
+            });
         }
     });
 }

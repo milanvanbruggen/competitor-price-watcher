@@ -14,6 +14,7 @@ import crud, schemas
 from datetime import datetime
 from config_manager import export_configs_to_file, import_configs_from_file
 import tempfile
+from urllib.parse import unquote
 
 # Initialize database on startup
 init_db()
@@ -93,9 +94,26 @@ async def config_page(request: Request, db: Session = Depends(get_db)):
     country_configs = {config.country_code: config.config for config in crud.get_country_configs(db)}
     package_configs = {config.package_id: config.config for config in crud.get_package_configs(db)}
     
+    # Group domains by extension
+    domains_by_extension = {}
+    for domain, config in domain_configs.items():
+        # Extract extension (like .nl, .com, .de, etc)
+        parts = domain.split('.')
+        if len(parts) > 1:
+            extension = '.' + parts[-1]
+            if extension not in domains_by_extension:
+                domains_by_extension[extension] = []
+            domains_by_extension[extension].append((domain, config))
+        else:
+            # For domains without extension
+            if 'other' not in domains_by_extension:
+                domains_by_extension['other'] = []
+            domains_by_extension['other'].append((domain, config))
+    
     return templates.TemplateResponse("config.html", {
         "request": request,
         "domain_configs": domain_configs,
+        "domains_by_extension": domains_by_extension,
         "country_configs": country_configs,
         "package_configs": package_configs
     })
@@ -228,7 +246,10 @@ async def calculate_shipping(request: ShippingRequest, db: Session = Depends(get
 
 @app.get("/api/config/{domain}")
 async def get_config(domain: str, db: Session = Depends(get_db)):
-    config = crud.get_domain_config(db, domain)
+    # URL decode the domain
+    decoded_domain = unquote(domain)
+    
+    config = crud.get_domain_config(db, decoded_domain)
     if not config:
         raise HTTPException(status_code=404, detail="Configuration not found")
     return config.config
@@ -245,6 +266,17 @@ async def save_config(request: ConfigRequest, db: Session = Depends(get_db)):
 
 @app.delete("/api/config/{domain}")
 async def delete_config(domain: str, db: Session = Depends(get_db)):
+    # URL decode the domain
+    decoded_domain = unquote(domain)
+    
+    if not crud.delete_domain_config(db, decoded_domain):
+        raise HTTPException(status_code=404, detail="Configuration not found")
+    return {"success": True}
+
+@app.post("/api/config/delete")
+async def delete_config_by_body(request: ConfigRequest, db: Session = Depends(get_db)):
+    """Delete domain configuration by providing domain in request body instead of URL path"""
+    domain = request.domain
     if not crud.delete_domain_config(db, domain):
         raise HTTPException(status_code=404, detail="Configuration not found")
     return {"success": True}
@@ -333,7 +365,10 @@ app.add_route("/api/status-stream", price_status_stream)
 @app.get("/api/config/{domain}/versions")
 async def get_domain_versions(domain: str, db: Session = Depends(get_db)):
     """Haal alle versies op van een domein configuratie"""
-    versions = crud.get_config_versions(db, 'domain', domain)
+    # URL decode the domain
+    decoded_domain = unquote(domain)
+    
+    versions = crud.get_config_versions(db, 'domain', decoded_domain)
     if not versions:
         raise HTTPException(status_code=404, detail="No versions found")
     return [VersionResponse(
@@ -346,7 +381,10 @@ async def get_domain_versions(domain: str, db: Session = Depends(get_db)):
 @app.post("/api/config/{domain}/restore/{version}")
 async def restore_domain_version(domain: str, version: int, db: Session = Depends(get_db)):
     """Herstel een specifieke versie van een domein configuratie"""
-    config = crud.restore_config_version(db, 'domain', domain, version)
+    # URL decode the domain
+    decoded_domain = unquote(domain)
+    
+    config = crud.restore_config_version(db, 'domain', decoded_domain, version)
     if not config:
         raise HTTPException(status_code=404, detail="Version not found")
     return {"success": True}

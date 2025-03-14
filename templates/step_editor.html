@@ -101,6 +101,7 @@
                                 <option value="click">Click</option>
                                 <option value="wait">Wait</option>
                                 <option value="blur">Blur</option>
+                                <option value="captcha">Captcha</option>
                                 <option value="modify_element">Modify Element</option>
                                 <option value="read_price">Read Price</option>
                             </select>
@@ -138,8 +139,21 @@
                             <label for="loadDomain" class="block text-sm font-medium text-gray-700 mb-1">Select Domain</label>
                             <select id="loadDomain" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                                 <option value="">Select a domain...</option>
+                                {% set grouped_domains = {} %}
                                 {% for domain, config in domain_configs.items() %}
-                                <option value="{{ domain }}">{{ domain }}</option>
+                                    {% set extension = '.' + domain.split('.')[-1] %}
+                                    {% if extension not in grouped_domains %}
+                                        {% set _ = grouped_domains.update({extension: []}) %}
+                                    {% endif %}
+                                    {% set _ = grouped_domains[extension].append(domain) %}
+                                {% endfor %}
+                                
+                                {% for extension in grouped_domains.keys()|sort %}
+                                    <optgroup label="{{ extension }} domains ({{ grouped_domains[extension]|length }})">
+                                        {% for domain in grouped_domains[extension]|sort %}
+                                        <option value="{{ domain }}">{{ domain }}</option>
+                                        {% endfor %}
+                                    </optgroup>
                                 {% endfor %}
                             </select>
                         </div>
@@ -181,8 +195,21 @@
                             <div class="flex gap-2">
                                 <select id="existingDomain" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                                     <option value="">Create new domain...</option>
+                                    {% set grouped_domains = {} %}
                                     {% for domain, config in domain_configs.items() %}
-                                    <option value="{{ domain }}">{{ domain }}</option>
+                                        {% set extension = '.' + domain.split('.')[-1] %}
+                                        {% if extension not in grouped_domains %}
+                                            {% set _ = grouped_domains.update({extension: []}) %}
+                                        {% endif %}
+                                        {% set _ = grouped_domains[extension].append(domain) %}
+                                    {% endfor %}
+                                    
+                                    {% for extension in grouped_domains.keys()|sort %}
+                                        <optgroup label="{{ extension }} domains ({{ grouped_domains[extension]|length }})">
+                                            {% for domain in grouped_domains[extension]|sort %}
+                                            <option value="{{ domain }}">{{ domain }}</option>
+                                            {% endfor %}
+                                        </optgroup>
                                     {% endfor %}
                                 </select>
                                 <input type="text" id="domainName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="example.com">
@@ -468,6 +495,77 @@ const stepFields = {
             label: 'Includes VAT', 
             required: false,
             help: 'Check if the price shown includes VAT. Will be used for correct price calculations'
+        }
+    ],
+    captcha: [
+        {
+            name: 'captcha_type',
+            label: 'Captcha Type',
+            type: 'select',
+            options: ['checkbox', 'recaptcha_v2'],
+            required: true,
+            default: 'checkbox',
+            help: 'Type of captcha to handle. "checkbox" is a standard "I\'m not a robot" checkbox; "recaptcha_v2" is Google reCAPTCHA with image challenges.'
+        },
+        {
+            name: 'solving_method',
+            label: 'Solving Method',
+            type: 'select',
+            options: ['manual', 'external_service'],
+            required: true,
+            default: 'manual',
+            help: 'Choose whether to try solving manually or use an external captcha solving service.'
+        },
+        {
+            name: 'external_service',
+            label: 'External Service',
+            type: 'select',
+            options: ['2Captcha', 'Anti-Captcha', 'CapMonster'],
+            required: true,
+            default: '2Captcha',
+            help: 'Select which external captcha solving service to use.',
+            condition: { field: 'solving_method', value: 'external_service' }
+        },
+        {
+            name: 'api_key',
+            label: 'API Key',
+            type: 'text',
+            required: true,
+            help: 'Enter your API key for the selected captcha solving service.',
+            condition: { field: 'solving_method', value: 'external_service' }
+        },
+        {
+            name: 'selector',
+            label: 'Captcha Selector',
+            type: 'text',
+            required: false,
+            help: 'CSS selector for the captcha checkbox. Leave empty to use auto-detection (recommended).'
+        },
+        {
+            name: 'frame_selector',
+            label: 'Frame Selector',
+            type: 'text',
+            required: false,
+            help: 'CSS selector for the iframe containing the captcha. Only needed if captcha is in an iframe.'
+        },
+        {
+            name: 'max_wait_time',
+            label: 'Maximum Wait Time (seconds)',
+            type: 'number',
+            required: false,
+            default: 120,
+            min: 30,
+            max: 300,
+            help: 'Maximum time to wait for the captcha to be solved by the external service, in seconds.',
+            condition: { field: 'solving_method', value: 'external_service' }
+        },
+        {
+            name: 'skip_on_failure',
+            label: 'Skip on Failure',
+            type: 'checkbox',
+            required: false,
+            default: true,
+            help: 'Continue with the next steps if the captcha cannot be solved automatically.'
         }
     ]
 };

@@ -328,6 +328,53 @@
     "includes_vat": true
 }</pre>
                     </div>
+
+                    <div class="border-t border-gray-200 pt-6 mt-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">captcha</h3>
+                        <p class="text-gray-600 mb-4">Handles captchas including Google reCAPTCHA and standard checkbox captchas. Useful for forms that include captcha verification.</p>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parameter</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-gray-500">captcha_type</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">string</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">Type of captcha: 'checkbox' (default) or 'recaptcha_v2'</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-gray-500">selector</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">string</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">CSS selector for the captcha checkbox (leave empty for auto-detection)</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-gray-500">frame_selector</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">string</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">CSS selector for the iframe containing the captcha</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm"><span class="text-gray-500">skip_on_failure</span></td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">boolean</td>
+                                        <td class="px-4 py-3 text-sm text-gray-500">Whether to continue with next steps if captcha solving fails (default: true)</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <pre class="bg-gray-50 p-4 rounded-lg mt-4 text-sm font-mono">
+{
+    "type": "captcha",
+    "captcha_type": "checkbox",
+    "frame_selector": "iframe[src*='recaptcha']"
+}</pre>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                            <p class="text-blue-800"><strong>Note:</strong> For standard "I'm not a robot" checkbox captchas, you can often leave the <code>selector</code> field empty to use auto-detection. If the captcha is in an iframe (common with Google reCAPTCHA), providing the <code>frame_selector</code> will help locate it more reliably.</p>
+                        </div>
+                    </div>
                 </section>
 
                 <section id="variables" class="mb-8">

@@ -8,4 +8,5 @@ forex-python==1.8
 sse-starlette==2.2.1
 sqlalchemy==2.0.38
 psycopg2-binary==2.9.10
-alembic==1.14.1 
+alembic==1.14.1
+aiohttp==3.9.1 

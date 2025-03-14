@@ -117,6 +117,8 @@ class PriceCalculator:
                         await self._handle_wait(step)
                     elif step_type == 'blur':
                         await self._handle_blur(page, step)
+                    elif step_type == 'captcha':
+                        await self._handle_captcha(page, step)
                     elif step_type == 'read_price':
                         price = await self._handle_read_price(page, step)
                         
@@ -1380,6 +1382,8 @@ class PriceCalculator:
                 await self._handle_modify(page, step)
             elif step_type == 'blur':
                 await self._handle_blur(page, step)
+            elif step_type == 'captcha':
+                await self._handle_captcha(page, step)
             else:
                 self._update_status(f"Unknown step type: {step_type}", "error")
                 raise ValueError(f"Unknown step type: {step_type}")
@@ -1391,3 +1395,578 @@ class PriceCalculator:
             raise
         
         return None 
+
+    async def _handle_captcha(self, page, step):
+        """Handle different types of captchas including reCAPTCHA and checkbox captchas"""
+        captcha_type = step.get('captcha_type', 'checkbox')
+        solving_method = step.get('solving_method', 'manual')
+        selector = step.get('selector', '')
+        frame_selector = step.get('frame_selector', '')
+        skip_on_failure = step.get('skip_on_failure', True)
+        
+        self._update_status(f"Attempting to handle {captcha_type} captcha", "captcha", {
+            "type": captcha_type,
+            "method": solving_method
+        })
+        
+        # Check if using external service
+        if solving_method == 'external_service':
+            # Get external service configuration
+            service_name = step.get('external_service', '2Captcha')
+            api_key = step.get('api_key', '')
+            max_wait_time = int(step.get('max_wait_time', 120))
+            
+            if not api_key:
+                self._update_status("No API key provided for external captcha service", "error")
+                if skip_on_failure:
+                    return
+                raise ValueError("No API key provided for external captcha service")
+            
+            self._update_status(f"Using {service_name} to solve captcha", "captcha")
+            
+            try:
+                # Extract site key from the page
+                site_key = await self._extract_recaptcha_key(page)
+                if not site_key:
+                    self._update_status("Could not extract reCAPTCHA site key", "error")
+                    if skip_on_failure:
+                        return
+                    raise ValueError("Could not extract reCAPTCHA site key")
+                
+                # Get the page URL
+                page_url = page.url
+                
+                # Solve captcha using external service
+                solution = await self._solve_captcha_with_external_service(
+                    service_name, 
+                    api_key, 
+                    site_key, 
+                    page_url,
+                    captcha_type,
+                    max_wait_time
+                )
+                
+                if not solution:
+                    self._update_status("Failed to get captcha solution from external service", "error")
+                    if skip_on_failure:
+                        return
+                    raise ValueError("Failed to get captcha solution from external service")
+                
+                # Apply the solution
+                await self._apply_captcha_solution(page, solution, captcha_type)
+                self._update_status("Applied captcha solution from external service", "captcha", {"status": "success"})
+                return
+            except Exception as e:
+                self._update_status(f"Error using external captcha service: {str(e)}", "error")
+                if skip_on_failure:
+                    return
+                raise
+        
+        # Manual method (default)
+        max_retries = 3
+        
+        # Different approaches based on captcha type
+        if captcha_type == 'checkbox':
+            for attempt in range(max_retries):
+                try:
+                    if frame_selector:
+                        # If the captcha is in an iframe, we need to handle it differently
+                        self._update_status("Captcha is in an iframe, navigating to it", "captcha")
+                        
+                        # Wait for the frame to be available
+                        frame = await page.wait_for_selector(frame_selector)
+                        if not frame:
+                            raise ValueError(f"Captcha frame not found with selector: {frame_selector}")
+                        
+                        # Get the iframe's content frame
+                        content_frame = await frame.content_frame()
+                        if not content_frame:
+                            raise ValueError("Could not get content frame from iframe")
+                        
+                        # Now find the checkbox within the frame
+                        checkbox_selector = selector or 'span[role="checkbox"]'
+                        checkbox = await content_frame.wait_for_selector(checkbox_selector, timeout=5000)
+                        if not checkbox:
+                            raise ValueError(f"Captcha checkbox not found in frame with selector: {checkbox_selector}")
+                        
+                        # Ensure it's visible before clicking
+                        await checkbox.scroll_into_view_if_needed()
+                        await asyncio.sleep(0.5)
+                        
+                        # Click the checkbox
+                        await checkbox.click()
+                        await asyncio.sleep(1.0)  # Wait for potential animations
+                        
+                        # Check if it was successful
+                        is_checked = await content_frame.evaluate(f"""
+                            (selector) => {{
+                                const el = document.querySelector(selector);
+                                if (el) {{
+                                    return el.getAttribute('aria-checked') === 'true' || 
+                                           el.getAttribute('aria-selected') === 'true' || 
+                                           el.checked === true;
+                                }}
+                                return false;
+                            }}
+                        """, checkbox_selector)
+                        
+                        if is_checked:
+                            self._update_status("Captcha checkbox successfully checked", "captcha", {"status": "success"})
+                            return
+                    else:
+                        # Direct approach for captchas in the main page
+                        self._update_status(f"Looking for captcha checkbox with selector: {selector}", "captcha")
+                        
+                        # Use a more general selector if none provided
+                        if not selector:
+                            selector = '[role="checkbox"], .recaptcha-checkbox, .g-recaptcha'
+                        
+                        # Try multiple methods to find and interact with the captcha
+                        
+                        # Method 1: Direct selector
+                        element = await page.wait_for_selector(selector, timeout=5000, state="visible")
+                        if element:
+                            self._update_status("Found captcha checkbox, scrolling to it", "captcha")
+                            await element.scroll_into_view_if_needed()
+                            await asyncio.sleep(0.5)
+                            
+                            # Try to get if it's already checked
+                            is_checked = await element.evaluate("""
+                                (el) => {
+                                    return el.getAttribute('aria-checked') === 'true' || 
+                                           el.getAttribute('aria-selected') === 'true' || 
+                                           el.checked === true;
+                                }
+                            """)
+                            
+                            if not is_checked:
+                                # Click the element
+                                await element.click(force=True)
+                                await asyncio.sleep(1.0)  # Wait for animations
+                                
+                                # Check if successful
+                                is_checked = await element.evaluate("""
+                                    (el) => {
+                                        return el.getAttribute('aria-checked') === 'true' || 
+                                               el.getAttribute('aria-selected') === 'true' || 
+                                               el.checked === true;
+                                    }
+                                """)
+                                
+                                if is_checked:
+                                    self._update_status("Captcha checkbox successfully checked", "captcha", {"status": "success"})
+                                    return
+                            else:
+                                self._update_status("Captcha checkbox was already checked", "captcha", {"status": "success"})
+                                return
+                        
+                        # Method 2: Look for iframes containing reCAPTCHA
+                        recaptcha_frames = await page.query_selector_all('iframe[src*="recaptcha"]')
+                        if recaptcha_frames:
+                            for frame_elem in recaptcha_frames:
+                                try:
+                                    content_frame = await frame_elem.content_frame()
+                                    if content_frame:
+                                        # Look for the checkbox in this frame
+                                        checkbox = await content_frame.wait_for_selector('span[role="checkbox"]', timeout=2000)
+                                        if checkbox:
+                                            await checkbox.click()
+                                            await asyncio.sleep(1.0)
+                                            is_checked = await content_frame.evaluate("""
+                                                () => {
+                                                    const el = document.querySelector('span[role="checkbox"]');
+                                                    return el && el.getAttribute('aria-checked') === 'true';
+                                                }
+                                            """)
+                                            
+                                            if is_checked:
+                                                self._update_status("Captcha checkbox in iframe successfully checked", "captcha", {"status": "success"})
+                                                return
+                                except Exception as iframe_error:
+                                    self._update_status(f"Error with iframe approach: {str(iframe_error)}", "warn")
+                                    continue
+                        
+                        # Method 3: Use JavaScript to find and click
+                        js_result = await page.evaluate("""
+                            () => {
+                                // Try various selectors for captcha checkboxes
+                                const selectors = [
+                                    '[role="checkbox"]', 
+                                    '.recaptcha-checkbox', 
+                                    '.g-recaptcha',
+                                    'iframe[src*="recaptcha"]',
+                                    '#recaptcha-anchor'
+                                ];
+                                
+                                for (const selector of selectors) {
+                                    const elements = document.querySelectorAll(selector);
+                                    for (const el of elements) {
+                                        try {
+                                            // If it's an iframe, we can't click directly
+                                            if (el.tagName.toLowerCase() === 'iframe') {
+                                                // Just report we found an iframe
+                                                return { success: false, message: 'Found reCAPTCHA iframe but cannot interact directly' };
+                                            }
+                                            
+                                            // Otherwise click the element
+                                            el.click();
+                                            
+                                            // Check if it worked
+                                            const isChecked = 
+                                                el.getAttribute('aria-checked') === 'true' || 
+                                                el.getAttribute('aria-selected') === 'true' || 
+                                                el.checked === true;
+                                                
+                                            if (isChecked) {
+                                                return { success: true, message: 'Captcha checkbox clicked successfully via JavaScript' };
+                                            }
+                                        } catch (e) {
+                                            console.error('Error clicking captcha:', e);
+                                        }
+                                    }
+                                }
+                                
+                                return { success: false, message: 'No captcha elements found with JavaScript' };
+                            }
+                        """)
+                        
+                        if js_result.get('success'):
+                            self._update_status(js_result.get('message'), "captcha", {"status": "success"})
+                            return
+                
+                except Exception as e:
+                    self._update_status(f"Captcha handling error (attempt {attempt+1}/{max_retries}): {str(e)}", "warn")
+                    if attempt == max_retries - 1:
+                        self._update_status("Failed to handle captcha after multiple attempts", "error")
+                        if skip_on_failure:
+                            return
+                    await asyncio.sleep(1.0)
+        
+        elif captcha_type == 'recaptcha_v2':
+            # Handle more complex reCAPTCHA v2 with image selection challenges
+            if solving_method == 'manual':
+                self._update_status("reCAPTCHA v2 with challenges detected - manual method not suitable", "captcha", {"status": "warn"})
+                
+                # If the step has a skip_on_failure flag, we can continue
+                if skip_on_failure:
+                    self._update_status("Skipping complex captcha as configured", "captcha")
+                    return
+                
+                # Otherwise we can only attempt to click the checkbox and hope it passes
+                try:
+                    # Try to find the initial checkbox frame
+                    frames = await page.query_selector_all('iframe[src*="recaptcha"]')
+                    if frames:
+                        for frame_elem in frames:
+                            try:
+                                frame = await frame_elem.content_frame()
+                                if frame:
+                                    checkbox = await frame.query_selector('span[role="checkbox"]')
+                                    if checkbox:
+                                        await checkbox.click()
+                                        self._update_status("Clicked reCAPTCHA checkbox, but cannot solve challenges", "captcha", {"status": "warn"})
+                                        # Wait a bit longer to see if it passes without a challenge
+                                        await asyncio.sleep(3.0)
+                            except Exception:
+                                continue
+                except Exception as e:
+                    self._update_status(f"Error attempting reCAPTCHA v2: {str(e)}", "error")
+                    if not skip_on_failure:
+                        raise
+            
+        else:
+            self._update_status(f"Unsupported captcha type: {captcha_type}", "error")
+            if skip_on_failure:
+                return
+            raise ValueError(f"Unsupported captcha type: {captcha_type}")
+    
+    async def _extract_recaptcha_key(self, page):
+        """Extract reCAPTCHA site key from the page"""
+        try:
+            # Try multiple methods to extract the site key
+            site_key = await page.evaluate("""
+                () => {
+                    // Method 1: Look for g-recaptcha elements with data-sitekey
+                    const recaptchaElements = document.querySelectorAll('.g-recaptcha[data-sitekey], [class*=recaptcha][data-sitekey]');
+                    if (recaptchaElements.length > 0) {
+                        return recaptchaElements[0].getAttribute('data-sitekey');
+                    }
+                    
+                    // Method 2: Look for grecaptcha in window object and try to extract key
+                    if (window.grecaptcha && window.grecaptcha.render) {
+                        // This is more complex as it's in the rendered parameters
+                        const recaptchaDiv = document.querySelector('.g-recaptcha');
+                        if (recaptchaDiv) {
+                            return recaptchaDiv.getAttribute('data-sitekey');
+                        }
+                    }
+                    
+                    // Method 3: Look in the page source
+                    const scripts = document.querySelectorAll('script');
+                    for (const script of scripts) {
+                        const text = script.textContent || script.innerText || '';
+                        const match = text.match(/('sitekey'|"sitekey"|sitekey)(\s*):(\s*)(['"`])((\\.|[^\\])*?)\4/i);
+                        if (match && match[5]) {
+                            return match[5];
+                        }
+                    }
+                    
+                    // Method 4: Search in script src attributes
+                    for (const script of scripts) {
+                        const src = script.getAttribute('src') || '';
+                        if (src.includes('recaptcha')) {
+                            const match = src.match(/[?&]k=([^&]+)/i);
+                            if (match && match[1]) {
+                                return match[1];
+                            }
+                        }
+                    }
+                    
+                    // Method 5: Look for recaptcha iframe and extract from src
+                    const recaptchaIframes = document.querySelectorAll('iframe[src*="recaptcha"]');
+                    for (const iframe of recaptchaIframes) {
+                        const src = iframe.getAttribute('src') || '';
+                        const match = src.match(/[?&]k=([^&]+)/i);
+                        if (match && match[1]) {
+                            return match[1];
+                        }
+                    }
+                    
+                    return null;
+                }
+            """)
+            
+            if site_key:
+                self._update_status(f"Found reCAPTCHA site key: {site_key}", "captcha")
+                return site_key
+                
+            self._update_status("Could not find reCAPTCHA site key with JavaScript", "warn")
+            return None
+            
+        except Exception as e:
+            self._update_status(f"Error extracting reCAPTCHA site key: {str(e)}", "error")
+            return None
+    
+    async def _solve_captcha_with_external_service(self, service_name, api_key, site_key, page_url, captcha_type, max_wait_time):
+        """Solve captcha using an external service"""
+        try:
+            import aiohttp
+            import json
+            import time
+            
+            start_time = time.time()
+            self._update_status(f"Starting captcha solution request with {service_name}", "captcha")
+            
+            # API endpoints for different services
+            service_endpoints = {
+                '2Captcha': {
+                    'submit': 'https://2captcha.com/in.php',
+                    'retrieve': 'https://2captcha.com/res.php'
+                },
+                'Anti-Captcha': {
+                    'submit': 'https://api.anti-captcha.com/createTask',
+                    'retrieve': 'https://api.anti-captcha.com/getTaskResult'
+                },
+                'CapMonster': {
+                    'submit': 'https://api.capmonster.cloud/createTask',
+                    'retrieve': 'https://api.capmonster.cloud/getTaskResult'
+                }
+            }
+            
+            if service_name not in service_endpoints:
+                self._update_status(f"Unknown captcha service: {service_name}", "error")
+                return None
+            
+            # Prepare the request data
+            task_data = None
+            task_id = None
+            
+            # Using aiohttp for non-blocking HTTP requests
+            async with aiohttp.ClientSession() as session:
+                # Submit the captcha task
+                if service_name == '2Captcha':
+                    # 2Captcha API
+                    params = {
+                        'key': api_key,
+                        'method': 'userrecaptcha',
+                        'googlekey': site_key,
+                        'pageurl': page_url,
+                        'json': 1
+                    }
+                    async with session.get(service_endpoints[service_name]['submit'], params=params) as response:
+                        result = await response.json()
+                        if result.get('status') == 1:
+                            task_id = result.get('request')
+                        else:
+                            self._update_status(f"Error from {service_name}: {result.get('error_text', 'Unknown error')}", "error")
+                            return None
+                else:
+                    # Anti-Captcha/CapMonster API
+                    data = {
+                        'clientKey': api_key,
+                        'task': {
+                            'type': 'NoCaptchaTaskProxyless',
+                            'websiteURL': page_url,
+                            'websiteKey': site_key
+                        }
+                    }
+                    async with session.post(service_endpoints[service_name]['submit'], json=data) as response:
+                        result = await response.json()
+                        if service_name == 'Anti-Captcha':
+                            if result.get('errorId') == 0:
+                                task_id = result.get('taskId')
+                            else:
+                                self._update_status(f"Error from {service_name}: {result.get('errorDescription', 'Unknown error')}", "error")
+                                return None
+                        else:  # CapMonster
+                            if result.get('errorId') == 0:
+                                task_id = result.get('taskId')
+                            else:
+                                self._update_status(f"Error from {service_name}: {result.get('errorCode', 'Unknown error')}", "error")
+                                return None
+                
+                # If we have a task ID, poll for results
+                if task_id:
+                    self._update_status(f"Captcha task submitted, waiting for solution (task ID: {task_id})", "captcha")
+                    # Poll with increasing delays
+                    wait_time = 5  # Start with 5 seconds
+                    
+                    while time.time() - start_time < max_wait_time:
+                        # Wait before polling
+                        await asyncio.sleep(wait_time)
+                        
+                        # Adjust wait time for next poll
+                        wait_time = min(wait_time * 1.5, 15)  # Increase wait time but cap at 15 seconds
+                        
+                        self._update_status(f"Checking captcha solution status (elapsed: {int(time.time() - start_time)}s)", "captcha")
+                        
+                        # Poll for results
+                        if service_name == '2Captcha':
+                            params = {
+                                'key': api_key,
+                                'action': 'get',
+                                'id': task_id,
+                                'json': 1
+                            }
+                            async with session.get(service_endpoints[service_name]['retrieve'], params=params) as response:
+                                result = await response.json()
+                                if result.get('status') == 1:
+                                    # We have a solution
+                                    solution = result.get('request')
+                                    self._update_status(f"Captcha solved successfully in {int(time.time() - start_time)}s", "captcha", {"status": "success"})
+                                    return solution
+                                elif result.get('request') != 'CAPCHA_NOT_READY':
+                                    # Some error occurred
+                                    self._update_status(f"Error from {service_name}: {result.get('request', 'Unknown error')}", "error")
+                                    return None
+                        else:
+                            # Anti-Captcha/CapMonster API
+                            data = {
+                                'clientKey': api_key,
+                                'taskId': task_id
+                            }
+                            async with session.post(service_endpoints[service_name]['retrieve'], json=data) as response:
+                                result = await response.json()
+                                if result.get('errorId') == 0 and result.get('status') == 'ready':
+                                    # We have a solution
+                                    solution = result.get('solution', {}).get('gRecaptchaResponse')
+                                    self._update_status(f"Captcha solved successfully in {int(time.time() - start_time)}s", "captcha", {"status": "success"})
+                                    return solution
+                                elif result.get('errorId') != 0:
+                                    # Some error occurred
+                                    error_msg = result.get('errorDescription', 'Unknown error')
+                                    if service_name == 'CapMonster':
+                                        error_msg = result.get('errorCode', 'Unknown error')
+                                    self._update_status(f"Error from {service_name}: {error_msg}", "error")
+                                    return None
+                    
+                    # If we get here, we've timed out
+                    self._update_status(f"Timed out waiting for captcha solution after {max_wait_time}s", "error")
+                    return None
+                else:
+                    self._update_status("Failed to submit captcha task", "error")
+                    return None
+        
+        except Exception as e:
+            self._update_status(f"Error using external captcha service: {str(e)}", "error")
+            return None
+    
+    async def _apply_captcha_solution(self, page, solution, captcha_type):
+        """Apply the captcha solution to the page"""
+        if captcha_type == 'recaptcha_v2':
+            try:
+                # Set the g-recaptcha-response textarea
+                await page.evaluate(f"""
+                    (solution) => {{
+                        // Create a textarea or find existing one if the challenge is active
+                        const existing = document.querySelector('textarea#g-recaptcha-response');
+                        
+                        if (existing) {{
+                            // If the textarea already exists, just set its value
+                            existing.value = solution;
+                        }} else {{
+                            // Create a new textarea if needed
+                            const textarea = document.createElement('textarea');
+                            textarea.id = 'g-recaptcha-response';
+                            textarea.name = 'g-recaptcha-response';
+                            textarea.className = 'g-recaptcha-response';
+                            textarea.style.display = 'none';
+                            textarea.value = solution;
+                            document.body.appendChild(textarea);
+                        }}
+                        
+                        // Trigger events to make the site recognize the solved captcha
+                        document.dispatchEvent(new Event('captcha-solution'));
+                        
+                        // Try to trigger success callbacks
+                        if (window.___grecaptcha_cfg && window.___grecaptcha_cfg.clients) {{
+                            const clients = Object.values(window.___grecaptcha_cfg.clients);
+                            for (const client of clients) {{
+                                try {{
+                                    // Different versions of reCAPTCHA have different structures
+                                    // Try to find and call the callback
+                                    if (client && client.iY) {{
+                                        const callback = client.iY.callback;
+                                        if (typeof callback === 'function') {{
+                                            callback(solution);
+                                        }}
+                                    }}
+                                }} catch (e) {{
+                                    console.error('Error triggering reCAPTCHA callback:', e);
+                                }}
+                            }}
+                        }}
+                        
+                        return true;
+                    }}
+                """, solution)
+                
+                # Wait a moment for any callbacks to execute
+                await asyncio.sleep(2.0)
+                
+                # Try to find and click any submit buttons that might have been enabled
+                await page.evaluate("""
+                    () => {
+                        // Look for newly enabled submit buttons
+                        const buttons = document.querySelectorAll('button:not([disabled]), input[type="submit"]:not([disabled])');
+                        for (const button of buttons) {
+                            // Check if it's visible
+                            const style = window.getComputedStyle(button);
+                            if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+                                // Might be a submit button that was enabled after solving captcha
+                                // Don't click automatically, as it might submit a form before all fields are filled
+                                // Just return that we found an enabled button
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+                """)
+                
+                return True
+            except Exception as e:
+                self._update_status(f"Error applying captcha solution: {str(e)}", "error")
+                return False
+        else:
+            self._update_status(f"Unsupported captcha type: {captcha_type}", "error")
+            raise ValueError(f"Unsupported captcha type: {captcha_type}") 

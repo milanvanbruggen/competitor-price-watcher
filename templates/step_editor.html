@@ -151,7 +151,7 @@
                                 {% for extension in grouped_domains.keys()|sort %}
                                     <optgroup label="{{ extension }} domains ({{ grouped_domains[extension]|length }})">
                                         {% for domain in grouped_domains[extension]|sort %}
-                                        <option value="{{ domain }}">{{ domain }}</option>
+                                <option value="{{ domain }}">{{ domain }}</option>
                                         {% endfor %}
                                     </optgroup>
                                 {% endfor %}
@@ -207,7 +207,7 @@
                                     {% for extension in grouped_domains.keys()|sort %}
                                         <optgroup label="{{ extension }} domains ({{ grouped_domains[extension]|length }})">
                                             {% for domain in grouped_domains[extension]|sort %}
-                                            <option value="{{ domain }}">{{ domain }}</option>
+                                    <option value="{{ domain }}">{{ domain }}</option>
                                             {% endfor %}
                                         </optgroup>
                                     {% endfor %}
@@ -352,10 +352,73 @@ const stepFields = {
             name: 'random_type',
             label: 'Random Value Type',
             type: 'select',
-            options: ['First Name', 'Last Name', 'Email Address', 'Password', 'Generic Term'],
+            options: ['First Name', 'Last Name', 'Email Address', 'Password', 'Generic Term', 'Street Name', 'Postal Code', 'City Name', 'Phone Number', 'Random Number'],
             required: true,
             help: 'Choose which type of random value should be generated. This works in combination with the "randomize: true" setting',
             condition: { field: 'input_method', value: 'randomize' }
+        },
+        {
+            name: 'postal_code_country',
+            label: 'Country for Postal Code',
+            type: 'select',
+            options: ['NL', 'BE', 'DE', 'FR', 'GB'],
+            required: true,
+            help: 'Select the country for generating a valid postal code format. This will also affect city names and phone numbers to ensure consistency.',
+            condition: { field: 'random_type', value: ['Postal Code', 'City Name', 'Phone Number', 'Street Name'] }
+        },
+        {
+            name: 'city',
+            label: 'City',
+            type: 'select',
+            options: [
+                // Dutch cities
+                "Amsterdam", "Rotterdam", "Den Haag", "Utrecht", "Eindhoven",
+                "Groningen", "Tilburg", "Almere", "Breda", "Nijmegen",
+                "Enschede", "Haarlem", "Amersfoort", "Arnhem", "Zaanstad",
+                "Den Bosch", "Zwolle", "Maastricht", "Leiden", "Alkmaar",
+                // Belgian cities
+                "Brussel", "Antwerpen", "Gent", "Charleroi", "Luik",
+                "Brugge", "Sint-Niklaas", "Aalst", "Mechelen", "Kortrijk",
+                // German cities
+                "Berlijn", "Hamburg", "München", "Keulen", "Frankfurt",
+                "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig",
+                // French cities
+                "Parijs", "Marseille", "Lyon", "Toulouse", "Nice",
+                "Nantes", "Strasbourg", "Montpellier", "Bordeaux", "Lille",
+                // British cities
+                "Londen", "Manchester", "Birmingham", "Leeds", "Glasgow",
+                "Sheffield", "Edinburgh", "Liverpool", "Bristol", "Cardiff"
+            ],
+            required: true,
+            help: 'Select a city to ensure consistent address data. This will affect street names, postal codes, and phone numbers.',
+            condition: { field: 'random_type', value: ['Street Name', 'Postal Code', 'Phone Number'] }
+        },
+        {
+            name: 'random_number_min',
+            label: 'Minimum Number',
+            type: 'number',
+            required: true,
+            help: 'Minimum value for the random number',
+            condition: { field: 'random_type', value: 'Random Number' }
+        },
+        {
+            name: 'random_number_max',
+            label: 'Maximum Number',
+            type: 'number',
+            required: true,
+            help: 'Maximum value for the random number',
+            condition: { field: 'random_type', value: 'Random Number' }
+        },
+        {
+            name: 'random_number_decimals',
+            label: 'Number of Decimals',
+            type: 'number',
+            min: 0,
+            max: 10,
+            default: 0,
+            required: false,
+            help: 'Number of decimal places for the random number (0-10)',
+            condition: { field: 'random_type', value: 'Random Number' }
         },
         {
             name: 'password_min_length',
@@ -431,9 +494,9 @@ const stepFields = {
             required: true,
             help: 'Enter a CSS selector (e.g., #button-id, .class-name) or XPath (e.g., //button[contains(text(),"Add")])'
         },
-        {
-            name: 'description',
-            label: 'Description',
+        { 
+            name: 'description', 
+            label: 'Description', 
             type: 'text',
             required: false,
             help: 'Optional description of what this click is doing'
@@ -701,7 +764,7 @@ function updateStepFields() {
     const stepType = document.getElementById('stepType').value;
     const fieldsContainer = document.getElementById('stepFields');
     fieldsContainer.innerHTML = '';
-    
+
     // Map om alle veldwaarden bij te houden voor conditionele velden
     const fieldValues = {};
 
@@ -858,7 +921,7 @@ function updateFieldValues(stepType, fieldValues) {
 
 // Helper functie om een enkel veld te maken en toe te voegen aan de container
 function createField(field, container, fieldValues) {
-    const div = document.createElement('div');
+        const div = document.createElement('div');
     div.className = 'mb-4 field-container';
     div.dataset.field = field.name;
 
@@ -932,7 +995,7 @@ function createField(field, container, fieldValues) {
             // Create a container for the value input and variable selector
             const container = document.createElement('div');
             container.className = 'flex gap-2';
-    
+
             // Create the value input
             const valueInput = document.createElement('input');
             valueInput.type = 'text';
@@ -940,7 +1003,7 @@ function createField(field, container, fieldValues) {
             valueInput.name = field.name;
             valueInput.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
             valueInput.required = field.required;
-    
+
             // Create the variable selector
             const varSelect = document.createElement('select');
             varSelect.className = 'mt-1 block w-48 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
@@ -955,7 +1018,7 @@ function createField(field, container, fieldValues) {
                     this.value = ''; // Reset dropdown after selection
                 }
             });
-    
+
             container.appendChild(valueInput);
             container.appendChild(varSelect);
             div.appendChild(container);
@@ -992,32 +1055,32 @@ function createField(field, container, fieldValues) {
         } else {
             const input = document.createElement('input');
             input.type = field.type;
-            input.id = field.name;
-            input.name = field.name;
+        input.id = field.name;
+        input.name = field.name;
             input.className = 'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm';
-            input.required = field.required;
-            
-            div.appendChild(input);
+        input.required = field.required;
+
+        div.appendChild(input);
             fieldValues[field.name] = input.value;
         }
     }
 
-    // Add help text if available
-    if (field.help) {
-        const helpContainer = document.createElement('div');
-        helpContainer.className = 'mt-2 flex items-start gap-1';
-        
-        const infoIcon = document.createElement('div');
-        infoIcon.innerHTML = `<i class="fas fa-circle-info h-3 w-3 text-gray-400 mt-1"></i>`;
-        
-        const helpText = document.createElement('p');
-        helpText.className = 'text-xs text-gray-500 flex-1';
-        helpText.textContent = field.help;
-        
-        helpContainer.appendChild(infoIcon);
-        helpContainer.appendChild(helpText);
-        div.appendChild(helpContainer);
-    }
+        // Add help text if available
+        if (field.help) {
+            const helpContainer = document.createElement('div');
+            helpContainer.className = 'mt-2 flex items-start gap-1';
+            
+            const infoIcon = document.createElement('div');
+            infoIcon.innerHTML = `<i class="fas fa-circle-info h-3 w-3 text-gray-400 mt-1"></i>`;
+            
+            const helpText = document.createElement('p');
+            helpText.className = 'text-xs text-gray-500 flex-1';
+            helpText.textContent = field.help;
+            
+            helpContainer.appendChild(infoIcon);
+            helpContainer.appendChild(helpText);
+            div.appendChild(helpContainer);
+        }
 
     container.appendChild(div);
 }
@@ -1031,7 +1094,7 @@ function saveStep() {
 
     const stepType = document.getElementById('stepType').value;
     const step = { type: stepType };
-    
+
     // Eerst alle zichtbare velden vinden
     const visibleFields = document.querySelectorAll('.field-container');
     const visibleFieldNames = Array.from(visibleFields).map(el => el.dataset.field);
@@ -1066,7 +1129,7 @@ function saveStep() {
             }
         }
     });
-    
+
     // Speciale verwerking voor index-gebaseerde select
     if (stepType === 'select' && step.select_method === 'index') {
         // Markeer expliciet dat dit een index-gebaseerde selectie is
@@ -1102,6 +1165,14 @@ function saveStep() {
         
         // Verwijder input_method omdat we nu randomize direct gebruiken
         delete step.input_method;
+
+        // Special handling for address-related fields
+        const randomType = document.getElementById('random_type').value;
+        const city = document.getElementById('city').value;
+        
+        if (['Street Name', 'Postal Code', 'Phone Number'].includes(randomType) && city) {
+            step.city = city;
+        }
     }
     
     // Verwijder de select_method uit het uiteindelijke step object omdat dit alleen UI-gerelateerd is
@@ -1122,7 +1193,7 @@ function saveStep() {
         // Voeg een nieuwe stap toe
         steps.push(step);
     }
-    
+
     // Verberg de modal (deze reset de form maar niet de editingIndex)
     hideAddStepModal();
     
@@ -1278,10 +1349,10 @@ function formatStepDetails(step) {
     }
     else {
         // Default details for all other steps
-        if (step.selector) details.push(`Selector: ${step.selector}`);
-        if (step.value) details.push(`Value: ${step.value}`);
-        if (step.duration) details.push(`Duration: ${step.duration}`);
-        if (step.description) details.push(step.description);
+    if (step.selector) details.push(`Selector: ${step.selector}`);
+    if (step.value) details.push(`Value: ${step.value}`);
+    if (step.duration) details.push(`Duration: ${step.duration}`);
+    if (step.description) details.push(step.description);
     }
     
     return details.join(' | ') || 'No additional details';
@@ -1475,14 +1546,14 @@ function editStep(index) {
                         } else {
                             field.value = step[key];
                         }
-                    }
                 }
-            });
+            }
+        });
         }
-        
+
         // Update button text
         document.getElementById('saveStepBtn').textContent = 'Update Step';
-        
+
         // Koppel Enter toets aan de primary button
         setupModalEnterKey('addStepModal', 'saveStepBtn');
     }, 200); // Longer timeout to ensure all fields are loaded

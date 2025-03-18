@@ -594,6 +594,64 @@ class PriceCalculator:
                         "includes_special": str(include_special)
                     }
                 )
+            elif random_type == 'Street Name':
+                # Lijst met Nederlandse straatnamen
+                street_names = [
+                    'Hoofdstraat', 'Kerkstraat', 'Schoolstraat', 'Molenstraat', 'Stationstraat',
+                    'Dorpsstraat', 'Markt', 'Beekstraat', 'Burgemeesterstraat', 'Industrieweg',
+                    'Parallelweg', 'Ringweg', 'Sportlaan', 'Wilhelminastraat', 'Julianastraat',
+                    'Beatrixstraat', 'Prins Bernhardstraat', 'Koningstraat', 'Koninginnewal',
+                    'Oranjelaan', 'Wilhelminapark', 'Julianapark', 'Beatrixpark', 'Prins Bernhardpark',
+                    'Koningin Julianapark', 'Oranjepark', 'Wilhelminaplein', 'Julianaplein',
+                    'Beatrixplein', 'Prins Bernhardplein', 'Koningin Julianaplein', 'Oranjeplein'
+                ]
+                # Voeg een willekeurig huisnummer toe
+                house_number = random.randint(1, 999)
+                step['value'] = f"{random.choice(street_names)} {house_number}"
+                self._update_status(f"Using random street name: {step['value']}", "input", {"selector": selector, "value": step['value']})
+            elif random_type == 'Postal Code':
+                country = step.get('postal_code_country', 'NL')
+                # Genereer postcode op basis van land
+                if country == 'NL':
+                    # Nederlandse postcode: 4 cijfers + 2 letters
+                    numbers = ''.join(random.choices(string.digits, k=4))
+                    letters = ''.join(random.choices(string.ascii_uppercase, k=2))
+                    step['value'] = f"{numbers} {letters}"
+                elif country == 'BE':
+                    # Belgische postcode: 4 cijfers
+                    step['value'] = ''.join(random.choices(string.digits, k=4))
+                elif country == 'DE':
+                    # Duitse postcode: 5 cijfers
+                    step['value'] = ''.join(random.choices(string.digits, k=5))
+                elif country == 'FR':
+                    # Franse postcode: 5 cijfers
+                    step['value'] = ''.join(random.choices(string.digits, k=5))
+                elif country == 'GB':
+                    # Britse postcode: AA9A 9AA format
+                    area = ''.join(random.choices(string.ascii_uppercase, k=2))
+                    district = random.choice(string.ascii_uppercase) + random.choice(string.digits)
+                    space = ' '
+                    sector = random.choice(string.digits)
+                    unit = ''.join(random.choices(string.ascii_uppercase, k=2))
+                    step['value'] = f"{area}{district}{space}{sector}{unit}"
+                else:
+                    # Voor andere landen, gebruik een algemene 5-cijferige postcode
+                    step['value'] = ''.join(random.choices(string.digits, k=5))
+                self._update_status(f"Using random postal code for {country}: {step['value']}", "input", {"selector": selector, "value": step['value']})
+            elif random_type == 'Random Number':
+                # Haal de instellingen op voor het willekeurige getal
+                min_value = float(step.get('random_number_min', 0))
+                max_value = float(step.get('random_number_max', 100))
+                decimals = int(step.get('random_number_decimals', 0))
+                
+                # Genereer een willekeurig getal met het opgegeven aantal decimalen
+                random_value = random.uniform(min_value, max_value)
+                if decimals == 0:
+                    step['value'] = str(int(random_value))
+                else:
+                    step['value'] = f"{random_value:.{decimals}f}"
+                
+                self._update_status(f"Using random number: {step['value']}", "input", {"selector": selector, "value": step['value']})
             else:  # Generic Term
                 terms = ['test', 'sample', 'example', 'demo', 'trial', 'preview', 'beta', 'review', 'check', 'verify']
                 step['value'] = random.choice(terms)
@@ -608,32 +666,32 @@ class PriceCalculator:
                 step['value'] = step['value']
                 
                 # Variabelen in de value string vervangen door waarden uit dimensions
-                for key in ['thickness', 'width', 'length', 'quantity']:
-                    if f"{{{key}}}" in step['value']:
-                        if key in dimensions:
-                            converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
-                            # Convert to integer if it's a whole number
-                            if isinstance(converted_value, float) and converted_value.is_integer():
-                                converted_value = int(converted_value)
-                            step['value'] = step['value'].replace(f"{{{key}}}", str(converted_value))
-                            self._update_status(
-                                f"Setting {key} to {converted_value}",
-                                "input",
-                                {
-                                    "selector": selector,
-                                    "value": str(converted_value),
-                                    "unit": step.get('unit', 'mm')
-                                }
-                            )
-                        else:
-                            self._update_status(f"Dimension {key} not found", "error")
-                            raise ValueError(f"Dimension {key} not found in dimensions dict")
+        for key in ['thickness', 'width', 'length', 'quantity']:
+            if f"{{{key}}}" in step['value']:
+                if key in dimensions:
+                    converted_value = self._convert_value(dimensions[key], step.get('unit', 'mm'))
+                    # Convert to integer if it's a whole number
+                    if isinstance(converted_value, float) and converted_value.is_integer():
+                        converted_value = int(converted_value)
+                    step['value'] = step['value'].replace(f"{{{key}}}", str(converted_value))
+                    self._update_status(
+                        f"Setting {key} to {converted_value}",
+                        "input",
+                        {
+                            "selector": selector,
+                            "value": str(converted_value),
+                            "unit": step.get('unit', 'mm')
+                        }
+                    )
+                else:
+                    self._update_status(f"Dimension {key} not found", "error")
+                    raise ValueError(f"Dimension {key} not found in dimensions dict")
 
         logging.info(f"Handling input: {selector} with value {step['value']}")
         self._update_status(f"Setting input value {step['value']}", "input", {"selector": selector, "value": step['value']})
         
         for attempt in range(max_retries):
-            try:
+            try:   
                 # Wacht langer op het element in de online omgeving
                 element = await page.wait_for_selector(selector, timeout=5000)  # 5 seconden timeout
                 if not element:
@@ -682,7 +740,7 @@ class PriceCalculator:
                     
                     if actual_value_str == step_value_str or step_value_str in actual_value_str:
                         self._update_status(f"Successfully set input to {step_value_str if step.get('random_type') != 'Password' else '[HIDDEN]'}", "input", {"status": "success"})
-                        break
+                        return
                     else:
                         self._update_status(f"Value mismatch: expected value not matching actual value", "warn")
                         
@@ -1970,3 +2028,184 @@ class PriceCalculator:
         else:
             self._update_status(f"Unsupported captcha type: {captcha_type}", "error")
             raise ValueError(f"Unsupported captcha type: {captcha_type}") 
+
+    def _generate_random_value(self, value_type: str, **kwargs) -> str:
+        """Generate a random value based on the specified type."""
+        if value_type == "First Name":
+            return random.choice([
+                "Jan", "Piet", "Klaas", "Henk", "Wim", "Hans", "Peter", "Paul", "Mark", "Thomas",
+                "Emma", "Sophie", "Julia", "Lisa", "Anna", "Maria", "Sarah", "Laura", "Eva", "Sophia"
+            ])
+        elif value_type == "Last Name":
+            return random.choice([
+                "de Vries", "van de Berg", "van Dijk", "Bakker", "Janssen", "Visser", "Smit", "Meijer", "de Boer", "Mulder",
+                "de Groot", "Bos", "Vos", "Peters", "Hendriks", "van Leeuwen", "Dekker", "Dijkstra", "Smits", "de Graaf"
+            ])
+        elif value_type == "Email Address":
+            first_name = self._generate_random_value("First Name").lower()
+            last_name = self._generate_random_value("Last Name").lower().replace(" ", "")
+            domains = ["gmail.com", "hotmail.com", "outlook.com", "yahoo.com", "icloud.com"]
+            return f"{first_name}.{last_name}@{random.choice(domains)}"
+        elif value_type == "Password":
+            min_length = kwargs.get('password_min_length', 12)
+            max_length = kwargs.get('password_max_length', 16)
+            length = random.randint(min_length, max_length)
+            
+            # Define character sets
+            lowercase = string.ascii_lowercase
+            uppercase = string.ascii_uppercase if kwargs.get('password_include_uppercase', True) else ""
+            digits = string.digits if kwargs.get('password_include_numbers', True) else ""
+            special = "!@#$%^&*" if kwargs.get('password_include_special', True) else ""
+            
+            # Ensure at least one of each required character type
+            password = [
+                random.choice(lowercase),
+                random.choice(uppercase) if uppercase else random.choice(lowercase),
+                random.choice(digits) if digits else random.choice(lowercase),
+                random.choice(special) if special else random.choice(lowercase)
+            ]
+            
+            # Fill the rest randomly
+            all_chars = lowercase + uppercase + digits + special
+            while len(password) < length:
+                password.append(random.choice(all_chars))
+            
+            # Shuffle the password
+            random.shuffle(password)
+            return "".join(password)
+        elif value_type == "Generic Term":
+            return random.choice([
+                "test", "example", "sample", "demo", "trial", "check", "verify", "validate", "confirm", "review",
+                "inspect", "examine", "assess", "evaluate", "analyze", "study", "research", "investigate", "explore", "probe"
+            ])
+        elif value_type == "Street Name":
+            # Define street names per city for consistency
+            city_streets = {
+                "Amsterdam": [
+                    "Damstraat", "Kalverstraat", "Nieuwendijk", "Damrak", "Rokin",
+                    "Leidsestraat", "Utrechtsestraat", "Spuistraat", "Nieuwezijds Voorburgwal", "Dam"
+                ],
+                "Rotterdam": [
+                    "Coolsingel", "Lijnbaan", "Hoogstraat", "Beursplein", "Binnenwegplein",
+                    "Meent", "Witte de Withstraat", "Coolsingel", "Blaak", "Witte de Withstraat"
+                ],
+                "Den Haag": [
+                    "Spuistraat", "Grote Marktstraat", "Lange Poten", "Plein", "Hofweg",
+                    "Noordeinde", "Lange Vijverberg", "Plein", "Spui", "Hofweg"
+                ],
+                "Utrecht": [
+                    "Oudegracht", "Hoog Catharijne", "Vredenburg", "Lange Viestraat", "Oudegracht",
+                    "Domstraat", "Neude", "Vredenburg", "Lange Viestraat", "Domstraat"
+                ],
+                "Eindhoven": [
+                    "Demer", "Rechtestraat", "Hooghuisstraat", "18 Septemberplein", "Stratumseind",
+                    "Kleine Berg", "Heuvel", "18 Septemberplein", "Stratumseind", "Kleine Berg"
+                ]
+            }
+            
+            # Get the city from the context or use a default
+            city = kwargs.get('city', random.choice(list(city_streets.keys())))
+            streets = city_streets.get(city, [
+                "Hoofdstraat", "Kerkstraat", "Schoolstraat", "Stationsstraat", "Marktstraat",
+                "Dorpsstraat", "Molenstraat", "Beekstraat", "Burgemeesterstraat", "Industrieweg"
+            ])
+            
+            house_number = random.randint(1, 999)
+            return f"{random.choice(streets)} {house_number}"
+        elif value_type == "Postal Code":
+            country = kwargs.get('postal_code_country', 'NL')
+            city = kwargs.get('city')
+            
+            # Define postal code ranges for major cities
+            city_postcodes = {
+                "Amsterdam": (1000, 1109),
+                "Rotterdam": (3000, 3089),
+                "Den Haag": (2500, 2599),
+                "Utrecht": (3500, 3585),
+                "Eindhoven": (5600, 5658)
+            }
+            
+            if city and city in city_postcodes:
+                min_code, max_code = city_postcodes[city]
+                postal_code = random.randint(min_code, max_code)
+                return f"{postal_code} {random.choice(string.ascii_uppercase)}{random.choice(string.ascii_uppercase)}"
+            
+            # Fallback to general postal code format if city is not in our list
+            postal_code_formats = {
+                'NL': lambda: f"{random.randint(1000, 9999)} {random.choice(string.ascii_uppercase)}{random.choice(string.ascii_uppercase)}",
+                'BE': lambda: f"{random.randint(1000, 9999)}",
+                'DE': lambda: f"{random.randint(10000, 99999)}",
+                'FR': lambda: f"{random.randint(10000, 99999)}",
+                'GB': lambda: f"{random.choice(string.ascii_uppercase)}{random.choice(string.ascii_uppercase)}{random.randint(1, 99)} {random.randint(1, 9)}{random.choice(string.ascii_uppercase)}{random.choice(string.ascii_uppercase)}"
+            }
+            return postal_code_formats.get(country, lambda: f"{random.randint(10000, 99999)}")()
+        elif value_type == "City Name":
+            # Define cities for different countries
+            cities = {
+                'NL': [
+                    "Amsterdam", "Rotterdam", "Den Haag", "Utrecht", "Eindhoven",
+                    "Groningen", "Tilburg", "Almere", "Breda", "Nijmegen",
+                    "Enschede", "Haarlem", "Amersfoort", "Arnhem", "Zaanstad",
+                    "Den Bosch", "Zwolle", "Maastricht", "Leiden", "Alkmaar"
+                ],
+                'BE': [
+                    "Brussel", "Antwerpen", "Gent", "Charleroi", "Luik",
+                    "Brugge", "Sint-Niklaas", "Aalst", "Mechelen", "Kortrijk",
+                    "Hasselt", "Oostende", "Genk", "Roeselare", "Turnhout",
+                    "Dendermonde", "Beveren", "Bilzen", "Lokeren", "Geel"
+                ],
+                'DE': [
+                    "Berlijn", "Hamburg", "München", "Keulen", "Frankfurt",
+                    "Stuttgart", "Düsseldorf", "Dortmund", "Essen", "Leipzig",
+                    "Dresden", "Hannover", "Nürnberg", "Duisburg", "Bochum",
+                    "Wuppertal", "Bielefeld", "Bonn", "Münster", "Karlsruhe"
+                ],
+                'FR': [
+                    "Parijs", "Marseille", "Lyon", "Toulouse", "Nice",
+                    "Nantes", "Strasbourg", "Montpellier", "Bordeaux", "Lille",
+                    "Rennes", "Reims", "Le Havre", "Saint-Étienne", "Toulon",
+                    "Grenoble", "Dijon", "Angers", "Nîmes", "Villeurbanne"
+                ],
+                'GB': [
+                    "Londen", "Manchester", "Birmingham", "Leeds", "Glasgow",
+                    "Sheffield", "Edinburgh", "Liverpool", "Bristol", "Cardiff",
+                    "Belfast", "Nottingham", "Hull", "Newcastle", "Stoke-on-Trent",
+                    "Coventry", "Sunderland", "Birkenhead", "Islington", "Reading"
+                ]
+            }
+            country = kwargs.get('postal_code_country', 'NL')
+            return random.choice(cities.get(country, cities['NL']))
+        elif value_type == "Phone Number":
+            country = kwargs.get('postal_code_country', 'NL')
+            city = kwargs.get('city')
+            
+            # Define area codes for major cities
+            city_area_codes = {
+                "Amsterdam": "020",
+                "Rotterdam": "010",
+                "Den Haag": "070",
+                "Utrecht": "030",
+                "Eindhoven": "040"
+            }
+            
+            if city and city in city_area_codes:
+                area_code = city_area_codes[city]
+                return f"+31 {area_code} {random.randint(1000000, 9999999)}"
+            
+            # Fallback to general phone number format if city is not in our list
+            phone_formats = {
+                'NL': lambda: f"+31 {random.randint(6, 7)}{random.randint(1000000, 9999999)}",
+                'BE': lambda: f"+32 {random.randint(400, 499)}{random.randint(100000, 999999)}",
+                'DE': lambda: f"+49 {random.randint(100, 999)}{random.randint(1000000, 9999999)}",
+                'FR': lambda: f"+33 {random.randint(1, 9)}{random.randint(10000000, 99999999)}",
+                'GB': lambda: f"+44 {random.randint(7000000000, 7999999999)}"
+            }
+            return phone_formats.get(country, lambda: f"+{random.randint(1, 99)} {random.randint(100000000, 999999999)}")()
+        elif value_type == "Random Number":
+            min_val = kwargs.get('random_number_min', 0)
+            max_val = kwargs.get('random_number_max', 100)
+            decimals = kwargs.get('random_number_decimals', 0)
+            value = random.uniform(min_val, max_val)
+            return f"{value:.{decimals}f}"
+        else:
+            return "Invalid value type"
